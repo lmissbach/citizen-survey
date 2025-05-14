@@ -31,9 +31,9 @@ data_0 <- read_delim("K:/2022_DESTATIS_Mikrozensen2014+2016+2019+EVS2013+2018/MC
 
 # 0.2.2 Carbon intensities ####
 
-carbon_intensities_0 <- read.xlsx("../2_Data/Carbon_Intensities_Full_All_Gas.xlsx", sheet = "Germany")
+carbon_intensities_0 <- read.xlsx("H:/6_Citizen_Survey/2_Data/Carbon_Intensities_Full_All_Gas.xlsx", sheet = "Germany")
   
-GTAP_code            <- read_delim("../2_Data/GTAP10.csv", ";", escape_double = FALSE, trim_ws = TRUE, show_col_types = FALSE)
+GTAP_code            <- read_delim("H:/6_Citizen_Survey/2_Data/GTAP10.csv", ";", escape_double = FALSE, trim_ws = TRUE, show_col_types = FALSE)
   
 carbon_intensities   <- left_join(GTAP_code, carbon_intensities_0, by = c("Number"="GTAP"))%>%
   select(-Explanation, - Number)%>%
@@ -106,13 +106,13 @@ industry.code <- data.frame(industry = seq(0,22,1),
                                          "Wasserversorgung; Abwasser- und Abfallentsorgung und Beseitigung von Umweltverschmutzung",
                                          "Baugewerbe, Hoch- und Tiefbau",
                                          "Gross- und Einzelhandel; Instandhaltung und Reparatur von Kraftfahrzeugen",
-                                         "Personen- und Gueterverkehr; Lagerei (einschlie?lich Post- und Kurierdienst)",
+                                         "Personen- und Gueterverkehr; Lagerei (einschliesslich Post- und Kurierdienst)",
                                          "Gastgewerbe / Beherbergung und Gastronomie",
                                          "Information und Kommunikation",
                                          "Banken / Finanz- und Versicherungsdienstleister",
                                          "Grundstuecks- und Wohnungswesen",
                                          "Freiberufliche, wissenschaftliche und technische Dienstleistungen",
-                                         "Sonstige wirtschaftliche Dienstleistungen f?r Unternehmen und Privatpersonen",
+                                         "Sonstige wirtschaftliche Dienstleistungen fuer Unternehmen und Privatpersonen",
                                          "Öffentliche Verwaltung, Gerichte, Öffentliche Sicherheit und Ordnung, Verteidigung, Sozialversicherung",
                                          "Erziehung und Unterricht",
                                          "Gesundheits- und Sozialwesen",
@@ -126,13 +126,13 @@ building_year.code <- data.frame(building_year = c(1,2,3,4,5),
                                  Building_year = c("<1949", "1949-1990", "1991-2000", "2001-2010","2011-2018"))
 
 building_type.code <- data.frame(building_type = c(1,2,3,4,5),
-                                 Building_type = c("Einfamilienhaus", "Doppelhaush?lfte", "Zweifamilienhaus", "Wohngeb?ude", "Sonstiges"))
+                                 Building_type = c("Einfamilienhaus", "Doppelhaushaelfte", "Zweifamilienhaus", "Wohngebaeude", "Sonstiges"))
 
 # renting.code <- data.frame(renting = c(1,2,3,4,5),
 #                            Renting = c("Eigent?mer", "Eigent?mer", "Mieter", "Mietfrei", "Mietfrei"))
 
 heating_type.code <- data.frame(heating_type = c(1,2,3,4),
-                                Heating_type = c("Fernheizung", "Block- o. Zentralheizung", "Etagenheizung", "Einzel?fen"))
+                                Heating_type = c("Fernheizung", "Block- o. Zentralheizung", "Etagenheizung", "Einzeloefen"))
 
 heating_fuel.code <- data.frame(heating_fuel = c(0,1,2,3,4,5),
                                 Heating_fuel = c("NA", "Strom", "Gas", "Heizoel", "Feste Brennstoffe", "Sonstiges"))
@@ -210,6 +210,15 @@ data_0.2 <- data_0 %>%
   select(hh_id, EF242:EF529)%>%
   arrange(hh_id)%>%
   pivot_longer(-hh_id, names_to = "item_code", values_to = "expenditures")%>%
+  left_join(select(data_0.1, hh_id, hh_weights))%>%
+  group_by(item_code)%>%
+  mutate(outlier_99 = wtd.quantile(expenditures, weights = hh_weights, probs = 0.99),
+        median_exp  = wtd.quantile(expenditures, weights = hh_weights, probs = 0.5))%>%
+  ungroup()%>%
+  mutate(flag_outlier_99 = ifelse(expenditures>= outlier_99,1,0))%>%
+  # this line replaces all expenditures which are above the 99th percentile for each item to the median
+  mutate(expenditures = ifelse(flag_outlier_99 == 1, median_exp, expenditures))%>%
+  # After check: Cleaning at expenditure-level not strictly necessary
   mutate(expenditures_year = expenditures*4)%>%
   filter(expenditures_year > 0)
 
@@ -220,30 +229,18 @@ rm(data_0)
 data_0.2.1 <- data_0.2 %>%
   left_join(item_gtap, by = "item_code")%>%
   filter(GTAP != "deleted")%>%
-  # deleting 30% of total expenditures ad 131,797 observations
-  # After check: Cleaning at item-level not strictly necessary
-  # group_by(item_code)%>%
-  # mutate(mean_0   = mean(expenditures_year),
-  #       sd_0      = sd(expenditures_year),
-  #       median_0  = quantile(expenditures_year, prob = 0.5))%>%
-  # ungroup()%>%
-  # mutate(z_score = (expenditures_year - mean_0)/sd_0)
-  # After check: Cleaning at expenditure-level not strictly necessary
-  # group_by(hh_id)%>%
-  # mutate(tot_exp = sum(expenditures_year))%>%
-  # ungroup()
   left_join(select(carbon_intensities, GTAP, CO2_t_per_dollar_national, CO2_t_per_dollar_transport, CO2_t_per_dollar_gas, CO2_t_per_dollar_gas_direct), by = "GTAP")%>%
   mutate(CO2_t_per_dollar_national   = ifelse(is.na(CO2_t_per_dollar_national),  0,CO2_t_per_dollar_national),
          CO2_t_per_dollar_transport  = ifelse(is.na(CO2_t_per_dollar_transport), 0,CO2_t_per_dollar_transport),
          CO2_t_per_dollar_gas        = ifelse(is.na(CO2_t_per_dollar_gas),       0,CO2_t_per_dollar_gas),
          CO2_t_per_dollar_gas_direct = ifelse(is.na(CO2_t_per_dollar_gas_direct),0,CO2_t_per_dollar_gas_direct))%>%
   # Adjusting for dollar/Euro
-  mutate(CO2_t_per_euro_national   = CO2_t_per_dollar_national/exchange.rate,
-         CO2_t_per_euro_transport  = CO2_t_per_dollar_transport/exchange.rate,
-         CO2_t_per_euro_gas        = CO2_t_per_dollar_gas/exchange.rate,
-         CO2_t_per_euro_gas_direct = CO2_t_per_dollar_gas_direct/exchange.rate)%>%
-  mutate(CO2_t_national           = CO2_t_per_euro_national*expenditures_year*inflation.rate,
-         CO2_t_transport          = CO2_t_per_euro_transport*expenditures_year*inflation.rate,
+  mutate(CO2_t_per_euro_national   = CO2_t_per_dollar_national*exchange.rate,
+         CO2_t_per_euro_transport  = CO2_t_per_dollar_transport*exchange.rate,
+         CO2_t_per_euro_gas        = CO2_t_per_dollar_gas*exchange.rate,
+         CO2_t_per_euro_gas_direct = CO2_t_per_dollar_gas_direct*exchange.rate)%>%
+  mutate(CO2_t_national            = CO2_t_per_euro_national*expenditures_year*inflation.rate,
+         CO2_t_transport           = CO2_t_per_euro_transport*expenditures_year*inflation.rate,
          # Applying carbon pricing in gas sector everywhere warranted, given that also manufacturing firms may require gas for heating
          # Also little difference --> latter is true, but still
          CO2_t_gas                = CO2_t_per_euro_gas*expenditures_year*inflation.rate,
@@ -257,6 +254,27 @@ data_0.2.2 <- data_0.2.1 %>%
             CO2_t_gas                 = sum(CO2_t_gas),
             CO2_t_gas_direct          = sum(CO2_t_gas_direct))%>%
   ungroup()
+
+# data_0.2.2_supervision <- data_0.2.1 %>%
+#   mutate(interest = CO2_t_transport + CO2_t_gas_direct)%>%
+#   group_by(hh_id)%>%
+#   mutate(interest_sum = sum(interest))%>%
+#   ungroup()%>%
+#   mutate(share = interest/interest_sum)%>%
+#   group_by(item_code)%>%
+#   summarise(share = mean(share))%>%
+#   ungroup()%>%
+#   arrange(desc(share))
+
+# Keine irregulären Items
+# Kohle, Holz und andere feste Brennstoffe
+# Kraftstoffe, Autogas, Strom für Elektroauto, Schmiermittel
+# Erdgas
+# Gaszentralheizung und Wasser
+# Öl
+# Heizöl
+# Erdgas
+# Fernwärme
 
 data_0.2.3 <- data_0.2 %>%
   left_join(select(item_fuels, item_code, fuel), by = "item_code")%>%
@@ -298,8 +316,8 @@ data_1.1 <- data_1 %>%
   mutate(burden_CO2_transport        = exp_CO2_transport/hh_expenditures_EURO_2018,
          burden_CO2_national         = exp_CO2_national/hh_expenditures_EURO_2018,
          burden_CO2_price            = exp_CO2_price/hh_expenditures_EURO_2018)%>%
-  mutate(t_weighted          = (CO2_t_gas_direct+CO2_t_transport)*hh_weights, # 898,388,189 = 898 MtO2 --> Emissionen sind zu hoch
-         t_weighted_national = CO2_t_national*hh_weights,            # 1,302,834,950 = 1,3 MtCO2 --> Emissionen sind zu hoch 
+  mutate(t_weighted          = (CO2_t_gas_direct+CO2_t_transport)*hh_weights, # 966,928,027 = 898 MtO2 --> Emissionen sind zu hoch
+         t_weighted_national = CO2_t_national*hh_weights,                     # 1,260,998,520 = 1,2 MtCO2 --> Emissionen sind zu hoch 
          Exp_Benzin          = Exp_Benzin*hh_weights)                         # 47 Milliarden Euro --> kommt ungef?hr hin.
 
 data_1.2 <- data_1.1 %>%
@@ -312,3 +330,39 @@ data_1.2 <- data_1.1 %>%
 write_rds(data_1.2, "H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Germany.rds")
 
 rm(data_1, data_1.1, data_1.2)
+
+
+# Check carbon intensities ####
+
+carbon_intensities_1 <- data.frame()
+
+for(i in c("Germany", "France", "Romania", "Spain")){
+  carbon_intensities_0 <- read.xlsx("../2_Data/Carbon_Intensities_Full_All_Gas.xlsx", sheet = i)
+  
+  GTAP_code            <- read_delim("../2_Data/GTAP10.csv", ";", escape_double = FALSE, trim_ws = TRUE, show_col_types = FALSE)
+  
+  carbon_intensities   <- left_join(GTAP_code, carbon_intensities_0, by = c("Number"="GTAP"))%>%
+    select(-Explanation, - Number)%>%
+    mutate(GTAP = ifelse(GTAP == "gas" | GTAP == "gdt", "gasgdt", GTAP))%>%
+    group_by(GTAP)%>%
+    summarise(across(CO2_Mt:Total_HH_Consumption_MUSD, ~ sum(.)))%>%
+    ungroup()%>%
+    mutate(CO2_direct_Gas = ifelse(GTAP == "gasgdt", CO2_direct,0))%>%
+    mutate(CO2_direct_Gas = ifelse(GTAP == "gas" | GTAP == "gdt", CO2_direct,0))%>%
+    mutate(CO2_t_per_dollar_global      = CO2_Mt/            Total_HH_Consumption_MUSD,
+           CO2_t_per_dollar_national    = CO2_Mt_within/     Total_HH_Consumption_MUSD,
+           CO2_t_per_dollar_electricity = CO2_Mt_Electricity/Total_HH_Consumption_MUSD,
+           CO2_t_per_dollar_transport   = CO2_Mt_Transport/  Total_HH_Consumption_MUSD,
+           CO2_t_per_dollar_gas         = CO2_Mt_Gas/        Total_HH_Consumption_MUSD,
+           CO2_t_per_dollar_gas_direct  = CO2_direct_Gas/    Total_HH_Consumption_MUSD)%>%
+    select(GTAP, CO2_t_per_dollar_national, CO2_t_per_dollar_gas_direct, CO2_t_per_dollar_transport)%>%
+    mutate(Country = i)
+  
+  carbon_intensities_1 <- carbon_intensities_1 %>%
+    bind_rows(carbon_intensities)%>%
+    arrange(GTAP, CO2_t_per_dollar_national)
+  
+  rm(carbon_intensities_0, GTAP_code)
+}
+
+# Gasintensität für Deutschland etwas hoch, aber nicht außergewöhnlich hoch.
