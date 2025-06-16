@@ -33,7 +33,7 @@ data_FRA_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transform
 # 1.1.1 Germany ####
 
 data_GER <- data_GER_0 %>%
-  select(-hh_id, -hh_weights, -urban_01, -starts_with("Exp_"), -CO2_t_national, -CO2_t_gas, -Expenditure_Group_5,-Expenditure_Group_10)%>%
+  select(-hh_id, -hh_weights, -urban_01, -starts_with("Exp_"), -CO2_t_national, -CO2_t_national_P, -Expenditure_Group_5,-Expenditure_Group_10)%>%
   mutate(bundesland = ifelse(bundesland == "Baden-Wuerttemberg", "Baden-Württemberg",
                              ifelse(bundesland == "Thueringen", "Thüringen", bundesland)))%>%
   mutate(heating_fuel = ifelse(heating_fuel == "NA" & heating_type == "Fernheizung", "Fernwärme", 
@@ -54,18 +54,23 @@ data_GER <- data_GER_0 %>%
                                                ifelse(number_of_cars > 2, "Drei Autos oder mehr", NA)))))%>%
   mutate(urban_type = ifelse(urban_type %in% c("Laendlicher Raum"), "Ländlicher Raum", 
                              ifelse(urban_type %in% c("Verstaedterter Raum"), "Stadtzentrum", "Vorort / Vorstadt")))%>%
-  mutate(CO2_t_interest = CO2_t_transport + CO2_t_gas_direct)%>% # TBD
-  mutate(exp_interest   = CO2_t_interest*40)%>% # TBD
-  mutate(burden_interest = exp_interest/hh_expenditures_EURO_2018)%>%
-  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest)%>%
-  mutate_if(vars(is.character(.)), list(~ as.factor(.))) # %>% # TBA
+  mutate(CO2_t_interest     = CO2_t_transport + CO2_t_gas_direct,
+         CO2_t_interest_P   = CO2_t_transport_P + CO2_t_gas_direct_P)%>% # TBD
+  mutate(exp_interest       = CO2_t_interest*40,
+         exp_interest_P     = CO2_t_interest_P*40)%>% # TBD
+  mutate(burden_interest    = exp_interest/hh_expenditures_EURO_2018,
+         burden_interest_P  = exp_interest_P/hh_expenditures_EURO_2018)%>%
+  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+  mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
+  select(-burden_interest)
   # after sanity check with random noise parameter 
   # select(-dishwasher.01, -nationality, -stove.g.01, -tv.01, -stove.e.01, -washing_machine.01, -refrigerator.01)
 
 # 1.1.2 Romania ####
 
 data_ROM <- data_ROM_0 %>%
-  select(-hh_id, -starts_with("Exp"), -CO2_t_national, -CO2_t_gas, -Expenditure_Group_5, -Expenditure_Group_10)%>%
+  select(-hh_id, -starts_with("Exp"), -CO2_t_national, -CO2_t_national_P, -Expenditure_Group_5, -Expenditure_Group_10)%>%
   mutate(heating_fuel = ifelse(heating_fuel %in% c("Natural gas", "Natural gas stove"), "Natural gas",
                                ifelse(heating_fuel %in% c("Wood", "Wood, coal or oil stove"), "Wood, coal or oil", 
                                       ifelse(heating_fuel %in% c("Other", "Other heating", "Not connected", "No heating"), "Other heating", heating_fuel))))%>%
@@ -87,16 +92,21 @@ data_ROM <- data_ROM_0 %>%
                                        construction_year >= 1991 & construction_year < 2001 ~ "1991-2000",
                                        construction_year >= 2001 & construction_year < 2011 ~ "2001-2010",
                                        construction_year >= 2011                            ~ ">2011"))%>%
-  mutate(CO2_t_interest = CO2_t_transport + CO2_t_gas_direct)%>% # TBD
-  mutate(exp_interest   = CO2_t_interest*162)%>% # in LEI
-  mutate(burden_interest = exp_interest/hh_expenditures_LEI_2018)%>%
-  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest)%>%
-  mutate_if(vars(is.character(.)), list(~ as.factor(.)))
+  mutate(CO2_t_interest   = CO2_t_transport + CO2_t_gas_direct,
+         CO2_t_interest_P = CO2_t_transport_P + CO2_t_gas_direct_P)%>% # TBD
+  mutate(exp_interest   = CO2_t_interest*162,
+         exp_interest_P = CO2_t_interest_P*162)%>% # in LEI
+  mutate(burden_interest = exp_interest/hh_expenditures_LEI_2018,
+         burden_interest_P = exp_interest_P/hh_expenditures_LEI_2018)%>%
+  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+  mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
+  select(-burden_interest)
 
 # 1.1.3 Spain ####
 
 data_ESP <- data_ESP_0 %>%
-  select(-hh_id, -CO2_t_national, -CO2_t_gas, -starts_with("Exp"), -Expenditure_Group_5, -Expenditure_Group_10)%>%
+  select(-hh_id, -CO2_t_national, -CO2_t_national_P, -starts_with("Exp"), -Expenditure_Group_5, -Expenditure_Group_10)%>%
   mutate(heating_fuel = ifelse(heating_fuel %in% c("Gas licuado", "Gas natural"), "Gas natural o Gas licuado", 
                                ifelse(heating_fuel == "No aplicable  (si CALEF=6)", "No calefaccion",
                                       ifelse(heating_fuel %in% c("No consta", "Otras", "Otros combustibles líquidos"), "Otras y líquidos", heating_fuel))))%>%
@@ -110,19 +120,27 @@ data_ESP <- data_ESP_0 %>%
   mutate(house_age = ifelse(house_age == 1, "Hace menos de 25 anos",
                             ifelse(house_age == 6, "Hace 25 o mas anos", "No consta")))%>%
   mutate(nationality = ifelse(nationality %in% c("Resto de Europa", "Resto de la Unión Europea (27 países)"), "Europa", nationality))%>%
-  mutate(CO2_t_interest = CO2_t_transport + CO2_t_gas_direct)%>% # TBD
-  mutate(exp_interest   = CO2_t_interest*40)%>% # in €
-  mutate(burden_interest = exp_interest/hh_expenditures_EURO_2018)%>%
-  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest)%>%
-  mutate_if(vars(is.character(.)), list(~ as.factor(.)))
+  mutate(CO2_t_interest = CO2_t_transport + CO2_t_gas_direct,
+         CO2_t_interest_P = CO2_t_transport_P + CO2_t_gas_direct_P)%>% # TBD
+  mutate(exp_interest   = CO2_t_interest*40,
+         exp_interest_P = CO2_t_interest_P*40)%>% # in €
+  mutate(burden_interest = exp_interest/hh_expenditures_EURO_2018,
+         burden_interest_P = exp_interest_P/hh_expenditures_EURO_2018)%>%
+  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+  mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
+  select(-burden_interest)
 
 # 1.1.4 France ####
 
 data_FRA <- data_FRA_0 %>%
-  select(-hh_id, -CO2_t_national, -CO2_t_gas, -starts_with("Exp"), -Expenditure_Group_5, -Expenditure_Group_10)%>%
-  mutate(heating_fuel = ifelse(heating_fuel %in% c("Autre", "Ne sait pas", "Other"), "Autre", 
-                               ifelse(heating_fuel %in% c("Aérothermie (pompe à chaleur)", "Géothermie", "Solaire", "Charbon, coke"), "Pompe à chaleur, géothermie, solaire, charbon ou coke", heating_fuel)))%>%
-  mutate(tenant = ifelse(tenant %in% c("Locataire", "Sous-locataire, co-locataire"), "Locataire", "Propriétaire ou copropriétaire"))%>%
+  select(-hh_id, -CO2_t_national, -CO2_t_national_P, -starts_with("Exp"), -Expenditure_Group_5, -Expenditure_Group_10)%>%
+  mutate(heating_fuel = ifelse(heating_fuel %in% c("Autre", "Ne sait pas", "Other", "Charbon, coke"), "Autre", 
+                               ifelse(heating_fuel %in% c("Aérothermie (pompe à chaleur)", "Géothermie", "Solaire"), "Pompe à chaleur, géothermie ou solaire", 
+                                      ifelse(heating_fuel == "Fuel, mazout, pétrole", "Fuel, mazout ou pétrole", 
+                                             ifelse(heating_fuel == "Butane, propane, gaz en citerne", "Butane, propane ou gaz en citerne", heating_fuel)))))%>%
+  mutate(tenant = ifelse(tenant %in% c("Locataire", "Sous-locataire, co-locataire"), "Locataire", 
+                         ifelse(tenant %in% c("Propriétaire ou copropriétaire (y compris en indivision) : vous n'avez pas de remboursement de prêt sur votre habitation", "Accédant à la propriété : vous avez des remboursements de prêts en cours"), "Propriétaire ou copropriétaire", "Autre")))%>%
   mutate(housing_type = ifelse(housing_type %in% c("Un logement dans un immeuble collectif", "Un logement dans un immeuble collectif à usage autre que d'habitation (usine, bureaux, commerce, bâtiment public...)"), "Logement dans un immeuble collectif", 
                                ifelse(housing_type %in% c("Une maison individuelle"), "Une maison individuelle", "Autre")))%>%
   mutate(construction_year = ifelse(construction_year %in% c("En 1948 ou avant"), construction_year,
@@ -130,14 +148,17 @@ data_FRA <- data_FRA_0 %>%
                                            ifelse(construction_year %in% c("De 1975 à 1981", "De 1982 à 1989"), "De 1975 à 1989",
                                                   ifelse(construction_year %in% c("De 1990 à 1998", "De 1999 à 2003"), "De 1990 à 2003",
                                                          ifelse(construction_year %in% c("En 2004 et après", "En construction"), "En 2004 et après", "Je ne sais pas"))))))%>%
-  mutate(number_of_cars = ifelse(number_of_cars == 0, "Je ne possède pas de voiture.",
-                                 ifelse(number_of_cars == 1, "Je possède une voiture.",
-                                        ifelse(number_of_cars == 2, "Je possède deux voitures.",
-                                               ifelse(number_of_cars > 2, "Je possède trois voitures ou plus.", NA)))))%>%
+  mutate(number_of_cars = ifelse(number_of_cars == 0, "Pas de voiture",
+                                 ifelse(number_of_cars == 1, "Une voiture",
+                                        ifelse(number_of_cars == 2, "Deux voitures",
+                                               ifelse(number_of_cars > 2, "Trois voitures ou plus", NA)))))%>%
   mutate(urban_type = ifelse(urban_type %in% c("Commune appartenant à un grand pôle (10 000 emplois ou plus)", "Commune multipolarisée des grandes aires urbaines"), "Grande ville ou centre urbain",
                                ifelse(urban_type %in% c("Commune appartenant à un moyen pôle (5 000 à moins de 10 000 emplois)", "Commune appartenant à un petit pôle (de 1 500 à moins de 5 000 emplois)"), "Petite ville ou centre régional",
                                       ifelse(urban_type %in% c("Commune appartenant à la couronne d'un grand pôle", "Commune appartenant à la couronne d'un moyen pôle", "Commune appartenant à la couronne d'un petit pôle"), "Commune périurbaine avec navetteurs",
                                              ifelse(urban_type %in% c("Commune multipolarisée", "Autre commune multipolarisée"), "Commune sous influence de plusieurs pôles", "Commune rurale ou isolée")))))%>%
+  mutate(urban_type = ifelse(urban_type %in% c("Grande ville ou centre urbain", "Petite ville ou centre régional"), "Une ville ou ses banlieues directes",
+                             ifelse(urban_type %in% c("Commune périurbaine avec navetteurs", "Commune sous influence de plusieurs pôles"), "Une commune rurale avec une liaison en transport public vers une ville", "Une commune rurale isolée (sans liaison facile en transport public vers une ville)")))%>%
+  mutate(province = ifelse(province %in% c("Bassin parisien", "Région parisienne"), "Région parisienne", province))%>%
   # Not relevant
   mutate(nationality = ifelse(nationality %in% c("Nationalité de l'Union européenne des 15 (sauf France)", "Nationalité des pays entrés en 2004 dans l'Union européenne"), "Nationalité de l'Union européenne", nationality))%>%
   mutate(housing_type_2 = ifelse(housing_type_2 == "Ne sait pas", "Other", housing_type_2))%>%
@@ -147,11 +168,16 @@ data_FRA <- data_FRA_0 %>%
   mutate(area = ifelse(is.na(area),999,area))%>%
   mutate(occupation = ifelse(occupation %in% c("Anciens employés et ouvriers", "Anciens cadres et professions intermédiaires","Ouvriers qualifiés","Inactifs divers (autres que retraités)",
                                               "Employés de la fonction publique", "Cadres d'entreprise"), occupation, "Other"))%>%
-  mutate(CO2_t_interest = CO2_t_transport + CO2_t_gas_direct)%>% # TBD
-  mutate(exp_interest   = CO2_t_interest*40)%>% # in €
-  mutate(burden_interest = exp_interest/hh_expenditures_EURO_2018)%>%
-  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest)%>%
-  mutate_if(vars(is.character(.)), list(~ as.factor(.)))
+  mutate(CO2_t_interest    = CO2_t_transport + CO2_t_gas_direct,
+         CO2_t_interest_P  = CO2_t_transport_P + CO2_t_gas_direct_P)%>% # TBD
+  mutate(exp_interest      = CO2_t_interest*40,
+         exp_interest_P    = CO2_t_interest_P*40)%>% # in €
+  mutate(burden_interest   = exp_interest/hh_expenditures_EURO_2018,
+         burden_interest_P = exp_interest_P/hh_expenditures_EURO_2018)%>%
+  select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+  mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
+  select(-burden_interest)
   
 # 1.2   Boosted regression trees ####
 
@@ -175,19 +201,19 @@ compute_BRT <- function(data_0, Country, run_0){
   
   # Feature engineering
   if(Country == "Germany"){
-    recipe_0 <- recipe(burden_interest ~ .,
+    recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
       # Deletes all columns with any NA
       step_filter_missing(all_predictors(), threshold = 0)%>%
       # Remove minimum number of columns such that correlations are less than 0.9
       step_corr(all_numeric(), -all_outcomes(), threshold = 0.9)%>%
       # should have very few unique observations for factors
-      step_other(all_nominal(),-building_type, threshold = 0.05)%>%
+      # step_other(all_nominal(),-building_type,-ausbildung, threshold = 0.05)%>%
       step_dummy(all_nominal())
   }
   
   if(Country == "Romania"){
-    recipe_0 <- recipe(burden_interest ~ .,
+    recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
       # Deletes all columns with any NA
       step_filter_missing(all_predictors(), threshold = 0)%>%
@@ -199,7 +225,7 @@ compute_BRT <- function(data_0, Country, run_0){
   }
   
   if(Country == "Spain"){
-    recipe_0 <- recipe(burden_interest ~ .,
+    recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
       # Deletes all columns with any NA
       step_filter_missing(all_predictors(), threshold = 0)%>%
@@ -212,7 +238,7 @@ compute_BRT <- function(data_0, Country, run_0){
   
   
   if(Country == "France"){
-   recipe_0 <- recipe(burden_interest ~ .,
+   recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
     # Deletes all columns with any NA
     step_filter_missing(all_predictors(), threshold = 0)%>%
@@ -269,7 +295,7 @@ compute_BRT <- function(data_0, Country, run_0){
   time_1 <- Sys.time()
   
   model_brt_1 <- tune_grid(model_brt,
-                           burden_interest ~ .,
+                           burden_interest_P ~ .,
                            resamples = folds_1,
                            grid      = grid_0,
                            metrics   = metric_set(mae, rmse, rsq))
@@ -295,29 +321,41 @@ compute_BRT <- function(data_0, Country, run_0){
   # tree_depth: 7, learning rate: 0.008327652, mtry: 59 --> r2: 0.145 (SPAIN)
   # tree_depth: 3, learning rate: 0.01242,     mtry: 56 --> r2: 0.174 (France)
   
+  if(Country == "Germany"){
+    tree_depth_0 <- 10
+    learn_rate_0   <- 0.005
+    mtry_0         <- 32
+  }
+  
+  if(Country == "Spain"){
+    tree_depth_0 <- 10
+    learn_rate_0   <- 0.005
+    mtry_0         <- 60
+  }
+  
   # Fit best model after tuning
   model_brt <- boost_tree(
     trees         = 1000,
-    tree_depth    = metrics_1.1$tree_depth[1], # 3
-    learn_rate    = metrics_1.1$learn_rate[1], # 0.0411
-    mtry          = metrics_1.1$mtry[1]        # 42
+    tree_depth    = tree_depth_0, # 3
+    learn_rate    = learn_rate_0, # 0.0411
+    mtry          = mtry_0        # 42
   )%>%
     set_mode("regression")%>%
     set_engine("xgboost")
   
   model_brt_2 <- model_brt %>%
-    fit(burden_interest ~ .,
+    fit(burden_interest_P ~ .,
         data = data_0.2.training)
   
   predictions_0 <- augment(model_brt_2, new_data = data_0.2.testing)
-  rsq_0  <- rsq(predictions_0,  truth = burden_interest, estimate = .pred)
+  rsq_0  <- rsq(predictions_0,  truth = burden_interest_P, estimate = .pred)
   
   data_0.2.testing_matrix <- data_0.2.testing %>%
-    select(-burden_interest)%>%
+    select(-burden_interest_P)%>%
     as.matrix()
   
   data_0.2.training_matrix <- data_0.2.training %>%
-    select(-burden_interest)%>%
+    select(-burden_interest_P)%>%
     as.matrix()
   
   time_3 <- Sys.time()
@@ -400,9 +438,8 @@ data_FRA <- data_FRA %>%
 
 # compute_BRT(data_GER, "Germany", 2)
 # compute_BRT(data_ROM, "Romania", 2)
-compute_BRT(data_ESP, "Spain",   2)
-compute_FRA(data_FRA, "France", 2)
-
+# compute_BRT(data_ESP, "Spain",   2)
+# compute_FRA(data_FRA, "France", 2)
 
 # Descriptive statistics
 
@@ -539,7 +576,7 @@ grid_FRA <- expand_grid("hh_expenditures_EURO_2018" = income_groups$hh_expenditu
 
 compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
   data_0.1 <- data_0 %>%
-    select(burden_interest, any_of(criteria_0))
+    select(burden_interest_P, any_of(criteria_0))
   
   data_0.2 <- data_0.1 %>%
     initial_split(prop = 0.8)
@@ -556,7 +593,7 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
   
   # Feature engineering
   if(Country == "Germany"){
-    recipe_0 <- recipe(burden_interest ~ .,
+    recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
       # Deletes all columns with any NA
       step_filter_missing(all_predictors(), threshold = 0)%>%
@@ -567,11 +604,11 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
       step_dummy(all_nominal())
     
     grid_0 <- grid_0 %>%
-      mutate(burden_interest = 0)
+      mutate(burden_interest_P = 0)
   }
   
   if(Country == "Romania"){
-    recipe_0 <- recipe(burden_interest ~ .,
+    recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
       # Deletes all columns with any NA
       step_filter_missing(all_predictors(), threshold = 0)%>%
@@ -582,11 +619,11 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
       step_dummy(all_nominal())
     
     grid_0 <- grid_0 %>%
-      mutate(burden_interest = 0)
+      mutate(burden_interest_P = 0)
   }
   
   if(Country == "Spain"){
-    recipe_0 <- recipe(burden_interest ~ .,
+    recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
       # Deletes all columns with any NA
       step_filter_missing(all_predictors(), threshold = 0)%>%
@@ -597,11 +634,11 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
       step_dummy(all_nominal())
     
     grid_0 <- grid_0 %>%
-      mutate(burden_interest = 0)
+      mutate(burden_interest_P = 0)
   }
   
   if(Country == "France"){
-    recipe_0 <- recipe(burden_interest ~ .,
+    recipe_0 <- recipe(burden_interest_P ~ .,
                        data = data_0.2.train)%>%
       # Deletes all columns with any NA
       step_filter_missing(all_predictors(), threshold = 0)%>%
@@ -613,7 +650,7 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
       step_dummy(all_nominal())
     
     grid_0 <- grid_0 %>%
-      mutate(burden_interest = 0)
+      mutate(burden_interest_P = 0)
   }
   
   
@@ -686,7 +723,7 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
   time_1 <- Sys.time()
   
   model_brt_1 <- tune_grid(model_brt,
-                           burden_interest ~ .,
+                           burden_interest_P ~ .,
                            resamples = folds_1,
                            grid      = grid_1,
                            metrics   = metric_set(mae, rmse, rsq))
@@ -709,27 +746,27 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
   rm(metrics_1, model_brt_1.1, metrics_1.1, model_brt, model_brt_1)
   
   if(Country == "Germany"){
-    tree_depth_0 <- 5
-    learn_rate_0 <- 0.01973427
-    mtry_0       <- 30
+    tree_depth_0 <- 6
+    learn_rate_0 <- 0.01873427
+    mtry_0       <- 23
   }
   
   if(Country == "Spain"){
-    tree_depth_0 <- 5
-    learn_rate_0 <- 0.003449451
-    mtry_0       <- 20
+    tree_depth_0 <- 4
+    learn_rate_0 <- 0.0135
+    mtry_0       <- 10
   }
   
   if(Country == "Romania"){
-    tree_depth_0 <- 7
-    learn_rate_0 <- 0.008363389
-    mtry_0       <- 20
+    tree_depth_0 <- 4
+    learn_rate_0 <- 0.0166
+    mtry_0       <- 24
   }
   
   if(Country == "France"){
     tree_depth_0 <- 9
-    learn_rate_0 <- 0.008709946
-    mtry_0       <- 38
+    learn_rate_0 <- 0.00783
+    mtry_0       <- 25
   }
   
   # Fit best model after tuning
@@ -743,26 +780,26 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
     set_engine("xgboost")
   
   model_brt_2 <- model_brt %>%
-    fit(burden_interest ~ .,
+    fit(burden_interest_P ~ .,
         data = data_0.2.training)
   
   predictions_0 <- augment(model_brt_2, new_data = data_0.2.testing)
-  rsq_0  <- rsq(predictions_0,  truth = burden_interest, estimate = .pred)
+  rsq_0  <- rsq(predictions_0,  truth = burden_interest_P, estimate = .pred)
   
   print(paste0("R-Squared for ", Country, " amounts to ", round(rsq_0$.estimate, 2)*100, "%."))
 
   predictions_1 <- augment(model_brt_2, new_data = data_grid_0)
   
   predictions_1.1 <- grid_0 %>%
-    select(-burden_interest)%>%
+    select(-burden_interest_P)%>%
     mutate(.pred = predictions_1$.pred)
   
-  write_rds(predictions_1.1, sprintf("../2_Data/Output/Predictions/Predictions_%s.rds", Country))
+  write_rds(predictions_1.1, sprintf("../2_Data/Output/Predictions/Predictions_P_%s.rds", Country))
   
   # Extract SHAP for general assessment
   
   data_0.2.testing_matrix <- data_0.2.testing %>%
-    select(-burden_interest)%>%
+    select(-burden_interest_P)%>%
     as.matrix()
   
   time_3 <- Sys.time()
@@ -818,27 +855,27 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
     arrange(desc(sum_0), desc(share_SHAP))
   
   if(Country == "Germany"){
-    write_parquet(shap_1.2, "../2_Data/Output/SHAP values/SHAP_Summary_Germany.parquet")
-    write_parquet(shap_1, "../2_Data/Output/SHAP values/SHAP_Detail_Germany.parquet")
-    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Germany.parquet")
+    write_parquet(shap_1.2, "../2_Data/Output/SHAP values/SHAP_Summary_Germany_P.parquet")
+    write_parquet(shap_1, "../2_Data/Output/SHAP values/SHAP_Detail_Germany_P.parquet")
+    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Germany_P.parquet")
   }
   
   if(Country == "France"){
-    write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_France.parquet")
-    write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_France.parquet")
-    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_France.parquet")
+    write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_France_P.parquet")
+    write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_France_P.parquet")
+    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_France_P.parquet")
   }
   
   if(Country == "Spain"){
-    write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_Spain.parquet")
-    write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_Spain.parquet")
-    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Spain.parquet")
+    write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_Spain_P.parquet")
+    write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_Spain_P.parquet")
+    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Spain_P.parquet")
   }
   
  if(Country == "Romania"){
-   write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_Romania.parquet")
-   write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_Romania.parquet")
-   write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Romania.parquet")
+   write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_Romania_P.parquet")
+   write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_Romania_P.parquet")
+   write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Romania_P.parquet")
  }
   
   
@@ -858,7 +895,7 @@ rm(grid_GER, grid_ROM, grid_ESP, grid_FRA)
 
 # Spain
 
-data_ESP_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_Spain.rds")%>%
+data_ESP_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_P_Spain.rds")%>%
   mutate_at(vars(heating_fuel:district, gender), ~ as.character(.))
 
 # heating_fuel
@@ -896,13 +933,13 @@ data_ESP_2.3.7 <- data_ESP_2.3.6 %>%
 
 data_ESP_2.3.7[] <- lapply(data_ESP_2.3.7, function(x) if (is.character(x)) as.factor(x) else x)
 
-write_rds(data_ESP_2.3.7, "../2_Data/Output/Predictions/Predictions_Spain_Update.rds", compress = "gz")
+write_rds(data_ESP_2.3.7, "../2_Data/Output/Predictions/Predictions_P_Spain_Update.rds", compress = "gz")
 
 rm(data_ESP_2.3.1, data_ESP_2.3.2, data_ESP_2.3, data_ESP_2.3.3, data_ESP_2.3.4, data_ESP_2.3.5, data_ESP_2.3.6, data_ESP_2.3.7)
 
 # Germany
 
-data_GER_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_Germany.rds")%>%
+data_GER_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_P_Germany.rds")%>%
   mutate_at(vars(heating_fuel:bundesland), ~ as.character(.))%>%
   mutate(space = round(space))
 
@@ -931,13 +968,13 @@ data_GER_2.3.5 <- data_GER_2.3.4 %>%
 
 data_GER_2.3.5[] <- lapply(data_GER_2.3.5, function(x) if (is.character(x)) as.factor(x) else x)
 
-write_rds(data_GER_2.3.5, "../2_Data/Output/Predictions/Predictions_Germany_Update.rds", compress = "gz")
+write_rds(data_GER_2.3.5, "../2_Data/Output/Predictions/Predictions_P_Germany_Update.rds", compress = "gz")
 
 rm(data_GER_2.3.1, data_GER_2.3.2, data_GER_2.3, data_GER_2.3.3, data_GER_2.3.4, data_GER_2.3.5)
 
 # France
 
-data_FRA_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_France.rds")%>%
+data_FRA_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_P_France.rds")%>%
   mutate_at(vars(heating_fuel:construction_year), ~ as.character(.))
 
 # heating_fuel
@@ -946,18 +983,18 @@ data_FRA_2.3.1 <- filter(data_FRA_2.3, heating_fuel == "Gaz de ville")%>%
   bind_rows(data_FRA_2.3)
 
 # urban_type
-data_FRA_2.3.2 <- filter(data_FRA_2.3.1, urban_type == "Grande ville ou centre urbain")%>%
+data_FRA_2.3.2 <- filter(data_FRA_2.3.1, urban_type == "Une ville ou ses banlieues directes")%>%
   mutate(urban_type = "Je ne sais pas")%>%
   bind_rows(data_FRA_2.3.1)
 
 data_FRA_2.3.2[] <- lapply(data_FRA_2.3.2, function(x) if (is.character(x)) as.factor(x) else x)
 
-write_rds(data_FRA_2.3.2, "../2_Data/Output/Predictions/Predictions_France_Update.rds", compress = "gz")
+write_rds(data_FRA_2.3.2, "../2_Data/Output/Predictions/Predictions_P_France_Update.rds", compress = "gz")
 
 rm(data_FRA_2.3.1, data_FRA_2.3.2)
 
 # Romania
-data_ROM_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_Romania.rds")%>%
+data_ROM_2.3 <- read_rds("../2_Data/Output/Predictions/Predictions_P_Romania.rds")%>%
   mutate_at(vars(heating_fuel:housing_type), ~ as.character(.))
 
 # heating_fuel
@@ -982,16 +1019,16 @@ data_ROM_2.3.4 <- filter(data_ROM_2.3.3, area > 45.6 & area < 47)%>%
 
 data_ROM_2.3.4[] <- lapply(data_ROM_2.3.4, function(x) if (is.character(x)) as.factor(x) else x)
 
-write_rds(data_ROM_2.3.4, "../2_Data/Output/Predictions/Predictions_Romania_Update.rds", compress = "gz")
+write_rds(data_ROM_2.3.4, "../2_Data/Output/Predictions/Predictions_P_Romania_Update.rds", compress = "gz")
 
 rm(data_ROM_2.3.1, data_ROM_2.3.2, data_ROM_2.3.3, data_ROM_2.3.4)
 
 # 2.4   Inclusion in distribution ####
 
-pred_GER <- read_rds("../2_Data/Output/Predictions/Predictions_Germany_Update.rds")
-pred_FRA <- read_rds("../2_Data/Output/Predictions/Predictions_France_Update.rds")
-pred_ESP <- read_rds("../2_Data/Output/Predictions/Predictions_Spain_Update.rds")
-pred_ROM <- read_rds("../2_Data/Output/Predictions/Predictions_Romania_Update.rds")
+pred_GER <- read_rds("../2_Data/Output/Predictions/Predictions_P_Germany_Update.rds")
+pred_FRA <- read_rds("../2_Data/Output/Predictions/Predictions_P_France_Update.rds")
+pred_ESP <- read_rds("../2_Data/Output/Predictions/Predictions_P_Spain_Update.rds")
+pred_ROM <- read_rds("../2_Data/Output/Predictions/Predictions_P_Romania_Update.rds")
 
 pred_GER[] <- lapply(pred_GER, function(x) if (is.character(x)) as.factor(x) else x)
 pred_FRA[] <- lapply(pred_FRA, function(x) if (is.character(x)) as.factor(x) else x)
@@ -1008,12 +1045,12 @@ for(i in c("Germany", "Spain", "France", "Romania")){
   if(i == "Germany") data_0 <- data_GER_0
   
   percentiles <- data_0 %>%
-    mutate(CO2_t_interest = CO2_t_transport + CO2_t_gas_direct)%>% # TBD
-    mutate(exp_interest   = CO2_t_interest*40)%>% # TBD
-    mutate(burden_interest = exp_interest/hh_expenditures_EURO_2018)%>%
-    mutate(Percentiles = as.numeric(binning(burden_interest, bins = 100, method = "wtd.quantile", weights = hh_weights)))%>%
+    mutate(CO2_t_interest_P = CO2_t_transport_P + CO2_t_gas_direct_P)%>% # TBD
+    mutate(exp_interest_P   = CO2_t_interest_P*40)%>% # TBD
+    mutate(burden_interest_P = exp_interest_P/hh_expenditures_EURO_2018)%>%
+    mutate(Percentiles = as.numeric(binning(burden_interest_P, bins = 100, method = "wtd.quantile", weights = hh_weights)))%>%
     group_by(Percentiles)%>%
-    summarise(burden_upper = max(burden_interest))%>% # If you are that much affected, 100 - Percentiles will be more heavily affected than you are.
+    summarise(burden_upper = max(burden_interest_P))%>% # If you are that much affected, 100 - Percentiles will be more heavily affected than you are.
     ungroup()%>%
     mutate(burden_lower = lag(burden_upper))%>%
     mutate(burden_lower = ifelse(is.na(burden_lower),-1,burden_lower))%>%
@@ -1059,7 +1096,7 @@ sample_GER <- pred_GER %>%
 
 # hh_expenditures_EURO_2018
 sample_GER_2.4.1 <- sample_GER %>%
-  filter(hh_expenditures_EURO_2018 > 25000 & hh_expenditures_EURO_2018 < 27000)%>%
+  filter(hh_expenditures_EURO_2018 > 24000 & hh_expenditures_EURO_2018 < 25000)%>%
   mutate(hh_expenditures_EURO_2018 = "Weiß nicht")%>%
   bind_rows(mutate(sample_GER, hh_expenditures_EURO_2018 = as.character(round(hh_expenditures_EURO_2018))))%>%
   mutate(hh_expenditures_EURO_2018 = as.factor(hh_expenditures_EURO_2018))
@@ -1109,10 +1146,10 @@ sample_ROM_2.4.1 <- sample_ROM %>%
   bind_rows(mutate(sample_ROM, hh_expenditures_LEI_2018 = as.character(round(hh_expenditures_LEI_2018))))%>%
   mutate(hh_expenditures_LEI_2018 = as.factor(hh_expenditures_LEI_2018))
 
-write_parquet(sample_GER_2.4.1, "../2_Data/Output/Output data/Combinations_Germany.parquet", compression = "gzip")  
-write_parquet(sample_FRA_2.4.1, "../2_Data/Output/Output data/Combinations_France.parquet",  compression = "gzip")  
-write_parquet(sample_ESP_2.4.1, "../2_Data/Output/Output data/Combinations_Spain.parquet",   compression = "gzip")  
-write_parquet(sample_ROM_2.4.1, "../2_Data/Output/Output data/Combinations_Romania.parquet", compression = "gzip")  
+write_parquet(sample_GER_2.4.1, "../2_Data/Output/Output data/Combinations_Germany_P.parquet", compression = "gzip")  
+write_parquet(sample_FRA_2.4.1, "../2_Data/Output/Output data/Combinations_France_P.parquet",  compression = "gzip")  
+write_parquet(sample_ESP_2.4.1, "../2_Data/Output/Output data/Combinations_Spain_P.parquet",   compression = "gzip")  
+write_parquet(sample_ROM_2.4.1, "../2_Data/Output/Output data/Combinations_Romania_P.parquet", compression = "gzip")  
 
 # sample_GER <- pred_GER %>%
 #   filter(heating_fuel == "Heizoel" & heating_type == "Block- o. Zentralheizung" & renting == "Eigentuemer")%>%
@@ -1251,53 +1288,172 @@ for(i in 1:100){
            Less     = ifelse(Percentile  < i,1,0),
            More     = ifelse(Percentile  > i,1,0))%>%
     mutate(Status = ifelse(Interest == 1, "Sie",
-                           ifelse(Less == 1, "Weniger stark betroffen", "Stärker betroffen")))%>%
-    mutate(Status_ENG = ifelse(Interest == 1, "You",
-                               ifelse(Less == 1, "Less affected", "More affected")))%>%
+                           # ifelse(Less == 1, "Weniger stark betroffen", "Stärker betroffen")))%>%
+                           ifelse(Less == 1, "Haushalte mit niedrigeren Kosten", "Haushalte mit höheren Kosten")))%>%
+    mutate(Status_ESP = ifelse(Interest == 1, "Usted",
+                               ifelse(Less == 1, "Hogares con menores costes", "Hogares con mayores costes")))%>%
+    mutate(Status_FRA = ifelse(Interest == 1, "Vous",
+                               ifelse(Less == 1, "Ménages à coûts moins élevés", "Ménages à coûts plus élevés")))%>%
+    mutate(Status_ROM = ifelse(Interest == 1, "Tu", 
+                               ifelse(Less == 1, "Familii cu costuri mai mici", "Familii cu costuri mai mari")))%>%
     arrange(y)%>%
     mutate(x = rep(c(10:1),10))%>%
-    mutate(Status = factor(Status, levels = c("Sie", "Weniger stark betroffen", "Stärker betroffen")))%>%
-    mutate(Status_ENG = factor(Status_ENG, levels = c("You", "Less affected", "More affected")))
+    mutate(Status = factor(Status, levels = c("Sie", "Haushalte mit niedrigeren Kosten", "Haushalte mit höheren Kosten")))%>%
+    mutate(Status_ESP = factor(Status_ESP, levels = c("Usted", "Hogares con menores costes", "Hogares con mayores costes")))%>%
+    mutate(Status_FRA = factor(Status_FRA, levels = c("Vous", "Ménages à coûts moins élevés", "Ménages à coûts plus élevés")))%>%
+    mutate(Status_ROM = factor(Status_ROM, levels = c("Tu", "Familii cu costuri mai mici", "Familii cu costuri mai mari")))
   
   # With icons
   
   data_plot_3 <- data_plot_1
   
-  if(i == 1){
-    P_4 <- ggplot(data_plot_3)+
-      geom_text(aes(x = 100-Position, y = 1, colour = Status_ENG), label = "p", family = "wmpeople1", size = 3)+
-      # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
-      # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
-      theme_void()+
-      scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
-      labs(colour = "")+
-      # coord_cartesian(ylim = c(0,2))+
-      #guides(colour = "none")+
-      theme(legend.position = "bottom",
-            plot.margin = margin(0,0,0,0),
-            legend.text = element_text(size = 9))
+  for(j in c("ROM", "ESP", "FRA", "GER")){
+    
+    if(j == "ROM"){
+      if(i == 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status_ROM), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i != 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status_ROM), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      jpeg(sprintf("../2_Data/Output/Percentile Figures/%s/Figure_%s_%s.jpg",j, j, i), width = 15, height = 2, unit = "cm", res = 600)
+      print(P_4)
+      dev.off()
+    }
+    
+    if(j == "ESP"){
+      if(i == 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status_ESP), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i != 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status_ESP), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      jpeg(sprintf("../2_Data/Output/Percentile Figures/%s/Figure_%s_%s.jpg",j, j, i), width = 15, height = 2, unit = "cm", res = 600)
+      print(P_4)
+      dev.off()
+    }
+    
+    if(j == "FRA"){
+      if(i == 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status_FRA), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i != 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status_FRA), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      jpeg(sprintf("../2_Data/Output/Percentile Figures/%s/Figure_%s_%s.jpg",j, j, i), width = 15, height = 2, unit = "cm", res = 600)
+      print(P_4)
+      dev.off()
+    }
+    
+    if(j == "GER"){
+      if(i == 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i != 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      jpeg(sprintf("../2_Data/Output/Percentile Figures/%s/Figure_%s_%s.jpg",j, j, i), width = 15, height = 2, unit = "cm", res = 600)
+      print(P_4)
+      dev.off()
+    }
+    
   }
-  
-  if(i != 1){
-    P_4 <- ggplot(data_plot_3)+
-      geom_text(aes(x = 100-Position, y = 1, colour = Status_ENG), label = "p", family = "wmpeople1", size = 3)+
-      # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
-      # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
-      theme_void()+
-      scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
-      labs(colour = "")+
-      # coord_cartesian(ylim = c(0,2))+
-      #guides(colour = "none")+
-      theme(legend.position = "bottom",
-            plot.margin = margin(0,0,0,0),
-            legend.text = element_text(size = 9))
-  }
-  
-  
-  
-  jpeg(sprintf("../2_data/Output/Test/Percentiles/Figure_%s.jpg", i), width = 15, height = 2, unit = "cm", res = 600)
-  print(P_4)
-  dev.off()
   
 }
 
