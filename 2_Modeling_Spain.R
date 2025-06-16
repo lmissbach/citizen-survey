@@ -24,7 +24,7 @@ household_information <- read_csv(sprintf("%s/1_Data_Clean/household_information
 
 # 0.2.2 Carbon intensities ####
 
-carbon_intensities_0 <- read.xlsx("../2_Data/Carbon_Intensities_Full_All_Gas.xlsx", sheet = "Spain")
+carbon_intensities_0 <- read.xlsx("../2_Data/Carbon_Intensities_Full_All_Gas_EU.xlsx", sheet = "Spain")
 
 GTAP_code            <- read_delim("../2_Data/GTAP10.csv", ";", escape_double = FALSE, trim_ws = TRUE, show_col_types = FALSE)
 
@@ -32,15 +32,18 @@ carbon_intensities   <- left_join(GTAP_code, carbon_intensities_0, by = c("Numbe
   select(-Explanation, - Number)%>%
   mutate(GTAP = ifelse(GTAP == "gas" | GTAP == "gdt", "gasgdt", GTAP))%>%
   group_by(GTAP)%>%
-  summarise(across(CO2_Mt:Total_HH_Consumption_MUSD, ~ sum(.)))%>%
+  summarise(across(CO2_Mt:Total_HH_Consumption_MUSD_P, ~ sum(.)))%>%
   ungroup()%>%
   mutate(CO2_direct_Gas = ifelse(GTAP == "gasgdt", CO2_direct,0))%>%
-  mutate(CO2_t_per_dollar_global      = CO2_Mt/            Total_HH_Consumption_MUSD,
-         CO2_t_per_dollar_national    = CO2_Mt_within/     Total_HH_Consumption_MUSD,
-         CO2_t_per_dollar_electricity = CO2_Mt_Electricity/Total_HH_Consumption_MUSD,
-         CO2_t_per_dollar_transport   = CO2_Mt_Transport/  Total_HH_Consumption_MUSD,
-         CO2_t_per_dollar_gas         = CO2_Mt_Gas/        Total_HH_Consumption_MUSD,
-         CO2_t_per_dollar_gas_direct  = CO2_direct_Gas/    Total_HH_Consumption_MUSD)%>%
+  mutate(# CO2_t_per_dollar_global       = CO2_Mt/            Total_HH_Consumption_MUSD,
+    CO2_t_per_dollar_national     = CO2_Mt_within/     Total_HH_Consumption_MUSD,
+    CO2_t_per_dollar_national_P   = CO2_Mt_within/     Total_HH_Consumption_MUSD_P,
+    # CO2_t_per_dollar_electricity  = CO2_Mt_Electricity/Total_HH_Consumption_MUSD,
+    CO2_t_per_dollar_transport    = CO2_Mt_Transport/  Total_HH_Consumption_MUSD,
+    CO2_t_per_dollar_transport_P  = CO2_Mt_Transport/  Total_HH_Consumption_MUSD_P,
+    # CO2_t_per_dollar_gas          = CO2_Mt_Gas/        Total_HH_Consumption_MUSD,
+    CO2_t_per_dollar_gas_direct   = CO2_direct_Gas/    Total_HH_Consumption_MUSD,
+    CO2_t_per_dollar_gas_direct_P = CO2_direct_Gas/    Total_HH_Consumption_MUSD_P)%>%
   select(GTAP, starts_with("CO2_t"))
 
 rm(carbon_intensities_0, GTAP_code)
@@ -105,30 +108,42 @@ data_0.1.1 <- data_0.1 %>%
 # Cleaning at household expenditure level not necessary
 
 data_0.1 <- data_0.1.1 %>%
-  left_join(select(carbon_intensities, GTAP, CO2_t_per_dollar_national, CO2_t_per_dollar_transport, CO2_t_per_dollar_gas, CO2_t_per_dollar_gas_direct), by = "GTAP")%>%
+  left_join(select(carbon_intensities, GTAP, 
+                   CO2_t_per_dollar_national, CO2_t_per_dollar_transport, CO2_t_per_dollar_gas_direct,
+                   CO2_t_per_dollar_national_P, CO2_t_per_dollar_transport_P, CO2_t_per_dollar_gas_direct_P), by = "GTAP")%>%
   mutate(CO2_t_per_dollar_national   = ifelse(is.na(CO2_t_per_dollar_national),  0,CO2_t_per_dollar_national),
          CO2_t_per_dollar_transport  = ifelse(is.na(CO2_t_per_dollar_transport), 0,CO2_t_per_dollar_transport),
-         CO2_t_per_dollar_gas        = ifelse(is.na(CO2_t_per_dollar_gas),       0,CO2_t_per_dollar_gas),
-         CO2_t_per_dollar_gas_direct = ifelse(is.na(CO2_t_per_dollar_gas_direct),0,CO2_t_per_dollar_gas_direct))%>%
+         # CO2_t_per_dollar_gas        = ifelse(is.na(CO2_t_per_dollar_gas),       0,CO2_t_per_dollar_gas),
+         CO2_t_per_dollar_gas_direct = ifelse(is.na(CO2_t_per_dollar_gas_direct),0,CO2_t_per_dollar_gas_direct),
+         CO2_t_per_dollar_national_P   = ifelse(is.na(CO2_t_per_dollar_national_P),  0,CO2_t_per_dollar_national_P),
+         CO2_t_per_dollar_transport_P  = ifelse(is.na(CO2_t_per_dollar_transport_P), 0,CO2_t_per_dollar_transport_P),
+         CO2_t_per_dollar_gas_direct_P = ifelse(is.na(CO2_t_per_dollar_gas_direct_P),0,CO2_t_per_dollar_gas_direct_P))%>%
   # Adjusting for dollar/Euro
   mutate(CO2_t_per_euro_national   = CO2_t_per_dollar_national*exchange.rate,
          CO2_t_per_euro_transport  = CO2_t_per_dollar_transport*exchange.rate,
-         CO2_t_per_euro_gas        = CO2_t_per_dollar_gas*exchange.rate,
-         CO2_t_per_euro_gas_direct = CO2_t_per_dollar_gas_direct*exchange.rate)%>%
+         # CO2_t_per_euro_gas        = CO2_t_per_dollar_gas*exchange.rate,
+         CO2_t_per_euro_gas_direct = CO2_t_per_dollar_gas_direct*exchange.rate,
+         CO2_t_per_euro_national_P   = CO2_t_per_dollar_national_P*exchange.rate,
+         CO2_t_per_euro_transport_P  = CO2_t_per_dollar_transport_P*exchange.rate,
+         CO2_t_per_euro_gas_direct_P = CO2_t_per_dollar_gas_direct_P*exchange.rate)%>%
   mutate(CO2_t_national           = CO2_t_per_euro_national*expenditures_year*inflation.rate,
          CO2_t_transport          = CO2_t_per_euro_transport*expenditures_year*inflation.rate,
          # Applying carbon pricing in gas sector everywhere warranted, given that also manufacturing firms may require gas for heating
          # Also little difference --> latter is true, but still
-         CO2_t_gas                = CO2_t_per_euro_gas*expenditures_year*inflation.rate,
-         CO2_t_gas_direct         = CO2_t_per_euro_gas_direct*expenditures_year*inflation.rate)
+         CO2_t_gas_direct         = CO2_t_per_euro_gas_direct*expenditures_year*inflation.rate,
+         CO2_t_national_P         = CO2_t_per_euro_national_P*expenditures_year*inflation.rate,
+         CO2_t_transport_P        = CO2_t_per_euro_transport_P*expenditures_year*inflation.rate,
+         CO2_t_gas_direct_P       = CO2_t_per_euro_gas_direct_P*expenditures_year*inflation.rate)
 
 data_0.2 <- data_0.1 %>%
   group_by(hh_id)%>%
   summarise(hh_expenditures_EURO_2018 = sum(expenditures_year),
             CO2_t_national            = sum(CO2_t_national),
             CO2_t_transport           = sum(CO2_t_transport),
-            CO2_t_gas                 = sum(CO2_t_gas),
-            CO2_t_gas_direct          = sum(CO2_t_gas_direct))%>%
+            CO2_t_gas_direct          = sum(CO2_t_gas_direct),
+            CO2_t_national_P          = sum(CO2_t_national_P),
+            CO2_t_transport_P         = sum(CO2_t_transport_P),
+            CO2_t_gas_direct_P        = sum(CO2_t_gas_direct_P))%>%
   ungroup()
 
 data_0.3 <- data_0.1 %>%
@@ -187,7 +202,6 @@ data_1.1 <- data_1 %>%
   # No carbon price in 2018 yet
   mutate(exp_CO2_transport           = CO2_t_transport*45,
          exp_CO2_national            = CO2_t_national*45,
-         exp_CO2_gas                 = CO2_t_gas*45,
          exp_CO2_gas_direct          = CO2_t_gas_direct*45)%>%
   mutate(exp_CO2_price               = exp_CO2_transport + exp_CO2_gas_direct)%>%
   mutate(burden_CO2_transport        = exp_CO2_transport/hh_expenditures_EURO_2018,
