@@ -61,7 +61,7 @@ data_GER <- data_GER_0 %>%
   mutate(burden_interest    = exp_interest/hh_expenditures_EURO_2018,
          burden_interest_P  = exp_interest_P/hh_expenditures_EURO_2018)%>%
   select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
-         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P)%>%
   mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
   select(-burden_interest)
   # after sanity check with random noise parameter 
@@ -94,12 +94,12 @@ data_ROM <- data_ROM_0 %>%
                                        construction_year >= 2011                            ~ ">2011"))%>%
   mutate(CO2_t_interest   = CO2_t_transport + CO2_t_gas_direct,
          CO2_t_interest_P = CO2_t_transport_P + CO2_t_gas_direct_P)%>% # TBD
-  mutate(exp_interest   = CO2_t_interest*162,
-         exp_interest_P = CO2_t_interest_P*162)%>% # in LEI
+  mutate(exp_interest   = CO2_t_interest*202,
+         exp_interest_P = CO2_t_interest_P*202)%>% # in LEI
   mutate(burden_interest = exp_interest/hh_expenditures_LEI_2018,
          burden_interest_P = exp_interest_P/hh_expenditures_LEI_2018)%>%
   select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
-         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P)%>%
   mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
   select(-burden_interest)
 
@@ -127,7 +127,7 @@ data_ESP <- data_ESP_0 %>%
   mutate(burden_interest = exp_interest/hh_expenditures_EURO_2018,
          burden_interest_P = exp_interest_P/hh_expenditures_EURO_2018)%>%
   select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
-         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P)%>%
   mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
   select(-burden_interest)
 
@@ -175,7 +175,7 @@ data_FRA <- data_FRA_0 %>%
   mutate(burden_interest   = exp_interest/hh_expenditures_EURO_2018,
          burden_interest_P = exp_interest_P/hh_expenditures_EURO_2018)%>%
   select(-CO2_t_interest, -CO2_t_transport, -CO2_t_gas_direct, -exp_interest,
-         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P, -exp_interest_P)%>%
+         -CO2_t_interest_P, -CO2_t_transport_P, -CO2_t_gas_direct_P)%>%
   mutate_if(vars(is.character(.)), list(~ as.factor(.)))%>%
   select(-burden_interest)
   
@@ -746,27 +746,31 @@ compute_BRT_and_fit <- function(data_0, Country, criteria_0, grid_0){
   rm(metrics_1, model_brt_1.1, metrics_1.1, model_brt, model_brt_1)
   
   if(Country == "Germany"){
+    # Optimal as of 03.07.2025
     tree_depth_0 <- 6
     learn_rate_0 <- 0.01873427
-    mtry_0       <- 23
+    mtry_0       <- 22
   }
   
   if(Country == "Spain"){
+    # Optimal as of 02.07.2025
     tree_depth_0 <- 4
-    learn_rate_0 <- 0.0135
+    learn_rate_0 <- 0.0115
     mtry_0       <- 10
   }
   
   if(Country == "Romania"){
-    tree_depth_0 <- 4
-    learn_rate_0 <- 0.0166
-    mtry_0       <- 24
+    # Optimal as of 02.07.2025
+    tree_depth_0 <- 8
+    learn_rate_0 <- 0.00925
+    mtry_0       <- 12
   }
   
   if(Country == "France"){
-    tree_depth_0 <- 9
-    learn_rate_0 <- 0.00783
-    mtry_0       <- 25
+    # Optimal as of 02.07.2025
+    tree_depth_0 <- 5
+    learn_rate_0 <- 0.00977
+    mtry_0       <- 21
   }
   
   # Fit best model after tuning
@@ -1039,7 +1043,7 @@ percentiles_0 <- data.frame()
 
 for(i in c("Germany", "Spain", "France", "Romania")){
   if(i == "Romania") data_0 <- data_ROM_0%>%
-      mutate(hh_expenditures_EURO_2018 = hh_expenditures_LEI_2018*0.24676177)
+      mutate(hh_expenditures_EURO_2018 = hh_expenditures_LEI_2018*0.2)
   if(i == "Spain")   data_0 <- data_ESP_0
   if(i == "France")  data_0 <- data_FRA_0
   if(i == "Germany") data_0 <- data_GER_0
@@ -1294,14 +1298,14 @@ for(i in 1:100){
                                ifelse(Less == 1, "Hogares con menores costes", "Hogares con mayores costes")))%>%
     mutate(Status_FRA = ifelse(Interest == 1, "Vous",
                                ifelse(Less == 1, "Ménages à coûts moins élevés", "Ménages à coûts plus élevés")))%>%
-    mutate(Status_ROM = ifelse(Interest == 1, "Tu", 
+    mutate(Status_ROM = ifelse(Interest == 1, "Dumneavoastră", 
                                ifelse(Less == 1, "Familii cu costuri mai mici", "Familii cu costuri mai mari")))%>%
     arrange(y)%>%
     mutate(x = rep(c(10:1),10))%>%
     mutate(Status = factor(Status, levels = c("Sie", "Haushalte mit niedrigeren Kosten", "Haushalte mit höheren Kosten")))%>%
     mutate(Status_ESP = factor(Status_ESP, levels = c("Usted", "Hogares con menores costes", "Hogares con mayores costes")))%>%
     mutate(Status_FRA = factor(Status_FRA, levels = c("Vous", "Ménages à coûts moins élevés", "Ménages à coûts plus élevés")))%>%
-    mutate(Status_ROM = factor(Status_ROM, levels = c("Tu", "Familii cu costuri mai mici", "Familii cu costuri mai mari")))
+    mutate(Status_ROM = factor(Status_ROM, levels = c("Dumneavoastră", "Familii cu costuri mai mici", "Familii cu costuri mai mari")))
   
   # With icons
   
@@ -1312,31 +1316,81 @@ for(i in 1:100){
     if(j == "ROM"){
       if(i == 1){
         P_4 <- ggplot(data_plot_3)+
-          geom_text(aes(x = 100-Position, y = 1, colour = Status_ROM), label = "p", family = "wmpeople1", size = 3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
           theme_void()+
           scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
           labs(colour = "")+
+          guides(colour = "none")+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),88),           y = 1.2,  label = "Familii cu costuri mai mari", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i, y = 0.75,  label = "Dumneavoastră", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
           # coord_cartesian(ylim = c(0,2))+
           #guides(colour = "none")+
           theme(legend.position = "bottom",
-                plot.margin = margin(0,0,0,0),
+                plot.margin = margin(0,0.5,0,0.5),
                 legend.text = element_text(size = 9))
       }
       
-      if(i != 1){
+      if(i != 1 & i != 100){
         P_4 <- ggplot(data_plot_3)+
-          geom_text(aes(x = 100-Position, y = 1, colour = Status_ROM), label = "p", family = "wmpeople1", size = 3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
           theme_void()+
           scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
           labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,9),32),           y = 1.2,  label = "Familii cu costuri mai mici", size = 2.5)+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),88),           y = 1.2,  label = "Familii cu costuri mai mari", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Dumneavoastră", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
           # coord_cartesian(ylim = c(0,2))+
           #guides(colour = "none")+
           theme(legend.position = "bottom",
-                plot.margin = margin(0,0,0,0),
+                plot.margin = margin(0,0.5,0,0.5),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i == 100){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,9),32),           y = 1.2,  label = "Familii cu costuri mai mici", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-2.5, y = 0.75,  label = "Dumneavoastră", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0.5,0,0.5),
                 legend.text = element_text(size = 9))
       }
       
@@ -1344,52 +1398,26 @@ for(i in 1:100){
       print(P_4)
       dev.off()
     }
-    
-    if(j == "ESP"){
-      if(i == 1){
-        P_4 <- ggplot(data_plot_3)+
-          geom_text(aes(x = 100-Position, y = 1, colour = Status_ESP), label = "p", family = "wmpeople1", size = 3)+
-          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
-          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
-          theme_void()+
-          scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
-          labs(colour = "")+
-          # coord_cartesian(ylim = c(0,2))+
-          #guides(colour = "none")+
-          theme(legend.position = "bottom",
-                plot.margin = margin(0,0,0,0),
-                legend.text = element_text(size = 9))
-      }
-      
-      if(i != 1){
-        P_4 <- ggplot(data_plot_3)+
-          geom_text(aes(x = 100-Position, y = 1, colour = Status_ESP), label = "p", family = "wmpeople1", size = 3)+
-          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
-          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
-          theme_void()+
-          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
-          labs(colour = "")+
-          # coord_cartesian(ylim = c(0,2))+
-          #guides(colour = "none")+
-          theme(legend.position = "bottom",
-                plot.margin = margin(0,0,0,0),
-                legend.text = element_text(size = 9))
-      }
-      
-      jpeg(sprintf("../2_Data/Output/Percentile Figures/%s/Figure_%s_%s.jpg",j, j, i), width = 15, height = 2, unit = "cm", res = 600)
-      print(P_4)
-      dev.off()
-    }
-    
+ 
     if(j == "FRA"){
       if(i == 1){
         P_4 <- ggplot(data_plot_3)+
-          geom_text(aes(x = 100-Position, y = 1, colour = Status_FRA), label = "p", family = "wmpeople1", size = 3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
           theme_void()+
           scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
           labs(colour = "")+
+          guides(colour = "none")+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Ménages à coûts plus élevés", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Vous", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
           # coord_cartesian(ylim = c(0,2))+
           #guides(colour = "none")+
           theme(legend.position = "bottom",
@@ -1397,14 +1425,54 @@ for(i in 1:100){
                 legend.text = element_text(size = 9))
       }
       
-      if(i != 1){
+      if(i != 1 & i != 100){
         P_4 <- ggplot(data_plot_3)+
-          geom_text(aes(x = 100-Position, y = 1, colour = Status_FRA), label = "p", family = "wmpeople1", size = 3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
           theme_void()+
           scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
           labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,12),32),           y = 1.2,  label = "Ménages à coûts moins élevés", size = 2.5)+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Ménages à coûts plus élevés", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Vous", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i == 100){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,12),29),           y = 1.2,  label = "Ménages à coûts moins élevés", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Vous", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
           # coord_cartesian(ylim = c(0,2))+
           #guides(colour = "none")+
           theme(legend.position = "bottom",
@@ -1415,7 +1483,93 @@ for(i in 1:100){
       jpeg(sprintf("../2_Data/Output/Percentile Figures/%s/Figure_%s_%s.jpg",j, j, i), width = 15, height = 2, unit = "cm", res = 600)
       print(P_4)
       dev.off()
-    }
+   }   
+ 
+    if(j == "ESP"){
+      if(i == 1){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
+          labs(colour = "")+
+          guides(colour = "none")+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Hogares con mayores costes", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Usted", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i != 1 & i != 100){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,11),32),           y = 1.2,  label = "Hogares con menores costes", size = 2.5)+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Hogares con mayores costes", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Usted", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i == 100){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,11),32),           y = 1.2,  label = "Hogares con menores costes", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "USted", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      jpeg(sprintf("../2_Data/Output/Percentile Figures/%s/Figure_%s_%s.jpg",j, j, i), width = 15, height = 2, unit = "cm", res = 600)
+      print(P_4)
+      dev.off()
+    }  
     
     if(j == "GER"){
       if(i == 1){
@@ -1426,6 +1580,16 @@ for(i in 1:100){
           theme_void()+
           scale_colour_manual(values = c("#0072B5FF","#BC3C29FF"))+
           labs(colour = "")+
+          guides(colour = "none")+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),86),           y = 1.2,  label = "Haushalte mit höheren Kosten", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Sie", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
           # coord_cartesian(ylim = c(0,2))+
           #guides(colour = "none")+
           theme(legend.position = "bottom",
@@ -1433,7 +1597,7 @@ for(i in 1:100){
                 legend.text = element_text(size = 9))
       }
       
-      if(i != 1){
+      if(i != 1 & i != 100){
         P_4 <- ggplot(data_plot_3)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
@@ -1441,6 +1605,46 @@ for(i in 1:100){
           theme_void()+
           scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
           labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,13),29),           y = 1.2,  label = "Haushalte mit niedrigeren Kosten", size = 2.5)+
+          # Right bracket
+          annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
+          annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2+50,63),86),           y = 1.2,  label = "Haushalte mit höheren Kosten", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Sie", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
+          # coord_cartesian(ylim = c(0,2))+
+          #guides(colour = "none")+
+          theme(legend.position = "bottom",
+                plot.margin = margin(0,0,0,0),
+                legend.text = element_text(size = 9))
+      }
+      
+      if(i == 100){
+        P_4 <- ggplot(data_plot_3)+
+          geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
+          # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
+          # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
+          theme_void()+
+          scale_colour_manual(values = c("#0072B5FF","#FFDC91FF","#BC3C29FF"))+
+          labs(colour = "")+
+          guides(colour = "none")+
+          # Left bracket
+          annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
+          annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
+          annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
+          annotate("text",    x = min(max((i-2.5)/2,13),29),           y = 1.2,  label = "Haushalte mit niedrigeren Kosten", size = 2.5)+
+          # Central annotation
+          annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Sie", size = 2.5)+
+          coord_cartesian(ylim = c(0.7,1.4))+
           # coord_cartesian(ylim = c(0,2))+
           #guides(colour = "none")+
           theme(legend.position = "bottom",
@@ -1453,10 +1657,288 @@ for(i in 1:100){
       dev.off()
     }
     
+    print(j)
+    
   }
+
+}
+
+# 2.7   SHAP values for absolute cost burden ####
+
+compute_BRT_and_fit_absolute <- function(data_0, Country, criteria_0){
+  data_0.1 <- data_0 %>%
+    select(exp_interest_P, any_of(criteria_0))
+  
+  data_0.2 <- data_0.1 %>%
+    initial_split(prop = 0.8)
+  
+  # Data for training
+  data_0.2.train <- data_0.2 %>%
+    training()
+  
+  # Data for testing
+  data_0.2.test <- data_0.2 %>%
+    testing()
+  
+  rm(data_0.1, data_0.2)
+  
+  # Feature engineering
+  if(Country == "Germany"){
+    recipe_0 <- recipe(exp_interest_P ~ .,
+                       data = data_0.2.train)%>%
+      # Deletes all columns with any NA
+      step_filter_missing(all_predictors(), threshold = 0)%>%
+      # Remove minimum number of columns such that correlations are less than 0.9
+      step_corr(all_numeric(), -all_outcomes(), threshold = 0.9)%>%
+      # should have very few unique observations for factors
+      step_other(all_nominal(),-building_type, -bundesland, -building_year, -renting, threshold = 0.03)%>%
+      step_dummy(all_nominal())
+  }
+  
+  if(Country == "Romania"){
+    recipe_0 <- recipe(exp_interest_P ~ .,
+                       data = data_0.2.train)%>%
+      # Deletes all columns with any NA
+      step_filter_missing(all_predictors(), threshold = 0)%>%
+      # Remove minimum number of columns such that correlations are less than 0.9
+      step_corr(all_numeric(), -all_outcomes(), threshold = 0.9)%>%
+      # should have very few unique observations for factors
+      # step_other(all_nominal(), -heating_fuel, -cooking_fuel, threshold = 0.03)%>%
+      step_dummy(all_nominal())
+  }
+  
+  if(Country == "Spain"){
+    recipe_0 <- recipe(exp_interest_P ~ .,
+                       data = data_0.2.train)%>%
+      # Deletes all columns with any NA
+      step_filter_missing(all_predictors(), threshold = 0)%>%
+      # Remove minimum number of columns such that correlations are less than 0.9
+      step_corr(all_numeric(), -all_outcomes(), threshold = 0.9)%>%
+      # should have very few unique observations for factors
+      step_other(all_nominal(), -heating_fuel, -water_energy, -occupation, threshold = 0.03)%>%
+      step_dummy(all_nominal())
+  }
+  
+  if(Country == "France"){
+    recipe_0 <- recipe(exp_interest_P ~ .,
+                       data = data_0.2.train)%>%
+      # Deletes all columns with any NA
+      step_filter_missing(all_predictors(), threshold = 0)%>%
+      # Remove minimum number of columns such that correlations are less than 0.9
+      step_corr(all_numeric(), -all_outcomes(), threshold = 0.9)%>%
+      # should have very few unique observations for factors
+      # step_other(occupation, threshold = 0.08)%>%
+      # step_other(all_nominal(), -heating_fuel, -housing_type, -urban_type, -province, - occupation, threshold = 0.05)%>%
+      step_dummy(all_nominal())
+  }
+  
+  
+  data_0.2.training <- recipe_0 %>%
+    prep(training = data_0.2.train)%>%
+    bake(new_data = NULL)
+  
+  data_0.2.testing <- recipe_0 %>%
+    prep(training = data_0.2.test)%>%
+    bake(new_data = NULL)
+  
+  # Five-fold cross-validation
+  
+  folds_1 <- vfold_cv(data_0.2.training, v = 5)
+  
+  # Setup model to be tuned
+  
+  model_brt <- boost_tree(
+    trees         = 1000,
+    tree_depth    = tune(), # maximum depth of tree
+    learn_rate    = tune(), # the higher the learning rate the faster - default 0.3
+    # min_n       = tune(),
+    mtry          = tune(), # fraction of features to be selected for each tree (0.5/0.7/1)
+    # stop_iter   = tune(),
+    # sample_size = tune()
+  )%>%
+    set_mode("regression")%>%
+    set_engine("xgboost")
+  
+  # Create a tuning grid - 16 different models for the tuning space
+  
+  grid_1 <- grid_latin_hypercube(
+    tree_depth(),
+    learn_rate(c(-3,-0.5)),# tuning parameters
+    mtry(c(round((ncol(data_0.2.training)-1)/2,0), ncol(data_0.2.training)-1)),
+    size = 15)%>%
+    # default parameters
+    bind_rows(data.frame(tree_depth = 6, learn_rate = 0.3, mtry = ncol(data_0.2.training)-1))
+  
+  # Tune the model - cover the entire parameter space without running every combination
+  
+  print("Start computing")
+  
+  doParallel::registerDoParallel()
+  
+  time_1 <- Sys.time()
+  
+  model_brt_1 <- tune_grid(model_brt,
+                           exp_interest_P ~ .,
+                           resamples = folds_1,
+                           grid      = grid_1,
+                           metrics   = metric_set(mae, rmse, rsq))
+  
+  time_2 <- Sys.time()
+  
+  doParallel::stopImplicitCluster()
+  
+  print("End computing")
+  
+  # Collect metrics of tuned models
+  
+  metrics_1 <- collect_metrics(model_brt_1)
+  
+  model_brt_1.1 <- select_best(model_brt_1, metric = "mae")
+  
+  metrics_1.1 <- metrics_1 %>%
+    filter(.config == model_brt_1.1$.config[1])
+  
+  rm(metrics_1, model_brt_1.1, metrics_1.1, model_brt, model_brt_1)
+  
+  if(Country == "Germany"){
+    # Optimal as of 03.07.2025
+    tree_depth_0 <- 5
+    learn_rate_0 <- 0.0041
+    mtry_0       <- 22
+  }
+  
+  if(Country == "Spain"){
+    # Optimal as of 02.07.2025
+    tree_depth_0 <- 7
+    learn_rate_0 <- 0.0029
+    mtry_0       <- 12
+  }
+  
+  if(Country == "Romania"){
+    # Optimal as of 02.07.2025
+    tree_depth_0 <- 12
+    learn_rate_0 <- 0.00287
+    mtry_0       <- 17
+  }
+  
+  if(Country == "France"){
+    # Optimal as of 02.07.2025
+    tree_depth_0 <- 5
+    learn_rate_0 <- 0.00526
+    mtry_0       <- 26
+  }
+  
+  # Fit best model after tuning
+  model_brt <- boost_tree(
+    trees         = 1000,
+    tree_depth    = tree_depth_0,
+    learn_rate    = learn_rate_0,
+    mtry          = mtry_0       
+  )%>%
+    set_mode("regression")%>%
+    set_engine("xgboost")
+  
+  model_brt_2 <- model_brt %>%
+    fit(exp_interest_P ~ .,
+        data = data_0.2.training)
+  
+  predictions_0 <- augment(model_brt_2, new_data = data_0.2.testing)
+  rsq_0  <- rsq(predictions_0,  truth = exp_interest_P, estimate = .pred)
+  
+  print(paste0("R-Squared for ", Country, " amounts to ", round(rsq_0$.estimate, 2)*100, "%."))
+  
+  # Extract SHAP for general assessment
+  
+  data_0.2.testing_matrix <- data_0.2.testing %>%
+    select(-exp_interest_P)%>%
+    as.matrix()
+  
+  time_3 <- Sys.time()
+  
+  shap_1 <- predict(extract_fit_engine(model_brt_2),
+                    data_0.2.testing_matrix,
+                    predcontrib = TRUE,
+                    approxcontrib = FALSE)
+  
+  time_4 <- Sys.time()
+  
+  shap_1 <- shap_1 %>%
+    as_tibble()
+  
+  shap_1.1 <- shap_1 %>%
+    as_tibble()%>%
+    summarise_all(~ mean(abs(.)))%>%
+    select(-BIAS)%>%
+    pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+    arrange(desc(SHAP_contribution))%>%
+    mutate(tot_contribution = sum(SHAP_contribution))%>%
+    mutate(share_SHAP       = SHAP_contribution/tot_contribution)%>%
+    select(-tot_contribution)
+  
+  shap_1.2 <- shap_1.1 %>%
+    mutate(VAR_0 = ifelse(grepl("education", variable), "Education", 
+                          ifelse(grepl("heating_fuel", variable), "Heating_Fuel", 
+                                 ifelse(grepl("building_type", variable), "Building_Type", 
+                                        ifelse(grepl("urban_type", variable), "Urban_Type", 
+                                               ifelse(grepl("renting", variable), "Renting", 
+                                                      ifelse(grepl("employment", variable), "Employment", 
+                                                             ifelse(grepl("bundesland", variable), "Bundesland", 
+                                                                    ifelse(grepl("heating_type", variable), "Heating_Type", 
+                                                                           ifelse(grepl("building_year", variable), "Building_Year", 
+                                                                                  ifelse(grepl("industry", variable), "Industry", 
+                                                                                         ifelse(grepl("ausbildung", variable), "Ausbildung", 
+                                                                                                ifelse(grepl("cooking_fuel", variable), "Cooking_Fuel", 
+                                                                                                       ifelse(grepl("housing_type", variable), "Housing_Type", 
+                                                                                                              ifelse(grepl("construction_year", variable), "construction_year", 
+                                                                                                                     ifelse(grepl("occupation", variable), "Occupation", 
+                                                                                                                            ifelse(grepl("province", variable), "Province", 
+                                                                                                                                   ifelse(grepl("nationality", variable), "Nationality", variable))))))))))))))))))%>%
+    mutate(VAR_0 = ifelse(grepl("district", variable), "District",
+                          ifelse(grepl("house_age", variable), "House Age",
+                                 ifelse(grepl("tenant", variable), "Tenant",
+                                        ifelse(grepl("urban_identif_2", variable), "Urban_Identif_2",
+                                               ifelse(grepl("urban_identif", variable) & VAR_0 != "Urban_Identif_2", "Urban_Identif",
+                                                      ifelse(grepl("water_energy", variable), "Water energy", 
+                                                             ifelse(grepl("house_type", variable), "House Type", VAR_0))))))))%>%
+    group_by(VAR_0)%>%
+    mutate(sum_0 = sum(share_SHAP))%>%
+    ungroup()%>%
+    arrange(desc(sum_0), desc(share_SHAP))
+  
+  if(Country == "Germany"){
+    write_parquet(shap_1.2, "../2_Data/Output/SHAP values/SHAP_Summary_Germany_P_absolute.parquet")
+    write_parquet(shap_1, "../2_Data/Output/SHAP values/SHAP_Detail_Germany_P_absolute.parquet")
+    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Germany_P_absolute.parquet")
+  }
+  
+  if(Country == "France"){
+    write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_France_P_absolute.parquet")
+    write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_France_P_absolute.parquet")
+    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_France_P_absolute.parquet")
+  }
+  
+  if(Country == "Spain"){
+    write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_Spain_P_absolute.parquet")
+    write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_Spain_P_absolute.parquet")
+    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Spain_P_absolute.parquet")
+  }
+  
+  if(Country == "Romania"){
+    write_parquet(shap_1.2,      "../2_Data/Output/SHAP values/SHAP_Summary_Romania_P_absolute.parquet")
+    write_parquet(shap_1,        "../2_Data/Output/SHAP values/SHAP_Detail_Romania_P_absolute.parquet")
+    write_parquet(data_0.2.test, "../2_Data/Output/SHAP values/SHAP_Test_Romania_P_absolute.parquet")
+  }
+  
+  
+  rm(folds_1, grid_0, recipe_0, time_1, time_2, data_0.2.test, data_0.2.testing, data_0.2.train, data_0.2.training,
+     model_brt, model_brt_2, rsq_0, predictions_0, predictions_1, predictions_1.1, grid_0, learn_rate_0, mtry_0, tree_depth_0, data_grid_0)
   
 }
 
+compute_BRT_and_fit_absolute(data_GER, "Germany", criteria_GER)
+compute_BRT_and_fit_absolute(data_ROM, "Romania", criteria_ROM)
+compute_BRT_and_fit_absolute(data_ESP, "Spain",   criteria_ESP)
+compute_BRT_and_fit_absolute(data_FRA, "France",  criteria_FRA)
 
 
 # 3     Model per percentiles - what are characteristics of being more/less affected? ####
@@ -4294,14 +4776,14 @@ data_summary_ROM_3 <- data_summary_ROM_2 %>%
 
 write_csv(data_summary_ROM_2, "../2_Data/Output/Percentiles/Percentiles_Analysis_ROM.csv")
 
-# 3.2   What are important features on aggregate? ####
+# 3.2   What are important features on aggregate (relative)? ####
 
 # Germany
 for(i in c("Germany")){
-  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Germany.parquet")
-  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Germany.parquet")%>%
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Germany_P.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Germany_P.parquet")%>%
     rename_all(~ str_replace(., "^", "SHAP_"))
-  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Germany.parquet")
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Germany_P.parquet")
   
   data_0 <- bind_cols(SHAP_test, SHAP_detail)
   
@@ -4317,11 +4799,11 @@ for(i in c("Germany")){
   ggplot(data_0)+
     geom_hline(aes(yintercept = 0))+
     geom_jitter(aes(x = as.factor(heating_fuel),
-                    y = SHAP_heating_fuel_Heizoel),
+                    y = SHAP_heating_fuel_Heizöl),
                 size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
     theme_bw()
   
-  # Households that heat with natural gas (and heating oil, to some extent) are most heavily affected
+  # Households that heat with natural gas are most heavily affected
   
   # Reason 2: Germany
   
@@ -4349,32 +4831,32 @@ for(i in c("Germany")){
   
   ggplot(data_0)+
     geom_hline(aes(yintercept = 0))+
-    geom_jitter(aes(x = as.factor(number_of_cars),
-                    y = SHAP_number_of_cars),
-                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
-    theme_bw()
-  
-  # Households that own more cars are more heavily affected
-  
-  # Reason 5: Germany
-  
-  ggplot(data_0)+
-    geom_hline(aes(yintercept = 0))+
     geom_jitter(aes(x = as.factor(building_type),
-                    y = SHAP_building_type_Wohngebaeude),
+                    y = SHAP_building_type_Mehrfamilienhaus),
                 size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
     theme_bw()
   
   # Households that live in single- or double-family houses are more heavily affected compared to people living in apartment buildings.
   
+  # Reason 5: Germany
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(number_of_cars),
+                    y = SHAP_number_of_cars_Kein.Auto),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that own more cars are more heavily affected
+  
 }
 
 # France
 for(i in c("France")){
-  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_France.parquet")
-  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_France.parquet")%>%
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_France_P.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_France_P.parquet")%>%
     rename_all(~ str_replace(., "^", "SHAP_"))
-  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_France.parquet")
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_France_P.parquet")
   
   data_0 <- bind_cols(SHAP_test, SHAP_detail)
   
@@ -4449,10 +4931,10 @@ for(i in c("France")){
 
 # Romania
 for(i in c("Romania")){
-  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Romania.parquet")
-  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Romania.parquet")%>%
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Romania_P.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Romania_P.parquet")%>%
     rename_all(~ str_replace(., "^", "SHAP_"))
-  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Romania.parquet")
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Romania_P.parquet")
   
   data_0 <- bind_cols(SHAP_test, SHAP_detail)
   
@@ -4535,10 +5017,10 @@ for(i in c("Romania")){
 
 # Spain
 for(i in c("Spain")){
-  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Spain.parquet")
-  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Spain.parquet")%>%
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Spain_P.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Spain_P.parquet")%>%
     rename_all(~ str_replace(., "^", "SHAP_"))
-  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Spain.parquet")
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Spain_P.parquet")
   
   data_0 <- bind_cols(SHAP_test, SHAP_detail)
   
@@ -4630,6 +5112,320 @@ for(i in c("Spain")){
     coord_cartesian(xlim = c(0,80), ylim = c(-0.01,0.01))
 
   # Households with household heads that are middle-aged (30 to 60) are more likely to be heavily affected.
+  
+}
+
+
+# 3.3   What are important features on aggregate (absolute)? ####
+
+# Germany
+for(i in c("Germany")){
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Germany_P_absolute.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Germany_P_absolute.parquet")%>%
+    rename_all(~ str_replace(., "^", "SHAP_"))
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Germany_P_absolute.parquet")
+  
+  data_0 <- bind_cols(SHAP_test, SHAP_detail)
+  
+  # Reason 1: Germany
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Gas),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Feste.Brennstoffe.oder.Sonstiges),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that heat with natural gas are most heavily affected
+  
+  # Reason 2: Germany
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_point(aes(x = hh_expenditures_EURO_2018,
+                   y = SHAP_hh_expenditures_EURO_2018),
+               size = 0.5, alpha = 0.2, shape = 21)+
+    theme_bw()
+  
+  # Households that are richer are more heavily affected
+  
+  # Reason 3: Germany
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_point(aes(x = space,
+                   y = SHAP_space),
+               size = 0.5, alpha = 0.2, shape = 21)+
+    theme_bw()
+  
+  # Households that have more living space are more heavily affected
+  
+  # Reason 4: Germany
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(renting),
+                    y = SHAP_renting_Mieter),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that own their house are more heavily affected compared to renters
+  
+  # Reason 5: Germany
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(building_type),
+                    y = SHAP_building_type_Mehrfamilienhaus),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that live in single- or double-family houses are more heavily affected compared to people living in apartment buildings.
+  
+}
+
+# France
+for(i in c("France")){
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_France_P_absolute.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_France_P_absolute.parquet")%>%
+    rename_all(~ str_replace(., "^", "SHAP_"))
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_France_P_absolute.parquet")
+  
+  data_0 <- bind_cols(SHAP_test, SHAP_detail)
+  
+  # Reason 1: France
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_point(aes(x = hh_expenditures_EURO_2018,
+                   y = SHAP_hh_expenditures_EURO_2018),
+               size = 0.5, alpha = 0.5, shape = 21)+
+    geom_smooth(aes(x     = hh_expenditures_EURO_2018,
+                    y     = SHAP_hh_expenditures_EURO_2018),
+                method = "loess", color = "black", linewidth = 0.4, se = FALSE,
+                formula = y ~ x)+
+    theme_bw()
+  
+  # Households that are richer are more heavily affected
+  
+  # Reason 2: France
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Fuel..mazout.ou.pétrole),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Gaz.de.ville),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that heat with heating oil and city gas are more heavily affected
+  
+  # Reason 1: France
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(number_of_cars),
+                    y = SHAP_number_of_cars_Pas.de.voiture),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that own more cars are more heavily affected
+  
+  # Reason 4: France
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(tenant),
+                    y = SHAP_tenant_Locataire),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that rent their house are less heavily affected compared to households that own their house
+  
+  # Reason 5: France
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(housing_type),
+                    y = SHAP_housing_type_Logement.dans.un.immeuble.collectif),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that live multi-apartment building are more likely to be heavily affected
+  
+}
+
+# Romania
+for(i in c("Romania")){
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Romania_P_absolute.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Romania_P_absolute.parquet")%>%
+    rename_all(~ str_replace(., "^", "SHAP_"))
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Romania_P_absolute.parquet")
+  
+  data_0 <- bind_cols(SHAP_test, SHAP_detail)
+  
+  # Reason 1: Romania
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(number_of_cars),
+                    y = SHAP_number_of_cars_Nu.am.o.masina.),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that own one car or more are more heavily affected
+  
+  # Reason 2: Romania
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Wood..coal.or.oil),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Natural.gas),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that heat with wood are less affected than other households. Households that heat with natural gas are more heavily affected.
+  
+  # Reason 3: Romania
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_point(aes(x = hh_expenditures_LEI_2018,
+                   y = SHAP_hh_expenditures_LEI_2018),
+               size = 0.5, alpha = 0.5, shape = 21)+
+    geom_smooth(aes(x     = hh_expenditures_LEI_2018,
+                    y     = SHAP_hh_expenditures_LEI_2018),
+                method = "loess", color = "black", linewidth = 0.4, se = FALSE,
+                formula = y ~ x)+
+    theme_bw()
+
+  # Households that are richer are more heavily affected
+  
+  # Reason 4: Romania
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(cooking_fuel),
+                    y = SHAP_cooking_fuel_Natural.gas),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that use natural gas for cooking are more heavily affected than other households.
+  
+  # Reason 5: Romania
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(province),
+                    y = SHAP_province_Nord.Vest),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households in which the household head is pensioneer are more heavily affected than households in which the household head is employed.
+  # Could eventually be disregarded.
+  
+}
+
+# Spain
+for(i in c("Spain")){
+  SHAP_test <- read_parquet("../2_Data/Output/SHAP values/SHAP_Test_Spain_P_absolute.parquet")
+  SHAP_detail <- read_parquet("../2_Data/Output/SHAP values/SHAP_Detail_Spain_P_absolute.parquet")%>%
+    rename_all(~ str_replace(., "^", "SHAP_"))
+  SHAP_Summary <- read_parquet("../2_Data/Output/SHAP values/SHAP_Summary_Spain_P_absolute.parquet")
+  
+  data_0 <- bind_cols(SHAP_test, SHAP_detail)
+  
+  # Reason 1: Spain
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_point(aes(x = hh_expenditures_EURO_2018,
+                   y = SHAP_hh_expenditures_EURO_2018),
+               size = 0.5, alpha = 0.5, shape = 21)+
+    geom_smooth(aes(x     = hh_expenditures_EURO_2018,
+                    y     = SHAP_hh_expenditures_EURO_2018),
+                method = "loess", color = "black", linewidth = 0.4, se = FALSE,
+                formula = y ~ x)+
+    theme_bw()
+  
+  # Households that are richer are more heavily affected
+  
+  # Reason 2: Spain
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Otras.y.líquidos),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Electricidad),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(heating_fuel),
+                    y = SHAP_heating_fuel_Gas.natural.o.Gas.licuado),
+                size = 0.5, alpha = 0.5, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that use liquid fuels or natural gas for heating are more heavily affected. Households that use electricity for heating are less heavily affected.
+  
+  # Reason 2: Spain
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(urban_identif),
+                    y = SHAP_urban_identif_Municipio.con.menos.de.10.000.habitantes),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(urban_identif),
+                    y = SHAP_urban_identif_Municipio.de.100.000.habitantes.o.más),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that live in "municipios with less than 10.000 habitantes" are more heavily affected.
+  # Households that live in "municipios with more than 100.000 habitantes" are less heavily affected.
+  
+  # Reason 4: Spain
+  
+  ggplot(data_0)+
+    geom_hline(aes(yintercept = 0))+
+    geom_jitter(aes(x = as.factor(occupation),
+                    y = SHAP_occupation_Trabajando.al.menos.una.hora),
+                size = 0.5, alpha = 0.2, height = 0, width = 0.25, shape = 21)+
+    theme_bw()
+  
+  # Households that own their house are more heavily affected. Households that rent their house are less heavily affected.
+  
+
   
 }
 

@@ -6,7 +6,7 @@
 
 if(!require("pacman")) install.packages("pacman")
 
-p_load("boot", "broom", "fixest", "ggpubr", "ggrepel",
+p_load("arrow", "boot", "broom", "fixest", "ggpubr", "ggrepel",
        "ggsci", "Hmisc", "knitr", "kableExtra", "openxlsx", "rattle", "scales", "tidymodels", "tidyverse", "xtable")
 
 options(scipen=999)
@@ -175,9 +175,11 @@ data_0.1 <- data_0 %>%
   arrange(hh_id)%>%
   mutate(number_of_cars = EF531 + EF532 + EF533,
          urban_01       = ifelse(urban_type == 3,0,1),
-         ost_west       = ifelse(ost_west == 33, "West", "Ost"))%>%
+         ost_west       = ifelse(ost_west == 33, "West", "Ost"),
+         children       = EF41 + EF42 + EF43+ EF44 + EF45,
+         adults         = hh_size-children)%>%
   mutate_at(vars(motorcycle.01, tv.01, refrigerator.01, dishwasher.01, washing_machine.01, stove.e.01, stove.g.01), ~ ifelse(. > 0,1,0))%>%
-  select(hh_id, hh_size, hh_weights, 
+  select(hh_id, hh_size, hh_weights, adults, children,
          bundesland, urban_type, urban_01, ost_west,
          gender_hhh, nationality, edu_hhh, edu_hhh_2, year_hhh, employment, industry, building_year, building_type, renting, space, heating_type, heating_fuel,
          starts_with("income"), 
@@ -199,7 +201,7 @@ data_0.1 <- data_0 %>%
   left_join(heating_type.code,  by = "heating_type")%>%
   left_join(heating_fuel.code,  by = "heating_fuel")%>%
   left_join(renting.code,       by = "renting")%>%
-  select(hh_id, hh_size, hh_weights, 
+  select(hh_id, hh_size, hh_weights, adults, children,
          Bundesland, Urban_type, urban_01, ost_west, age_hhh,
          Gender_hhh, Nationality, Education, Ausbildung, year_hhh, Employment, Industry, Building_year, Building_type, 
          Renting, space, Heating_type, Heating_fuel,
@@ -209,6 +211,8 @@ data_0.1 <- data_0 %>%
   filter(income_5 != 0)%>%
   # remove households with negative income
   filter(income_6 > 0)
+
+write_parquet(data_0.1, "H:/6_Citizen_Survey/2_Data/Germany/household_information_Germany.parquet")
 
 rm(building_type.code, building_year.code, bundesland.code, education.code, education.code.2, employment.code, gender.code,
    heating_fuel.code, heating_type.code, industry.code, nationality.code, renting.code, urban.code)
@@ -232,7 +236,11 @@ data_0.2 <- data_0 %>%
   mutate(expenditures_year = expenditures*4)%>%
   filter(expenditures_year > 0)
 
+write_parquet(data_0.2, "H:/6_Citizen_Survey/2_Data/Germany/expenditures_items_Germany.parquet")
+
 rm(data_0)
+
+# write_parquet(data_0.2, "K:/2022_DESTATIS_Mikrozensen2014+2016+2019+EVS2013+2018/MCC/suf_evs_2018_aagshb_gf3_slr/daten/expenditures_items_Germany.parquet")
 
 # 1.1   Transform and clean expenditures ####
 

@@ -83,7 +83,42 @@ Lighting.Code      <- read_csv(sprintf("%s/2_Codes/Lighting.Code.csv",      path
 # 0.2.5 Supplementary data ####
 
 exchange.rate  <- 0.24676177 # Source as usual - in Dollar per Lei
-inflation.rate <- 1/1.01344 # Source: IMF
+inflation.rate <- 1/1.046 # Source: IMF
+
+# 0.2.6 Remove duplicates ####
+
+household_information_1 <- household_information %>%
+  group_by_at(vars(-hh_id))%>%
+  mutate(number = n(),
+         flag = ifelse(number > 1,1,0))%>%
+  ungroup()
+
+hh_duplicates_information <- household_information_1 %>%
+  filter(flag != 0)%>%
+  select(hh_id)
+
+# Exact duplicates for expenditures
+expenditure_information_1 <- expenditures %>%
+  pivot_wider(names_from = "item_code", values_from = "expenditures_year")%>%
+  group_by_at(vars(-hh_id))%>%
+  mutate(number = n(),
+         flag = ifelse(number > 1,1,0))%>%
+  ungroup()%>%
+  arrange(desc(flag))
+
+hh_duplicates_expenditures_1 <- expenditure_information_1 %>%
+  filter(flag != 0)%>%
+  select(hh_id)
+
+household_information <- household_information %>%
+  filter(!hh_id %in% hh_duplicates_information$hh_id)%>%
+  filter(!hh_id %in% hh_duplicates_expenditures_1$hh_id)
+
+expenditures <- expenditures %>%
+  filter(!hh_id %in% hh_duplicates_information$hh_id)%>%
+  filter(!hh_id %in% hh_duplicates_expenditures_1$hh_id)
+
+rm(hh_duplicates_expenditures_1, expenditure_information_1, household_information_1, hh_duplicates_information)
 
 # 1   Transform and clean expenditures ####
 
