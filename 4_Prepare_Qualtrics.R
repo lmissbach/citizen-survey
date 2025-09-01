@@ -356,6 +356,14 @@ data_ESP_1.5 <- data_ESP_0 %>%
          min_165 = round(min*165/45,-1),
          max_165 = round(max*165/45,-1))
 
+data_ESP_1.6 <- data_ESP_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_ESP)%>%
+  summarise(median_45 = round(wtd.quantile(abs_interest_45, hh_weights, probs = 0.5),-1))%>%
+  mutate(median_85 = round(median_45*85/45,-1),
+         median_125 = round(median_45*125/45,-1))%>%
+  mutate(Country = "Spain")
+
 data_GER_1.5 <- data_GER_0 %>%
   mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
          abs_interest_45 = CO2_interest*45*inflation_GER)%>%
@@ -372,6 +380,14 @@ data_GER_1.5 <- data_GER_0 %>%
          max_125 = round(max*125/45,-1),
          min_165 = round(min*165/45,-1),
          max_165 = round(max*165/45,-1))
+
+data_GER_1.6 <- data_GER_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_ESP)%>%
+  summarise(median_45 = round(wtd.quantile(abs_interest_45, hh_weights, probs = 0.5),-1))%>%
+  mutate(median_85 = round(median_45*85/45,-1),
+         median_125 = round(median_45*125/45,-1))%>%
+  mutate(Country = "Germany")
 
 data_ROM_1.5 <- data_ROM_0 %>%
   mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
@@ -390,6 +406,14 @@ data_ROM_1.5 <- data_ROM_0 %>%
          min_165 = round(min*165/45,-1),
          max_165 = round(max*165/45,-1))
 
+data_ROM_1.6 <- data_ROM_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*202*inflation_ESP)%>%
+  summarise(median_45 = round(wtd.quantile(abs_interest_45, hh_weights, probs = 0.5),-1))%>%
+  mutate(median_85 = round(median_45*85/45,-1),
+         median_125 = round(median_45*125/45,-1))%>%
+  mutate(Country = "Romania")
+
 data_FRA_1.5 <- data_FRA_0 %>%
   mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
          abs_interest_45 = CO2_interest*45*inflation_FRA)%>%
@@ -406,6 +430,18 @@ data_FRA_1.5 <- data_FRA_0 %>%
          max_125 = round(max*125/45,-1),
          min_165 = round(min*165/45,-1),
          max_165 = round(max*165/45,-1))
+
+data_FRA_1.6 <- data_FRA_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_ESP)%>%
+  summarise(median_45 = round(wtd.quantile(abs_interest_45, hh_weights, probs = 0.5),-1))%>%
+  mutate(median_85 = round(median_45*85/45,-1),
+         median_125 = round(median_45*125/45,-1))%>%
+  mutate(Country = "France")
+
+data_1.6 <- bind_rows(data_ESP_1.6, data_FRA_1.6, data_GER_1.6, data_ROM_1.6)
+
+write.xlsx(data_1.6, "../2_data/Supplementary/Median_Costs_Countries.xlsx")
 
 # 1.   Transform data for Qualtrics / Google Sheets ####
 
