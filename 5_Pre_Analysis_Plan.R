@@ -172,15 +172,15 @@ data_1_FRA <- data_0_FRA %>%
   # Convert date
   mutate(StartDate = as.POSIXct(StartDate, format = "%Y-%m-%d %H:%M:%S"))%>%
   mutate(Date = format(StartDate, "%Y-%m-%d"))%>%
-  filter(as.Date(Date) > as.Date("2025-08-18"))%>%
+  filter(as.Date(Date) > as.Date("2025-08-18"))%>% # TBA
   # Create basic columns
   mutate(Country = "France")%>%
   mutate(ID = 1:n())%>%
   select(Country, ID, everything())%>%
   rename(time = "Duration (in seconds)")%>%
-  filter(consent != "Non")%>%
+  filter(Q02 != "Non")%>%
   # Order of columns
-  select(Country, ID, time, Age:Date)
+  select(Country, ID, time, Q10:Date)
 
 # Label-file
 data_1.1.1_FRA <- data_1_FRA %>%
@@ -194,8 +194,9 @@ data_1.1.2_FRA <- data_1_FRA %>%
 
 # Institutional trust values
 data_1.1_FRA <- data_1_FRA %>%
-  select(Country, ID, Integrity_1:Responsiveness_3)%>%
-  pivot_longer(Integrity_1:Responsiveness_3, names_to = "Variable", values_to = "Value_raw")%>%
+  select(Country, ID, Q31_1:Q34_3)%>%
+  pivot_longer(Q31_1:Q34_3, names_to = "Variable", values_to = "Value_raw")%>%
+  filter(!is.na(Value_raw))%>% # TBA
   mutate(Label = ifelse(str_detect(Value_raw, "1"),"1",
                         ifelse(str_detect(Value_raw, "2"), "2",
                                ifelse(str_detect(Value_raw, "3"), "3",
@@ -213,19 +214,14 @@ data_1.1_FRA <- data_1_FRA %>%
   pivot_wider(names_from = "Column", values_from = "Value")
 
 data_1.2_FRA <- data_1_FRA %>%
-  select(-(Integrity_1:Responsiveness_3), -(Institution1:Label5))%>%
+  select(-(Q31_1:Q34_3), -(Institution1:Label5))%>%
   left_join(data_1.1_FRA)%>%
-  select(Country:Q41_3, starts_with("Integrity"), starts_with("Competence"), starts_with("Representativeness"), starts_with("Responsiveness"), everything())%>%
-  # Renaming of some columns
-  rename("Trust_information_1" = "Trust in information_1", "Trust_information_2" = "Trust in information_2", "Trust_information_3" = "Trust in information_3", "Trust_information_4" = "Trust in information_4",
-         "CC_concern" = "Climate change conce",
-         "Effectiveness_1" = "Effectiveness 1", "Expected_cost_1" = "Expected cost 1", "Relative_loss_1" = "Relative loss 1", "Vulnerable_1" = "Vulnerable 1", "Fairness_1" = "Fairness 1", "Support_1" = "Support 1",
-         "Effectiveness_2" = "Effectiveness 2", "Expected_cost_2" = "Expected cost 2", "Relative_loss_2" = "Relative loss 2", "Vulnerable_2" = "Vulnerable 2", "Fairness_2" = "Fairness 2", "Support_2" = "Support 2")
+  select(Country:Q30_3, starts_with("Q31"), starts_with("Q32"), starts_with("Q33"), starts_with("Q34"), everything())
 
 # Cost range
 data_1.2.1_FRA <- data_1.2_FRA %>%
-  select(Country, ID, Expected_cost_1, Expected_cost_2)%>%
-  pivot_longer(Expected_cost_1:Expected_cost_2)%>%
+  select(Country, ID, Q42_1, Q42_2)%>%
+  pivot_longer(Q42_1:Q42_2)%>%
   left_join(select(data_1.2_FRA, Country, ID, t1:t6))%>%
   mutate(value = ifelse(str_detect(value, "t1"), str_replace(value, fixed("${e://Field/t1}"), t1), value),
          value = ifelse(str_detect(value, "t2"), str_replace(value, fixed("${e://Field/t2}"), t2), value),
@@ -237,26 +233,26 @@ data_1.2.1_FRA <- data_1.2_FRA %>%
   pivot_wider()
 
 data_1.3_FRA <- data_1.2_FRA %>%
-  rename("Expected_cost_1_true" = "Expected_cost_1", "Expected_cost_2_true" = "Expected_cost_2", policy = "Policy description")%>%
+  rename("Q42_1_true" = "Q42_1", "Q42_2_true" = "Q42_2", policy = "Policy description")%>%
   left_join(data_1.2.1_FRA)%>%
-  select(Country:Expected_cost_1_true, Expected_cost_1, Relative_loss_1:Expected_cost_2_true, Expected_cost_2, everything())%>%
+  select(Country:Q42_1_true, Q42_1, Q43_1:Q42_2_true, Q42_2, everything())%>%
   # Remove some columns
-  select(-"Message reception_6_TEXT", -(heating:spending), -(FairnessPerception:profileB_task3))%>%
+  select(-(FairnessPerception:PolicySupport), -"Create New Field or Choose From Dropdown...")%>%
   # mutate_at(vars(Effectiveness_1, Effectiveness_2, Expected_cost_1_true, Expected_cost_2_true), ~ ifelse(is.na(.), "No lo sé",.))%>%
   # Introducing factors
-  mutate(Effectiveness_1 = factor(Effectiveness_1, levels = c("Certainement inefficace", "Probablement inefficace", "Probablement efficace", "Certainement efficace")),
-         Effectiveness_2 = factor(Effectiveness_2, levels = c("Certainement inefficace", "Probablement inefficace", "Probablement efficace", "Certainement efficace")),
-         Expected_cost_1_true = factor(Expected_cost_1_true, levels = c("Moins de ${e://Field/t1}€", "Entre ${e://Field/t1}€ et ${e://Field/t2}€", "Entre ${e://Field/t2}€ et ${e://Field/t3}€", "Entre ${e://Field/t3}€ et ${e://Field/t4}€", "Entre ${e://Field/t4}€ et ${e://Field/t5}€", "Entre ${e://Field/t5}€ et ${e://Field/t6}€", "Plus de ${e://Field/t6}€")),
-         Expected_cost_2_true = factor(Expected_cost_2_true, levels = c("Moins de ${e://Field/t1}€", "Entre ${e://Field/t1}€ et ${e://Field/t2}€", "Entre ${e://Field/t2}€ et ${e://Field/t3}€", "Entre ${e://Field/t3}€ et ${e://Field/t4}€", "Entre ${e://Field/t4}€ et ${e://Field/t5}€", "Entre ${e://Field/t5}€ et ${e://Field/t6}€", "Plus de ${e://Field/t6}€")),
-         Relative_loss_1 = factor(Relative_loss_1, levels = c("Moins qu’un ménage type", "À peu près autant qu’un ménage type", "Plus qu’un ménage type")),
-         Relative_loss_2 = factor(Relative_loss_2, levels = c("Moins qu’un ménage type", "À peu près autant qu’un ménage type", "Plus qu’un ménage type")),
-         Vulnerable_1 = factor(Vulnerable_1, levels = c("Nuisible", "Ni nuisible ni utile", "Utile")),
-         Vulnerable_2 = factor(Vulnerable_2, levels = c("Nuisible", "Ni nuisible ni utile", "Utile")),
-         Fairness_1 = factor(Fairness_1, levels = c("Injuste", "Ni juste ni injuste", "Juste")),
-         Fairness_2 = factor(Fairness_2, levels = c("Injuste", "Ni juste ni injuste", "Juste")),
-         Support_1 = factor(Support_1, levels = c("Je suis tout à fait contre", "Je suis plutôt contre", "Je ne suis ni pour ni contre", "Je suis plutôt pour", "Je suis tout à fait pour")),
-         Support_2 = factor(Support_2, levels = c("Je suis tout à fait contre", "Je suis plutôt contre", "Je ne suis ni pour ni contre", "Je suis plutôt pour", "Je suis tout à fait pour")),
-         Trust_National = factor(Q41_1, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")))%>%
+  mutate(Q41_1 = factor(Q41_1, levels = c("Certainement inefficace", "Probablement inefficace", "Probablement efficace", "Certainement efficace")),
+         Q41_2 = factor(Q41_2, levels = c("Certainement inefficace", "Probablement inefficace", "Probablement efficace", "Certainement efficace")),
+         Q42_1_true = factor(Q42_1_true, levels = c("Moins de ${e://Field/t1}€", "Entre ${e://Field/t1}€ et ${e://Field/t2}€", "Entre ${e://Field/t2}€ et ${e://Field/t3}€", "Entre ${e://Field/t3}€ et ${e://Field/t4}€", "Entre ${e://Field/t4}€ et ${e://Field/t5}€", "Entre ${e://Field/t5}€ et ${e://Field/t6}€", "Plus de ${e://Field/t6}€")),
+         Q42_2_true = factor(Q42_2_true, levels = c("Moins de ${e://Field/t1}€", "Entre ${e://Field/t1}€ et ${e://Field/t2}€", "Entre ${e://Field/t2}€ et ${e://Field/t3}€", "Entre ${e://Field/t3}€ et ${e://Field/t4}€", "Entre ${e://Field/t4}€ et ${e://Field/t5}€", "Entre ${e://Field/t5}€ et ${e://Field/t6}€", "Plus de ${e://Field/t6}€")),
+         Q43_1 = factor(Q43_1, levels = c("Beaucoup plus qu'un ménage type","Un peu plus qu'un ménage plus","À peu près autant qu’un ménage type", "Un peu moins qu'un ménage plus","Beaucoup moins qu’un ménage type")),
+         Q43_2 = factor(Q43_2, levels = c("Beaucoup plus qu'un ménage type","Un peu plus qu'un ménage plus","À peu près autant qu’un ménage type", "Un peu moins qu'un ménage plus","Beaucoup moins qu’un ménage type")),
+         Q44_1 = factor(Q44_1, levels = c("Nuisible", "Ni nuisible ni utile", "Utile")),
+         Q44_2 = factor(Q44_2, levels = c("Nuisible", "Ni nuisible ni utile", "Utile")),
+         Q45_1 = factor(Q45_1, levels = c("Injuste", "Ni juste ni injuste", "Juste")),
+         Q45_2 = factor(Q45_2, levels = c("Injuste", "Ni juste ni injuste", "Juste")),
+         Q46_1 = factor(Q46_1, levels = c("Je suis tout à fait contre", "Je suis plutôt contre", "Je ne suis ni pour ni contre", "Je suis plutôt pour", "Je suis tout à fait pour")),
+         Q46_2 = factor(Q46_2, levels = c("Je suis tout à fait contre", "Je suis plutôt contre", "Je ne suis ni pour ni contre", "Je suis plutôt pour", "Je suis tout à fait pour")),
+         Q30_1 = factor(Q30_1, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -267,12 +263,11 @@ data_1.3_FRA <- data_1.2_FRA %>%
 # Join cost estimates 
 
 com_1_FRA <- com_0_FRA %>%
-  rename("Heating" = "heating_fuel", "Ownership" = "tenant", "Urbanism" = "urban_type", "Building" = "housing_type", "Province" = "province", "Building_age" = "construction_year",
-         "Spending" = "hh_expenditures", "Cars" = "number_of_cars")%>%
-  mutate_at(vars(Heating:"Building_age"), ~ as.character(.))
+  rename(Q20 = "heating_fuel", Q21 = "tenant", Q27 = "urban_type", Q22 = "housing_type", Q26 = "province", Q23 = "construction_year",
+         Q28 = "hh_expenditures", Q25 = "number_of_cars")%>%
+  mutate_at(vars(Q20:Q23), ~ as.character(.))
 
 data_1.4_FRA <- data_1.3_FRA %>%
-  rename("Building_age" = "Building age")%>%
   left_join(com_1_FRA)%>%
   mutate(absolute_value = ifelse(Pricelevel == "45", as.character(absolute_45),
                                  ifelse(Pricelevel == "85", as.character(absolute_85),
@@ -675,10 +670,8 @@ data_2_ROM <- data_1.4_ROM %>%
 
 rm(data_1.4_ESP, data_1.4_GER, data_1.4_FRA, data_1.4_ROM)
 
-# 3.X   Preliminary pilot tests (Deliverable - to be deleted) ####
 
-
-# 3.1 Baseline outcome distribution ####
+# 3.1   Baseline outcome distribution ####
 
 data_3 <- bind_rows(data_2_ESP, data_2_FRA)%>%
   bind_rows(data_2_GER)%>%
@@ -1218,323 +1211,6 @@ etable(model_BC, tex = TRUE, dict = dict_latex,
                  Treatments C\\textsubscript{1} to C\\textsubscript{4} provide respondent-level information about the resulting additional costs. The dependent variable expresses support on a five-point Lickert-scale."))
 )
 
-
-# 3.4   Varia ####
-
-# 3.4.1 Occupation / Industry  ####
-
-data_3.4.1 <- data_3 %>%
-  filter(Country != "Romania")%>%
-  filter(Employment %in% c("Employé(e) à temps partiel", "Employé(e) à temps plein", "Travailleur(euse) indépendant(e)",
-                           "Beschäftigung in Teilzeit", "Beschäftigung in Vollzeit", "Selbstständig",
-                           "Empleado a tiempo completo", "Empleado a tiempo parcial", "Trabajador por cuenta propia"))%>%
-  group_by(Country)%>%
-  summarise(test = sum(is.na(Industry)),
-            number = n())%>%
-  ungroup()%>%
-  mutate(share = test/number)
-
-rm(data_3.4.1)
-
-# 3.4.2 Non-response rate across questions ####
-
-data_3.4.0 <- data_3 %>%
-  group_by(Country)%>%
-  summarise(observations = n())%>%
-  ungroup()
-
-data_3.4.2 <- data_3 %>%
-  select(-"Message reception_5_TEXT")%>%
-  group_by(Country)%>%
-  summarise_all(~ sum(is.na(.)))%>%
-  ungroup()%>%
-  left_join(data_3.4.0)%>%
-  mutate_at(vars(-Country), ~ ./observations)
-
-write.xlsx(data_3.4.2, "../2_Data/Supplementary/Missing Observations.xlsx")
-
-rm(data_3.4.0, data_3.4.2)
-
-# 3.4.3 Concern about climate change and cliamte policy ####
-
-data_3.4.3 <- data_3 %>%
-  filter(!is.na(CC_concern))%>%
-  group_by(CC_concern, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  mutate(CC_concern = stri_trans_general(CC_concern, "Latin-ASCII"))%>%
-  mutate(CC_concern_1 = case_when(CC_concern %in% c("Nicht besorgt", "Pas preoccupe(e)", "Nu sunt preocupat(a)", "No me preocupa") ~ "Not\noccupied",
-                                  CC_concern %in% c("Ein wenig besorgt", "Un peu preoccupe(e)", "Putin preocupat(a)", "Me preocupa un poco") ~ "Somewhat\noccupied",
-                                  CC_concern %in% c("Ziemlich besorgt", "Assez preoccupe(e)", "Oarecum preocupat(a)", "Me preocupa algo") ~ "Rather\noccupied",
-                                  CC_concern %in% c("Sehr besorgt", "Tres preoccupe(e)", "Foarte preocupat(a)", "Me preocupa mucho") ~ "Very\noccupied",
-                                  CC_concern %in% c("Keine Aussage", "Sans opinion", "Nu am nicio parere", "No tenga una opinión al respecto") ~ "I don't\nknow"))%>%
-  mutate(CC_concern_label = factor(CC_concern_1, levels = c("Not\noccupied", "Somewhat\noccupied", "Rather\noccupied", "Very\noccupied", "I don't\nknow")))
-
-
-P_3.4.3 <- ggplot(data_3.4.3, aes(y = Country))+
-  theme_bw()+
-  geom_col(position = "stack", aes(x = share, fill = fct_rev(CC_concern_label)), colour = "black", width = 0.75)+
-  scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
-  labs(fill = "How concerned are you about climate change?")+
-  scale_x_continuous(labels = scales::percent_format())+
-  xlab("Share of respondents")+
-  ggtitle("Concern about climate change")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 7),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom"
-  )
-
-jpeg("../2_Data/Figures/Pilot/Figure_7.jpg", width = 14, height = 12, unit = "cm", res = 600)
-print(P_3.4.3)
-dev.off()
-
-data_3.4.3.1 <- data_3 %>%
-  select(Country, Q46_1, Q46_2, Q46_3)%>%
-  mutate(Q46_1_label = case_when(Q46_1 %in% c("Muy negativo", "Foarte negativ", "Très négatif", "Sehr negativ") ~ "Very\nnegative",
-                                 Q46_1 %in% c("Algo negativo", "Oarecum negativ", "Assez négatif", "Eher negativ") ~ "Rather\nnegative",
-                                 Q46_1 %in% c("Sin impacto", "Nici un impact", "Aucun impact", "Keine Auswirkungen") ~ "No influence",
-                                 Q46_1 %in% c("Algo positivo", "Oarecum pozitiv", "Assez positif", "Eher positiv") ~ "Rather\npositive",
-                                 Q46_1 %in% c("Muy positivo", "Foarte pozitiv", "Très positif", "Sehr positiv") ~ "Very\npositive"))%>%
-  mutate(Q46_2_label = case_when(Q46_2 %in% c("Muy negativo", "Foarte negativ", "Très négatif", "Sehr negativ") ~ "Very\nnegative",
-                                 Q46_2 %in% c("Algo negativo", "Oarecum negativ", "Assez négatif", "Eher negativ") ~ "Rather\nnegative",
-                                 Q46_2 %in% c("Sin impacto", "Nici un impact", "Aucun impact", "Keine Auswirkungen") ~ "No influence",
-                                 Q46_2 %in% c("Algo positivo", "Oarecum pozitiv", "Assez positif", "Eher positiv") ~ "Rather\npositive",
-                                 Q46_2 %in% c("Muy positivo", "Foarte pozitiv", "Très positif", "Sehr positiv") ~ "Very\npositive"))%>%
-  mutate(Q46_3_label = case_when(Q46_3 %in% c("Muy negativo", "Foarte negativ", "Très négatif", "Sehr negativ") ~ "Very\nnegative",
-                                 Q46_3 %in% c("Algo negativo", "Oarecum negativ", "Assez négatif", "Eher negativ") ~ "Rather\nnegative",
-                                 Q46_3 %in% c("Sin impacto", "Nici un impact", "Aucun impact", "Keine Auswirkungen") ~ "No influence",
-                                 Q46_3 %in% c("Algo positivo", "Oarecum pozitiv", "Assez positif", "Eher positiv") ~ "Rather\npositive",
-                                 Q46_3 %in% c("Muy positivo", "Foarte pozitiv", "Très positif", "Sehr positiv") ~ "Very\npositive"))
-
-data_3.4.3.2 <- data_3.4.3.1 %>%
-  select(Country, Q46_1_label)%>%
-  filter(!is.na(Q46_1_label))%>%
-  group_by(Q46_1_label, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  mutate(Q46_1_label = factor(Q46_1_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")))
-
-data_3.4.3.3 <- data_3.4.3.1 %>%
-  select(Country, Q46_2_label)%>%
-  filter(!is.na(Q46_2_label))%>%
-  group_by(Q46_2_label, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  mutate(Q46_2_label = factor(Q46_2_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")))
-
-data_3.4.3.4 <- data_3.4.3.1 %>%
-  select(Country, Q46_3_label)%>%
-  filter(!is.na(Q46_3_label))%>%
-  group_by(Q46_3_label, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  mutate(Q46_3_label = factor(Q46_3_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")))
-
-P_3.4.3.1 <- ggplot(data_3.4.3.2, aes(y = Country))+
-  theme_bw()+
-  geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_1_label)), colour = "black", width = 0.75)+
-  scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
-  labs(fill = "What is the impact of climate policy on your life?")+
-  scale_x_continuous(labels = scales::percent_format())+
-  xlab("Share of respondents")+
-  ggtitle("Impact on one's life")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 7),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom")
-
-P_3.4.3.2 <- ggplot(data_3.4.3.3, aes(y = Country))+
-  theme_bw()+
-  geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_2_label)), colour = "black", width = 0.75)+
-  scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
-  labs(fill = "What is the impact of climate policy on the economy?")+
-  scale_x_continuous(labels = scales::percent_format())+
-  xlab("Share of respondents")+
-  ggtitle("Impact on the economy")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 7),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom")
-
-P_3.4.3.3 <- ggplot(data_3.4.3.4, aes(y = Country))+
-  theme_bw()+
-  geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_3_label)), colour = "black", width = 0.75)+
-  scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
-  labs(fill = "What is the impact of climate policy on the climate?")+
-  scale_x_continuous(labels = scales::percent_format())+
-  xlab("Share of respondents")+
-  ggtitle("Impact on the climate")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 7),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom")
-
-jpeg("../2_Data/Figures/Pilot/Figure_8_%d.jpg", width = 14, height = 12, unit = "cm", res = 300)
-print(P_3.4.3.1)
-print(P_3.4.3.2)
-print(P_3.4.3.3)
-dev.off()
-
-rm(data_3.4.3, data_3.4.3.1, data_3.4.3.2, data_3.4.3.3, data_3.4.3.4, P_3.4.3, P_3.4.3.1, P_3.4.3.2, P_3.4.3.3)
-
-# Correlation between Q46_1 and Q46_2
-
-data_3.4.3.5 <- data_3.4.3.1 %>%
-  select(Country, Q46_1_label, Q46_2_label)%>%
-  filter(!is.na(Q46_1_label)&!is.na(Q46_2_label))%>%
-  group_by(Q46_1_label, Q46_2_label, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  mutate(Q46_1_label = factor(Q46_1_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")),
-         Q46_2_label = factor(Q46_2_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")))
-
-data_3.4.3.6 <- data_3.4.3.1 %>%
-  select(Country, Q46_1_label, Q46_3_label)%>%
-  filter(!is.na(Q46_1_label)&!is.na(Q46_3_label))%>%
-  group_by(Q46_1_label, Q46_3_label, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  mutate(Q46_1_label = factor(Q46_1_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")),
-         Q46_3_label = factor(Q46_3_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")))
-
-data_3.4.3.7 <- data_3.4.3.1 %>%
-  select(Country, Q46_2_label, Q46_3_label)%>%
-  filter(!is.na(Q46_2_label)&!is.na(Q46_3_label))%>%
-  group_by(Q46_2_label, Q46_3_label, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  mutate(Q46_2_label = factor(Q46_2_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")),
-         Q46_3_label = factor(Q46_3_label, levels = c("Very\nnegative", "Rather\nnegative", "No influence", "Rather\npositive", "Very\npositive")))
-
-
-P_3.4.3.5 <- ggplot(data_3.4.3.5)+
-  theme_bw()+
-  facet_wrap(. ~ Country)+
-  geom_point(aes(x = Q46_2_label, y = Q46_1_label, alpha = share), colour = "black", shape = 22, size = 11, fill = "#0072B5FF")+
-  geom_text(aes(x = Q46_2_label, y = Q46_1_label, label = label_0), size = 3.5)+
-  scale_alpha_continuous()+
-  #scale_fill_continuous(guide = guide_legend(reverse = TRUE, title.position = "top"), type = "viridis")+
-  labs(fill = "What is the impact of climate policy on your life?")+
-  xlab("Impact on the economy")+
-  ylab("Impact on one's life")+
-  guides(alpha = "none")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 6),
-        axis.text.y = element_text(size = 6),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom")
-
-P_3.4.3.6 <- ggplot(data_3.4.3.7)+
-  theme_bw()+
-  facet_wrap(. ~ Country)+
-  geom_point(aes(x = Q46_3_label, y = Q46_2_label, alpha = share), colour = "black", shape = 22, size = 11, fill = "#0072B5FF")+
-  geom_text(aes(x = Q46_3_label, y = Q46_2_label, label = label_0), size = 3.5)+
-  scale_alpha_continuous()+
-  #scale_fill_continuous(guide = guide_legend(reverse = TRUE, title.position = "top"), type = "viridis")+
-  labs(fill = "What is the impact of climate policy on your life?")+
-  xlab("Impact on the climate")+
-  ylab("Impact on the economy")+
-  guides(alpha = "none")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 6),
-        axis.text.y = element_text(size = 6),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom")
-
-P_3.4.3.7 <- ggplot(data_3.4.3.6)+
-  theme_bw()+
-  facet_wrap(. ~ Country)+
-  geom_point(aes(x = Q46_1_label, y = Q46_3_label, alpha = share), colour = "black", shape = 22, size = 11, fill = "#0072B5FF")+
-  geom_text(aes(x = Q46_1_label, y = Q46_3_label, label = label_0), size = 3.5)+
-  scale_alpha_continuous()+
-  #scale_fill_continuous(guide = guide_legend(reverse = TRUE, title.position = "top"), type = "viridis")+
-  labs(fill = "What is the impact of climate policy on your life?")+
-  xlab("Impact on one's life")+
-  ylab("Impact on the climate")+
-  guides(alpha = "none")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 6),
-        axis.text.y = element_text(size = 6),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom")
-
-jpeg("../2_Data/Figures/Pilot/Figure_9_%d.jpg", width = 12, height = 12, unit = "cm", res = 300)
-print(P_3.4.3.5)
-print(P_3.4.3.6)
-print(P_3.4.3.7)
-dev.off()
-
-# 3.4.4 Pilot questions ####
-
-data_3.4.4 <- data_3 %>%
-  select(Country, "Pilot":"Q58","Q63":"Q68", Treatment_B, Q66)%>%
-  rename(understanding_1 = "Understanding questi", reception_1 = "Message reception", clarity_1 = "Pilot question")
-
-data_3.4.4.1 <- data_3.4.4 %>%
-  filter(!is.na(Q66))%>%
-  group_by(Country, Q66)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = round(number/sum,2))
-
-# Check conjoint
-
-data_3.4.5 <- data_3 %>%
-  select(Country, "Conjoint task 1_1":"Conjoint task 4_3")%>%
-  rename_at(vars(-Country), ~ str_replace(., "Conjoint task ", "Combination_"))
 
 # 4     Hypothesis tests ####
 # 4.1   Hypothesis 1 ####
