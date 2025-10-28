@@ -1007,7 +1007,7 @@ data_ROM_2.3.1 <- filter(data_ROM_2.3, heating_fuel == "Wood, coal or oil")%>%
   bind_rows(data_ROM_2.3)
 
 # cooking_fuel
-data_ROM_2.3.2 <- filter(data_ROM_2.3, cooking_fuel == "Natural gas")%>%
+data_ROM_2.3.2 <- filter(data_ROM_2.3.1, cooking_fuel == "Natural gas")%>%
   mutate(cooking_fuel = "Nu stiu asta")%>%
   bind_rows(data_ROM_2.3.1)
 

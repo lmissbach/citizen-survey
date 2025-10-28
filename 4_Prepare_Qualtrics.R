@@ -331,7 +331,7 @@ combinations_ESP_2.1 <- combinations_ESP_2 %>%
 write_parquet(combinations_GER_2, "../2_Data/Output/Output data/Combinations_Qualtrics_Germany_250703.parquet", compression = "gzip")  
 write_parquet(combinations_FRA_2, "../2_Data/Output/Output data/Combinations_Qualtrics_France_250703.parquet",  compression = "gzip")  
 write_parquet(combinations_ESP_2, "../2_Data/Output/Output data/Combinations_Qualtrics_Spain_250703.parquet",   compression = "gzip")  
-write_parquet(combinations_ROM_3, "../2_Data/Output/Output data/Combinations_Qualtrics_Romania_250703.parquet", compression = "gzip")  
+write_parquet(combinations_ROM_3, "../2_Data/Output/Output data/Combinations_Qualtrics_Romania_250916.parquet", compression = "gzip")  
 
 rm(combinations_GER_2, combinations_FRA_2, combinations_ESP_2, combinations_ROM_3)
 
@@ -546,3 +546,132 @@ write.xlsx(data_1.6, "../2_data/Supplementary/Median_Costs_Countries.xlsx")
 #   select(input, outcome)
 # 
 # write.csv(outcome_ESP_2, "../2_Data/Output/Output data/Combinations_Spain_Test_JSON.csv", row.names = FALSE)
+
+# 2.   Supplementary analyses ####
+
+data_2_GER <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Germany.rds")%>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_GER)%>%
+  mutate(rel_interest_45 = abs_interest_45/hh_expenditures_EURO_2018)
+data_2_ESP <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Spain.rds")%>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_ESP)%>%
+  mutate(rel_interest_45 = abs_interest_45/hh_expenditures_EURO_2018)
+data_2_FRA <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_France.rds")%>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_FRA)%>%
+  mutate(rel_interest_45 = abs_interest_45/hh_expenditures_EURO_2018)
+data_2_ROM <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Romania.rds")%>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*202*inflation_ROM)%>%
+  mutate(rel_interest_45 = abs_interest_45/hh_expenditures_LEI_2018)
+
+# 2.1  Distribution figures ####
+
+data_2.1.A <- data.frame()
+data_2.1.B <- data.frame()
+data_2.1.C <- data.frame()
+
+for (i in c("GER", "FRA", "ESP", "ROM")){
+  print(i)
+  
+  if(i == "GER"){data_2 <- data_2_GER}
+  if(i == "FRA"){data_2 <- data_2_FRA}
+  if(i == "ESP"){data_2 <- data_2_ESP}
+  if(i == "ROM"){data_2 <- data_2_ROM}
+  
+  data_2.1 <- data_2 %>%
+    mutate(abs_7   = as.numeric(binning(abs_interest_45, bins = 7, method = "wtd.quantile", weights = hh_weights)),
+           abs_100 = as.numeric(binning(abs_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)))
+  
+  data_2.2 <- data_2.1 %>%
+    group_by(abs_7)%>%
+    summarise(min  = round(min(abs_interest_45),-1),
+              mean = round(mean(abs_interest_45),0),
+              max  = round(max(abs_interest_45),-1))%>%
+    ungroup()%>%
+    mutate(min = ifelse(abs_7 == 1, NA, min),
+           max = ifelse(abs_7 == 7, NA, max))%>%
+    mutate(min_85   = round(min*85/45,-1),
+           mean_85  = round(mean*85/45,0),
+           max_85   = round(max*85/45,-1),
+           min_125  = round(min*125/45,-1),
+           mean_125 = round(mean*125/45,0),
+           max_125  = round(max*125/45,-1))%>%
+    mutate(Country = i)
+  
+  data_2.1.A <- data_2.1.A %>%
+    bind_rows(data_2.2)
+  
+  data_2.3 <- data_2.1 %>%
+    group_by(abs_100)%>%
+    summarise(min = round(min(abs_interest_45),-1),
+              mean = round(mean(abs_interest_45),0),
+              max = round(max(abs_interest_45),-1))%>%
+    ungroup()%>%
+    mutate(min = ifelse(abs_100 == 1, NA, min),
+           max = ifelse(abs_100 == 100, NA, max))%>%
+    mutate(min_85   = round(min*85/45,-1),
+           mean_85  = round(mean*85/45,0),
+           max_85   = round(max*85/45,-1),
+           min_125  = round(min*125/45,-1),
+           mean_125 = round(mean*125/45,0),
+           max_125  = round(max*125/45,-1))%>%
+    mutate(Country = i)
+  
+  data_2.1.B <- data_2.1.B %>%
+    bind_rows(data_2.3)
+  
+  data_2.4 <- data_2 %>%
+    summarise(mean = round(mean(abs_interest_45),0))%>%
+    mutate(mean_85 = round(mean*85/45,0),
+           mean_125 = round(mean*125/45,0))%>%
+    mutate(Country = i)
+  
+  data_2.1.C <- data_2.1.C %>%
+    bind_rows(data_2.4)
+  
+}
+
+list_A <- list("Seven groups" = data_2.1.A, "Percentiles" = data_2.1.B, "Means" = data_2.1.C)
+
+write.xlsx(list_A, "../2_Data/Supplementary/Distribution_of_costs.xlsx")
+
+rm(data_2.1.A, data_2.1.B, data_2.1, data_2.2, data_2.3)
+
+# 2.2  Additional costs over income ####
+
+for (i in c("GER", "FRA", "ESP", "ROM")){
+  print(i)
+  
+  if(i == "GER"){data_2 <- data_2_GER}
+  if(i == "FRA"){data_2 <- data_2_FRA}
+  if(i == "ESP"){data_2 <- data_2_ESP}
+  if(i == "ROM"){data_2 <- data_2_ROM %>%
+    rename(hh_expenditures_EURO_2018 = hh_expenditures_LEI_2018)}
+  
+  data_2.1 <- data_2 %>%
+    select(hh_id, abs_interest_45, rel_interest_45, hh_expenditures_EURO_2018, hh_weights)%>%
+    mutate(mean_exp = wtd.mean(hh_expenditures_EURO_2018, hh_weights),
+           sd_exp   = sqrt(wtd.var(hh_expenditures_EURO_2018, hh_weights)))%>%
+    mutate(z_score = (hh_expenditures_EURO_2018 - mean_exp)/sd_exp)%>%
+    filter(z_score < 3)%>%
+    rename(Absolute = abs_interest_45, Relative = rel_interest_45)%>%
+    pivot_longer(c(Absolute, Relative), names_to = "names", values_to = "values")
+  
+  if(i == "ROM") currency_0 <- "LEI" else currency_0 <- "€"
+  
+  P_1 <- ggplot(data_2.1)+
+    geom_point(aes(x = hh_expenditures_EURO_2018, y = values), alpha = 0.05, fill = "#0072B5FF", shape = 21, size = 0.3)+
+    facet_wrap(. ~ names, scales = "free")+
+    scale_x_continuous(labels = dollar_format(prefix = currency_0), expand = c(0,0))+
+    theme_bw()+
+    xlab("Household expenditures")+
+    ylab("Additional costs")+
+    ggtitle(i)
+  
+  jpeg(sprintf("../2_Data/Supplementary/Figures/Figure_Distribution_%s.jpg", i), width = 18, height = 12, unit = "cm", res = 600)
+  print(P_1)
+  dev.off()
+  
+}
