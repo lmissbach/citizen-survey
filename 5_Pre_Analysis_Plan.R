@@ -290,16 +290,16 @@ data_1_GER <- data_0_GER %>%
   # Convert date
   mutate(StartDate = as.POSIXct(StartDate, format = "%Y-%m-%d %H:%M:%S"))%>%
   mutate(Date = format(StartDate, "%Y-%m-%d"))%>%
-  filter(as.Date(Date) > as.Date("2025-08-18"))%>%
+  filter(as.Date(Date) > as.Date("2025-08-18"))%>% # TBA
   # Create basic columns
   mutate(Country = "Germany")%>%
   mutate(ID = 1:n())%>%
   select(Country, ID, everything())%>%
   rename(time = "Duration (in seconds)")%>%
-  filter(consent != "Nein")%>%
-  filter(Age != "Unter 18")%>%
+  filter(Q02 != "Nein")%>%
+  filter(Q10 != "Unter 18")%>%
   # Order of columns
-  select(Country, ID, time, Age:Date)
+  select(Country, ID, time, Q10:Date)
 
 # Label-file
 data_1.1.1_GER <- data_1_GER %>%
@@ -313,8 +313,9 @@ data_1.1.2_GER <- data_1_GER %>%
 
 # Institutional trust values
 data_1.1_GER <- data_1_GER %>%
-  select(Country, ID, Integrity_1:Responsiveness_3)%>%
-  pivot_longer(Integrity_1:Responsiveness_3, names_to = "Variable", values_to = "Value_raw")%>%
+  select(Country, ID, Q31_1:Q34_3)%>%
+  pivot_longer(Q31_1:Q34_3, names_to = "Variable", values_to = "Value_raw")%>%
+  filter(!is.na(Value_raw))%>%
   mutate(Label = ifelse(str_detect(Value_raw, "1"),"1",
                         ifelse(str_detect(Value_raw, "2"), "2",
                                ifelse(str_detect(Value_raw, "3"), "3",
@@ -332,19 +333,14 @@ data_1.1_GER <- data_1_GER %>%
   pivot_wider(names_from = "Column", values_from = "Value")
 
 data_1.2_GER <- data_1_GER %>%
-  select(-(Integrity_1:Responsiveness_3), -(Institution1:Label5))%>%
+  select(-(Q31_1:Q34_2), -(Institution1:Label5))%>%
   left_join(data_1.1_GER)%>%
-  select(Country:Q41_3, starts_with("Integrity"), starts_with("Competence"), starts_with("Representativeness"), starts_with("Responsiveness"), everything())%>%
-  # Renaming of some columns
-  rename("Trust_information_1" = "Trust in information_1", "Trust_information_2" = "Trust in information_2", "Trust_information_3" = "Trust in information_3", "Trust_information_4" = "Trust in information_4",
-         "CC_concern" = "Climate change conce",
-         "Effectiveness_1" = "Effectiveness 1", "Expected_cost_1" = "Expected cost 1", "Relative_loss_1" = "Relative loss 1", "Vulnerable_1" = "Vulnerable 1", "Fairness_1" = "Fairness 1", "Support_1" = "Support 1",
-         "Effectiveness_2" = "Q56", "Expected_cost_2" = "Expected cost 2", "Relative_loss_2" = "Relative loss 2", "Vulnerable_2" = "Vulnerable 2", "Fairness_2" = "Fairness 2", "Support_2" = "Support 2")
+  select(Country:Q30_3, starts_with("Q31"), starts_with("Q32"), starts_with("Q33"), starts_with("Q34"), everything())
 
 # Cost range
 data_1.2.1_GER <- data_1.2_GER %>%
-  select(Country, ID, Expected_cost_1, Expected_cost_2)%>%
-  pivot_longer(Expected_cost_1:Expected_cost_2)%>%
+  select(Country, ID, Q42_1, Q42_2)%>%
+  pivot_longer(Q42_1:Q42_2)%>%
   left_join(select(data_1.2_GER, Country, ID, t1:t6))%>%
   mutate(value = ifelse(str_detect(value, "t1"), str_replace(value, fixed("${e://Field/t1}"), t1), value),
          value = ifelse(str_detect(value, "t2"), str_replace(value, fixed("${e://Field/t2}"), t2), value),
@@ -356,26 +352,26 @@ data_1.2.1_GER <- data_1.2_GER %>%
   pivot_wider()
 
 data_1.3_GER <- data_1.2_GER %>%
-  rename("Expected_cost_1_true" = "Expected_cost_1", "Expected_cost_2_true" = "Expected_cost_2", policy = "Policy description")%>%
+  rename("Q42_1_true" = "Q42_1", "Q42_2_true" = "Q42_2", policy = "Policy description")%>%
   left_join(data_1.2.1_GER)%>%
-  select(Country:Expected_cost_1_true, Expected_cost_1, Relative_loss_1:Expected_cost_2_true, Expected_cost_2, everything())%>%
+  select(Country:Q42_1_true, Q42_1, Q43_1:Q42_2_true, Q42_2, everything())%>%
   # Remove some columns
-  select(-"Message reception_6_TEXT", -(heating:spending), -(FairnessPerception:profileB_task3))%>%
+  select(-(FairnessPerception:PolicySupport))%>%
   # mutate_at(vars(Effectiveness_1, Effectiveness_2, Expected_cost_1_true, Expected_cost_2_true), ~ ifelse(is.na(.), "No lo sé",.))%>%
   # Introducing factors
-  mutate(Effectiveness_1 = factor(Effectiveness_1, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
-         Effectiveness_2 = factor(Effectiveness_2, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
-         Expected_cost_1_true = factor(Expected_cost_1_true, levels = c("um weniger als ${e://Field/t1}€", "um ${e://Field/t1}€ bis ${e://Field/t2}€", "um ${e://Field/t2}€ bis ${e://Field/t3}€", "um ${e://Field/t3}€ bis ${e://Field/t4}€", "um ${e://Field/t4}€ bis ${e://Field/t5}€", "um ${e://Field/t5}€ bis ${e://Field/t6}€", "mehr als ${e://Field/t6}€")),
-         Expected_cost_2_true = factor(Expected_cost_2_true, levels = c("um weniger als ${e://Field/t1}€", "um ${e://Field/t1}€ bis ${e://Field/t2}€", "um ${e://Field/t2}€ bis ${e://Field/t3}€", "um ${e://Field/t3}€ bis ${e://Field/t4}€", "um ${e://Field/t4}€ bis ${e://Field/t5}€", "um ${e://Field/t5}€ bis ${e://Field/t6}€", "mehr als ${e://Field/t6}€")),
-         Relative_loss_1 = factor(Relative_loss_1, levels = c("Niedriger als bei einem typischen Haushalt", "Ungefähr so hoch wie bei einem typischen Haushalt", "Höher als bei einem durchschnittlichen Haushalt")),
-         Relative_loss_2 = factor(Relative_loss_2, levels = c("Niedriger als bei einem typischen Haushal", "Ungefähr so hoch wie bei einem typischen Haushalt", "Höher als bei einem typischen Haushalt")),
-         Vulnerable_1 = factor(Vulnerable_1, levels = c("Sie wird eher schaden", "Sie wird weder schaden noch helfen", "Sie wird eher helfen")),
-         Vulnerable_2 = factor(Vulnerable_2, levels = c("Sie wird ihnen schaden", "Sie wird ihnen weder schaden noch helfen", "Sie wird ihnen helfen")),
-         Fairness_1 = factor(Fairness_1, levels = c("Ich finde sie ungerecht", "Ich finden sie weder gerecht noch ungerecht", "Ich finde Sie gerecht")),
-         Fairness_2 = factor(Fairness_2, levels = c("Ich finde sie ungerecht", "Ich finde sie weder gerecht noch ungerecht", "Ich finde sie gerecht")),
-         Support_1 = factor(Support_1, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
-         Support_2 = factor(Support_2, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
-         Trust_National = factor(Q41_1, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")))%>%
+  mutate(Q41_1 = factor(Q41_1, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
+         Q41_2 = factor(Q41_2, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
+         Q42_1_true = factor(Q42_1_true, levels = c("um weniger als ${e://Field/t1}€", "um ${e://Field/t1}€ bis ${e://Field/t2}€", "um ${e://Field/t2}€ bis ${e://Field/t3}€", "um ${e://Field/t3}€ bis ${e://Field/t4}€", "um ${e://Field/t4}€ bis ${e://Field/t5}€", "um ${e://Field/t5}€ bis ${e://Field/t6}€", "mehr als ${e://Field/t6}€")),
+         Q42_2_true = factor(Q42_2_true, levels = c("um weniger als ${e://Field/t1}€", "um ${e://Field/t1}€ bis ${e://Field/t2}€", "um ${e://Field/t2}€ bis ${e://Field/t3}€", "um ${e://Field/t3}€ bis ${e://Field/t4}€", "um ${e://Field/t4}€ bis ${e://Field/t5}€", "um ${e://Field/t5}€ bis ${e://Field/t6}€", "mehr als ${e://Field/t6}€")),
+         Q43_1 = factor(Q43_1, levels = c("Viel höher als bei einem durchschnittlichen Haushalt","Etwas höher als bei einem durchschnittlichen Haushalt", "Ungefähr so hoch wie bei einem durchschnittlichen Haushalt", "Etwas niedriger als bei einem durchschnittlichen Haushalt", "Viel niedriger als bei einem durchschnittlichen Haushalt")),
+         Q43_2 = factor(Q43_2, levels = c("Viel höher als bei einem durchschnittlichen Haushalt","Etwas höher als bei einem durchschnittlichen Haushalt", "Ungefähr so hoch wie bei einem durchschnittlichen Haushalt", "Etwas niedriger als bei einem durchschnittlichen Haushalt", "Viel niedriger als bei einem durchschnittlichen Haushalt")),
+         Q44_1 = factor(Q44_1, levels = c("Sie wird eher schaden", "Sie wird weder schaden noch helfen", "Sie wird eher helfen")),
+         Q44_2 = factor(Q44_2, levels = c("Sie wird eher schaden", "Sie wird weder schaden noch helfen", "Sie wird eher helfen")),
+         Q45_1 = factor(Q45_1, levels = c("Ich finde sie ungerecht", "Ich finde sie weder gerecht noch ungerecht", "Ich finde Sie gerecht")),
+         Q45_2 = factor(Q45_2, levels = c("Ich finde sie ungerecht", "Ich finde sie weder gerecht noch ungerecht", "Ich finde sie gerecht")),
+         Q46_1 = factor(Q46_1, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
+         Q46_2 = factor(Q46_2, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
+         Trust_National = factor(Q30_1, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -386,17 +382,11 @@ data_1.3_GER <- data_1.2_GER %>%
 # Join cost estimates 
 
 com_1_GER <- com_0_GER %>%
-  rename("Heating" = "heating_fuel", "Ownership" = "renting", "Urbanism" = "urban_type", "Building" = "building_type", "Bundesland" = "bundesland", "Building_age" = "building_year",
-         "Spending" = "hh_expenditures", "Cars" = "number_of_cars", "House_size" = "space")%>%
-  mutate_at(vars(Heating:"House_size"), ~ as.character(.))%>%
-  mutate(House_size = case_when(House_size == "59 bis 75 m2"    ~ "59 m2 bis 75 m2",
-                                House_size == "76 bis 98 m2"    ~ "76 m2 bis 98 m2",
-                                House_size == "99 bis 130 m2"   ~ "99 m2 bis 130 m2",
-                                House_size == "mehr als 131 m2" ~ "Mehr als 131 m2",
-                                House_size == "bis 58 m2"       ~ "bis 58 m2"))
+  rename(Q20 = "heating_fuel", Q21 = "renting", Q27 = "urban_type", Q22 = "building_type", Q26 = "bundesland", Q23 = "building_year",
+         Q28 = "hh_expenditures", Q25 = "number_of_cars", Q24 = "space")%>%
+  mutate_at(vars(Q20:Q24), ~ as.character(.))
 
 data_1.4_GER <- data_1.3_GER %>%
-  rename("Building_age" = "Building age", "House_size" = "House size")%>%
   left_join(com_1_GER)%>%
   mutate(absolute_value = ifelse(Pricelevel == "45", as.character(absolute_45),
                                  ifelse(Pricelevel == "85", as.character(absolute_85),
