@@ -48,6 +48,7 @@ data_1_ESP <- data_0_ESP %>%
   select(Country, ID, everything())%>%
   rename(time = "Duration (in seconds)")%>%
   filter(Q02 != "No")%>%
+  filter(Finished == "Wahr")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)
 
@@ -121,7 +122,9 @@ data_1.3_ESP <- data_1.2_ESP %>%
          Q45_2 = factor(Q45_2, levels = c("Injusta", "Ni justa ni injusta", "Justa")),
          Q46_1 = factor(Q46_1, levels = c("Me opongo firmemente", "Me opongo en parte", "Ni la apoyo ni me opongo", "La apoyo en parte", "La apoyo firmemente")),
          Q46_2 = factor(Q46_2, levels = c("Me opongo firmemente", "Me opongo en parte", "Ni la apoyo ni me opongo", "La apoyo en parte", "La apoyo firmemente")),
-         Q30_1 = factor(Q30_1, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")))%>%
+         Q30_1 = factor(Q30_1, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")),
+         Q30_2 = factor(Q30_2, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")),
+         Q30_3 = factor(Q30_3, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -179,6 +182,7 @@ data_1_FRA <- data_0_FRA %>%
   select(Country, ID, everything())%>%
   rename(time = "Duration (in seconds)")%>%
   filter(Q02 != "Non")%>%
+  filter(Finished == "Wahr")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)
 
@@ -252,7 +256,9 @@ data_1.3_FRA <- data_1.2_FRA %>%
          Q45_2 = factor(Q45_2, levels = c("Injuste", "Ni juste ni injuste", "Juste")),
          Q46_1 = factor(Q46_1, levels = c("Je suis tout à fait contre", "Je suis plutôt contre", "Je ne suis ni pour ni contre", "Je suis plutôt pour", "Je suis tout à fait pour")),
          Q46_2 = factor(Q46_2, levels = c("Je suis tout à fait contre", "Je suis plutôt contre", "Je ne suis ni pour ni contre", "Je suis plutôt pour", "Je suis tout à fait pour")),
-         Q30_1 = factor(Q30_1, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")))%>%
+         Q30_1 = factor(Q30_1, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")),
+         Q30_2 = factor(Q30_2, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")),
+         Q30_3 = factor(Q30_3, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -298,6 +304,7 @@ data_1_GER <- data_0_GER %>%
   rename(time = "Duration (in seconds)")%>%
   filter(Q02 != "Nein")%>%
   filter(Q10 != "Unter 18")%>%
+  filter(Finished == "Wahr")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)
 
@@ -371,7 +378,9 @@ data_1.3_GER <- data_1.2_GER %>%
          Q45_2 = factor(Q45_2, levels = c("Ich finde sie ungerecht", "Ich finde sie weder gerecht noch ungerecht", "Ich finde sie gerecht")),
          Q46_1 = factor(Q46_1, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
          Q46_2 = factor(Q46_2, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
-         Trust_National = factor(Q30_1, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")))%>%
+         Q30_1 = factor(Q30_1, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")),
+         Q30_2 = factor(Q30_2, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")),
+         Q30_3 = factor(Q30_3, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -415,10 +424,11 @@ data_1_ROM <- data_0_ROM %>%
   mutate(ID = 1:n())%>%
   select(Country, ID, everything())%>%
   rename(time = "Duration (in seconds)")%>%
-  filter(consent != "Nu")%>%
-  filter(Age != "Sub 18")%>%
+  filter(Q02 != "Nu")%>%
+  filter(Q10 != "Sub 18")%>%
+  filter(Finished == "Wahr")%>%
   # Order of columns
-  select(Country, ID, time, Age:Date)
+  select(Country, ID, time, Q10:Date)
 
 # Label-file
 data_1.1.1_ROM <- data_1_ROM %>%
@@ -432,8 +442,9 @@ data_1.1.2_ROM <- data_1_ROM %>%
 
 # Institutional trust values
 data_1.1_ROM <- data_1_ROM %>%
-  select(Country, ID, Integrity_1:Responsiveness_3)%>%
-  pivot_longer(Integrity_1:Responsiveness_3, names_to = "Variable", values_to = "Value_raw")%>%
+  select(Country, ID, Q31_1:Q34_3)%>%
+  pivot_longer(Q31_1:Q34_3, names_to = "Variable", values_to = "Value_raw")%>%
+  filter(!is.na(Value_raw))%>%
   mutate(Label = ifelse(str_detect(Value_raw, "1"),"1",
                         ifelse(str_detect(Value_raw, "2"), "2",
                                ifelse(str_detect(Value_raw, "3"), "3",
@@ -451,19 +462,14 @@ data_1.1_ROM <- data_1_ROM %>%
   pivot_wider(names_from = "Column", values_from = "Value")
 
 data_1.2_ROM <- data_1_ROM %>%
-  select(-(Integrity_1:Responsiveness_3), -(Institution1:Label5))%>%
+  select(-(Q31_1:Q34_3), -(Institution1:Label5))%>%
   left_join(data_1.1_ROM)%>%
-  select(Country:Q41_3, starts_with("Integrity"), starts_with("Competence"), starts_with("Representativeness"), starts_with("Responsiveness"), everything())%>%
-  # Renaming of some columns
-  rename("Trust_information_1" = "Trust in information_1", "Trust_information_2" = "Trust in information_2", "Trust_information_3" = "Trust in information_3", "Trust_information_4" = "Trust in information_4",
-         "CC_concern" = "Climate change conce",
-         "Effectiveness_1" = "Effectiveness 1", "Expected_cost_1" = "Expected cost 1", "Relative_loss_1" = "Relative loss 1", "Vulnerable_1" = "Vulnerable 1", "Fairness_1" = "Fairness 1", "Support_1" = "Support 1",
-         "Effectiveness_2" = "Q56", "Expected_cost_2" = "Expected cost 2", "Relative_loss_2" = "Relative loss 2", "Vulnerable_2" = "Vulnerable 2", "Fairness_2" = "Fairness 2", "Support_2" = "Support 2")
+  select(Country:Q30_3, starts_with("Q31"), starts_with("Q32"), starts_with("Q33"), starts_with("Q34"), everything())
 
 # Cost range
 data_1.2.1_ROM <- data_1.2_ROM %>%
-  select(Country, ID, Expected_cost_1, Expected_cost_2)%>%
-  pivot_longer(Expected_cost_1:Expected_cost_2)%>%
+  select(Country, ID, Q42_1, Q42_2)%>%
+  pivot_longer(Q42_1:Q42_2)%>%
   left_join(select(data_1.2_ROM, Country, ID, t1:t6))%>%
   mutate(value = ifelse(str_detect(value, "t1"), str_replace(value, fixed("${e://Field/t1}"), t1), value),
          value = ifelse(str_detect(value, "t2"), str_replace(value, fixed("${e://Field/t2}"), t2), value),
@@ -475,27 +481,29 @@ data_1.2.1_ROM <- data_1.2_ROM %>%
   pivot_wider()
 
 data_1.3_ROM <- data_1.2_ROM %>%
-  rename("Expected_cost_1_true" = "Expected_cost_1", "Expected_cost_2_true" = "Expected_cost_2", policy = "Policy description")%>%
+  rename("Q42_1_true" = "Q42_1", "Q42_2_true" = "Q42_2", policy = "Policy description")%>%
   left_join(data_1.2.1_ROM)%>%
-  select(Country:Expected_cost_1_true, Expected_cost_1, Relative_loss_1:Expected_cost_2_true, Expected_cost_2, everything())%>%
+  select(Country:Q42_1_true, Q42_1, Q43_1:Q42_2_true, Q42_2, everything())%>%
   # Remove some columns
-  select(-(heating:spending), -(FairnessPerception:profileB_task3))%>%
-  mutate_at(vars(Effectiveness_1:Support_1, Effectiveness_2:Support_2, Q41_1), ~ stri_trans_general(., "Latin-ASCII"))%>%
+  select(-(FairnessPerception:PolicySupport))%>%
+  mutate_at(vars(Q41_1:Q46_1, Q41_2:Q46_2, Q30_1, Q30_2, Q30_3), ~ stri_trans_general(., "Latin-ASCII"))%>%
   # mutate_at(vars(Effectiveness_1, Effectiveness_2, Expected_cost_1_true, Expected_cost_2_true), ~ ifelse(is.na(.), "No lo sé",.))%>%
   # Introducing factors
-  mutate(Effectiveness_1      = factor(Effectiveness_1,      levels = c("In mod sigur nu va fi eficienta", "Probabil nu va fi eficienta", "Probabil va fi eficienta", "In mod sigur va fi eficienta")),
-         Effectiveness_2      = factor(Effectiveness_2,      levels = c("In mod sigur nu va fi eficienta", "Probabil nu va fi eficienta", "Probabil va fi eficienta", "In mod sigur va fi eficienta")),
-         Expected_cost_1_true = factor(Expected_cost_1_true, levels = c("Mai putin de ${e://Field/t1} de lei", "Intre ${e://Field/t1} de lei si ${e://Field/t2} de lei", "Intre ${e://Field/t2} de lei si ${e://Field/t3} de lei", "Intre ${e://Field/t3} de lei si ${e://Field/t4} de lei", "Intre ${e://Field/t4} de lei si ${e://Field/t5} de lei", "Intre ${e://Field/t5} de lei si ${e://Field/t6} de lei", "Mai mult de ${e://Field/t6} de lei")),
-         Expected_cost_2_true = factor(Expected_cost_2_true, levels = c("Mai putin de ${e://Field/t1} de lei", "Intre ${e://Field/t1} de lei si ${e://Field/t2} de lei", "Intre ${e://Field/t2} de lei si ${e://Field/t3} de lei", "Intre ${e://Field/t3} de lei si ${e://Field/t4} de lei", "Intre ${e://Field/t4} de lei si ${e://Field/t5} de lei", "Intre ${e://Field/t5} de lei si ${e://Field/t6} de lei", "Mai mult de ${e://Field/t6} de lei")),
-         Relative_loss_1      = factor(Relative_loss_1,      levels = c("Mai putin decat pe o gospodarie obisnuita", "Cam la fel ca pe o gospodarie obisnuita", "Mai mult decat pe o gospodarie obisnuita")),
-         Relative_loss_2      = factor(Relative_loss_2,      levels = c("Mai putin decat pe o gospodarie obisnuita", "Cam la fel ca pe o gospodarie obisnuita", "Mai mult decat pe o gospodarie obisnuita")),
-         Vulnerable_1         = factor(Vulnerable_1,         levels = c("Va afecta", "Nici nu va afecta, nici nu va ajuta", "Va ajuta")),
-         Vulnerable_2         = factor(Vulnerable_2,         levels = c("Va afecta", "Nici nu va afecta, nici nu va ajuta", "Va ajuta")),
-         Fairness_1           = factor(Fairness_1,           levels = c("Incorecta", "Nici corecta nici incorecta", "Corecta")),
-         Fairness_2           = factor(Fairness_2,           levels = c("Incorecta", "Nici corecta nici incorecta", "Corecta")),
-         Support_1            = factor(Support_1,            levels = c("Ma opun cu tarie", "Ma opun oarecum", "Nici nu o sustin, nici nu ma opun", "O sustin oarecum", "O sustin cu tarie")),
-         Support_2            = factor(Support_2,            levels = c("Ma opun cu tarie", "Ma opun oarecum", "Nici nu o sustin, nici nu ma opun", "O sustin oarecum", "O sustin cu tarie")),
-         Trust_National       = factor(Q41_1,                levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")))%>%
+  mutate(Q41_1      = factor(Q41_1,      levels = c("In mod sigur nu va fi eficienta", "Probabil nu va fi eficienta", "Probabil va fi eficienta", "In mod sigur va fi eficienta")),
+         Q41_2      = factor(Q41_2,      levels = c("In mod sigur nu va fi eficienta", "Probabil nu va fi eficienta", "Probabil va fi eficienta", "In mod sigur va fi eficienta")),
+         Q42_1_true = factor(Q42_1_true, levels = c("Mai putin de ${e://Field/t1} de lei", "Intre ${e://Field/t1} de lei si ${e://Field/t2} de lei", "Intre ${e://Field/t2} de lei si ${e://Field/t3} de lei", "Intre ${e://Field/t3} de lei si ${e://Field/t4} de lei", "Intre ${e://Field/t4} de lei si ${e://Field/t5} de lei", "Intre ${e://Field/t5} de lei si ${e://Field/t6} de lei", "Mai mult de ${e://Field/t6} de lei")),
+         Q42_2_true = factor(Q42_2_true, levels = c("Mai putin de ${e://Field/t1} de lei", "Intre ${e://Field/t1} de lei si ${e://Field/t2} de lei", "Intre ${e://Field/t2} de lei si ${e://Field/t3} de lei", "Intre ${e://Field/t3} de lei si ${e://Field/t4} de lei", "Intre ${e://Field/t4} de lei si ${e://Field/t5} de lei", "Intre ${e://Field/t5} de lei si ${e://Field/t6} de lei", "Mai mult de ${e://Field/t6} de lei")),
+         Q43_1      = factor(Q43_1,      levels = c("Mult mai mult decat pe o gospodarie obisnuita","Putin mai mult decat pe o gospodarie obisnuita", "Cam la fel ca pe o gospodarie obisnuita", "Putin mai putin decat pe o gospodarie obisnuita","Mult mai putin decat pe o gospodarie obisnuita")),
+         Q43_2      = factor(Q43_2,      levels = c("Mult mai mult decat pe o gospodarie obisnuita","Putin mai mult decat pe o gospodarie obisnuita", "Cam la fel ca pe o gospodarie obisnuita", "Putin mai putin decat pe o gospodarie obisnuita","Mult mai putin decat pe o gospodarie obisnuita")),
+         Q44_1      = factor(Q44_1,      levels = c("Va afecta", "Nici nu va afecta, nici nu va ajuta", "Va ajuta")),
+         Q44_2      = factor(Q44_2,      levels = c("Va afecta", "Nici nu va afecta, nici nu va ajuta", "Va ajuta")),
+         Q45_1      = factor(Q45_1,      levels = c("Incorecta", "Nici corecta nici incorecta", "Corecta")),
+         Q45_2      = factor(Q45_2,      levels = c("Incorecta", "Nici corecta nici incorecta", "Corecta")),
+         Q46_1      = factor(Q46_1,      levels = c("Ma opun cu tarie", "Ma opun oarecum", "Nici nu o sustin, nici nu ma opun", "O sustin oarecum", "O sustin cu tarie")),
+         Q46_2      = factor(Q46_2,      levels = c("Ma opun cu tarie", "Ma opun oarecum", "Nici nu o sustin, nici nu ma opun", "O sustin oarecum", "O sustin cu tarie")),
+         Q30_1      = factor(Q30_1,      levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")),
+         Q30_2      = factor(Q30_2,      levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")),
+         Q30_3      = factor(Q30_3,      levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -506,162 +514,146 @@ data_1.3_ROM <- data_1.2_ROM %>%
 # Join cost estimates 
 
 com_1_ROM <- com_0_ROM %>%
-  rename("Heating"      = "heating_fuel", 
-         "Cooking_fuel" = "cooking_fuel",
-         "Activity"     = "occupation",
-         "Building"     = "housing_type", 
-         "Region"       = "province", 
-         "Spending"     = "hh_expenditures", 
-         "Cars"         = "number_of_cars", 
-         "House_size"   = "space")%>%
-  mutate_at(vars(Heating:"House_size"), ~ as.character(.))%>%
-  mutate_at(vars(Heating:"House_size"), ~ stri_trans_general(., "Latin-ASCII"))%>%
-  mutate(Spending = case_when(Spending == "Intre 1,301 de lei si 1,800 de lei"  ~ "intre 1,301 de lei si 1,800 de lei",
-                              Spending == "Intre 1,801 de lei si 2,500 de lei"  ~ "intre 1,801 de lei si 2,500 de lei",
-                              Spending == "Intre 2,501 de lei si 3,300 de lei"  ~ "intre 2,501 de lei si 3,300 de lei",
-                              Spending == "Intre 3,301 de lei si 4,200 de lei"  ~ "intre 3,301 de lei si 4,200 de lei",
-                              Spending == "Intre 4,201 de lei si 5,200 de lei"  ~ "intre 4,201 de lei si 5,200 de lei",
-                              Spending == "Intre 5,201 de lei si 6,600 de lei"  ~ "intre 5,201 de lei si 6,600 de lei",
-                              Spending == "Intre 6,601 de lei si 8,200 de lei"  ~ "intre 6,601 de lei si 8,200 de lei",
-                              Spending == "Intre 8,201 de lei si 10,300 de lei" ~ "intre 8,201 de lei si 10,300 de lei",
-                              Spending == "Mai putin de 1,300 de lei"           ~ "mai putin de 1,300 de lei",
-                              Spending == "Nu stiu asta"                        ~ "Nu stiu asta",
-                              Spending == "Peste 10,301 de lei"                 ~ "peste 10,301 de lei"))%>%
-  mutate(Cars = case_when(Cars == "Am doua masini."               ~ "Am doua masini",
-                          Cars == "Am o masina."                  ~ "Am o masina",
-                          Cars == "Am trei sau mai multe masini." ~ "Am trei sau mai multe masini",
-                          Cars == "Nu am o masina."               ~ "Nu am o masina"))%>%
-  mutate(House_size = ifelse(House_size == "Peste 67 de m2", "peste 67 de m2", House_size),
-         Building   = ifelse(Building   == "Casa unifamlilala", "Casa unifamiliala", Building))
+  rename(Q20  = "heating_fuel", 
+         Q29B = "cooking_fuel",
+         Q13  = "occupation",
+         Q22  = "housing_type", 
+         Q26  = "province", 
+         Q28  = "hh_expenditures", 
+         Q25  = "number_of_cars", 
+         Q24  = "space")%>%
+  mutate_at(vars(Q20:Q24), ~ as.character(.))%>%
+  mutate_at(vars(Q20:Q24,Q13), ~ stri_trans_general(., "Latin-ASCII"))%>%
+  mutate(Q28 = case_when(Q28 == "Intre 1,301 de lei si 1,800 de lei"  ~ "intre 1,301 de lei si 1,800 de lei",
+                         Q28 == "Intre 1,801 de lei si 2,500 de lei"  ~ "intre 1,801 de lei si 2,500 de lei",
+                         Q28 == "Intre 2,501 de lei si 3,300 de lei"  ~ "intre 2,501 de lei si 3,300 de lei",
+                         Q28 == "Intre 3,301 de lei si 4,200 de lei"  ~ "intre 3,301 de lei si 4,200 de lei",
+                         Q28 == "Intre 4,201 de lei si 5,200 de lei"  ~ "intre 4,201 de lei si 5,200 de lei",
+                         Q28 == "Intre 5,201 de lei si 6,600 de lei"  ~ "intre 5,201 de lei si 6,600 de lei",
+                         Q28 == "Intre 6,601 de lei si 8,200 de lei"  ~ "intre 6,601 de lei si 8,200 de lei",
+                         Q28 == "Intre 8,201 de lei si 10,300 de lei" ~ "intre 8,201 de lei si 10,300 de lei",
+                         Q28 == "Mai putin de 1,300 de lei"           ~ "mai putin de 1,300 de lei",
+                         Q28 == "Nu stiu asta"                        ~ "Nu stiu asta",
+                         Q28 == "Peste 10,301 de lei"                 ~ "peste 10,301 de lei"))%>%
+  mutate(Q25 = case_when(Q25 == "Am doua masini."               ~ "Am doua masini",
+                         Q25 == "Am o masina."                  ~ "Am o masina",
+                         Q25 == "Am trei sau mai multe masini." ~ "Am trei sau mai multe masini",
+                         Q25 == "Nu am o masina."               ~ "Nu am o masina"))%>%
+  mutate(Q24 = ifelse(Q24 == "Peste 67 de m2", "peste 67 de m2", Q24),
+         Q22 = ifelse(Q22 == "Casa unifamlilala", "Casa unifamiliala", Q22))
 
 data_1.4_ROM <- data_1.3_ROM %>%
-  rename("House_size" = "House size", "Cooking_fuel" = "Cooking fuel", "Pricelevel" = "Priceleveleuro")%>%
-  mutate_at(vars(Heating, Activity, Cooking_fuel, Building, Region, Spending, Cars, House_size), ~ stri_trans_general(., "Latin-ASCII"))%>%
-  # For now %>%
-  filter(!is.na(Cooking_fuel))%>%
+  mutate_at(vars(Q20, Q13, Q29B, Q22, Q26, Q28, Q25, Q24), ~ stri_trans_general(., "Latin-ASCII"))%>%
   left_join(com_1_ROM)%>%
-  # For now 
-  filter(!is.na(absolute))%>%
-  mutate(absolute_value = ifelse(Pricelevel == "45", as.character(absolute_45),
-                                 ifelse(Pricelevel == "85", as.character(absolute_85),
-                                        ifelse(Pricelevel == "125", as.character(absolute_125), NA))),
-         relative_value = ifelse(Pricelevel == "45", as.character(relative_45),
-                                 ifelse(Pricelevel == "85", as.character(relative_85),
-                                        ifelse(Pricelevel == "125", as.character(relative_125), NA))))%>%
+  mutate(absolute_value = ifelse(Priceleveleuro == "45", as.character(absolute_45),
+                                 ifelse(Priceleveleuro == "85", as.character(absolute_85),
+                                        ifelse(Priceleveleuro == "125", as.character(absolute_125), NA))),
+         relative_value = ifelse(Priceleveleuro == "45", as.character(relative_45),
+                                 ifelse(Priceleveleuro == "85", as.character(relative_85),
+                                        ifelse(Priceleveleuro == "125", as.character(relative_125), NA))))%>%
   mutate(absolute_value = as.numeric(str_replace_all(absolute_value, "[€,]", "")),
          relative_value = as.numeric(str_replace_all(relative_value, "%",""))/100)%>%
   select(-(absolute:relative_165))%>%
   left_join(median_costs)%>%
-  mutate(above_median = ifelse((absolute_value > median_45 & Pricelevel == "45") | (absolute_value > median_85 & Pricelevel == "85") | (absolute_value > median_125 & Pricelevel == "125"),1,0))
+  mutate(above_median = ifelse((absolute_value > median_45 & Priceleveleuro == "45") | (absolute_value > median_85 & Priceleveleuro == "85") | (absolute_value > median_125 & Priceleveleuro == "125"),1,0))
 
 rm(data_1_ROM, data_1.1_ROM, data_1.1.1_ROM, data_1.1.2_ROM, data_1.2_ROM, data_1.2.1_ROM, data_1.3_ROM, data_0_ROM, com_1_ROM, com_0_ROM)
 
-# 2     Create outcomes ####
+# 1.5   Editing the conjoint experiment data ####
 
-data_2_ESP <- data_1.4_ESP %>%
-  mutate(Support_1N       = as.numeric(Support_1),
-         Effectiveness_1N = as.numeric(Effectiveness_1),
-         Vulnerable_1N    = as.numeric(Vulnerable_1),
-         Fairness_1N      = as.numeric(Fairness_1),
-         Support_2N       = as.numeric(Support_2),
-         Effectiveness_2N = as.numeric(Effectiveness_2),
-         Vulnerable_2N    = as.numeric(Vulnerable_2),
-         Fairness_2N      = as.numeric(Fairness_2),
-         Relative_loss_1N = as.numeric(Relative_loss_1),
-         Relative_loss_2N = as.numeric(Relative_loss_2),
-         Trust_National_N = as.numeric(Trust_National))%>%
-  mutate_at(vars(t1:t6), ~ as.numeric(.))%>%
-  mutate(absolute_t       = ifelse(absolute_value < t1, 1,
-                                   ifelse(absolute_value < t2, 2,
-                                          ifelse(absolute_value < t3, 3,
-                                                 ifelse(absolute_value < t4, 4,
-                                                        ifelse(absolute_value < t5, 5,
-                                                               ifelse(absolute_value < t6, 6,
-                                                                      ifelse(absolute_value > t6, 7,absolute_value))))))))%>%
-  mutate(Expected_cost_1_absolute = as.numeric(Expected_cost_1_true),
-         Expected_cost_2_absolute = as.numeric(Expected_cost_2_true))%>%
-  mutate(Dif_cost_1 = Expected_cost_1_absolute - absolute_t,
-         Dif_cost_2 = Expected_cost_2_absolute - absolute_t)
+extract_conjoint <- function(data_1.4.0){
+  data_1.5 <- data_1.4.0 %>%
+    select(ID, starts_with("profile"))%>%
+    pivot_longer(starts_with("profile"), names_to = "names", values_to = "values")%>%
+    mutate(Profile = case_when(grepl("profileA", names) ~ "A",
+                               grepl("profileB", names) ~ "B"),
+           Task    = case_when(grepl("task0", names) ~ "0",
+                               grepl("task1", names) ~ "1",
+                               grepl("task2", names) ~ "2",
+                               grepl("task3", names) ~ "3"))%>%
+    select(-names)%>%
+    mutate(parsed = map(values, \(x) {
+      x <- gsub('^"|"$', '', x)                                  # remove outer quotes
+      parts <- strsplit(x, "\\}\\s*\\{")[[1]]                    # split multiple JSONs
+      parts <- paste0("{", gsub("(^\\{|\\}$)", "", parts), "}")  # fix braces
+      jsons <- map(parts, safely(fromJSON))                      # safely parse each
+      bind_rows(map(jsons, "result"))                            # combine parsed pieces
+    })) %>%
+    unnest(parsed)%>%
+    select(-values)%>%
+    left_join(select(data_1.4.0, ID, starts_with("Q62"), starts_with("Q63"), starts_with("Q64"), starts_with("Q65")))%>%
+    select(ID, starts_with("Q"), everything())
+  
+  return(data_1.5)
+}
 
-data_2_FRA <- data_1.4_FRA %>%
-  mutate(Support_1N       = as.numeric(Support_1),
-         Effectiveness_1N = as.numeric(Effectiveness_1),
-         Vulnerable_1N    = as.numeric(Vulnerable_1),
-         Fairness_1N      = as.numeric(Fairness_1),
-         Support_2N       = as.numeric(Support_2),
-         Effectiveness_2N = as.numeric(Effectiveness_2),
-         Vulnerable_2N    = as.numeric(Vulnerable_2),
-         Fairness_2N      = as.numeric(Fairness_2),
-         Relative_loss_1N = as.numeric(Relative_loss_1),
-         Relative_loss_2N = as.numeric(Relative_loss_2),
-         Trust_National_N = as.numeric(Trust_National))%>%
-  mutate_at(vars(t1:t6), ~ as.numeric(.))%>%
-  mutate(absolute_t       = ifelse(absolute_value < t1, 1,
-                                   ifelse(absolute_value < t2, 2,
-                                          ifelse(absolute_value < t3, 3,
-                                                 ifelse(absolute_value < t4, 4,
-                                                        ifelse(absolute_value < t5, 5,
-                                                               ifelse(absolute_value < t6, 6,
-                                                                      ifelse(absolute_value > t6, 7,absolute_value))))))))%>%
-  mutate(Expected_cost_1_absolute = as.numeric(Expected_cost_1_true),
-         Expected_cost_2_absolute = as.numeric(Expected_cost_2_true))%>%
-  mutate(Dif_cost_1 = Expected_cost_1_absolute - absolute_t,
-         Dif_cost_2 = Expected_cost_2_absolute - absolute_t)
+data_conjoint_ESP <- extract_conjoint(data_1.4_ESP)
+data_conjoint_FRA <- extract_conjoint(data_1.4_FRA)
+data_conjoint_GER <- extract_conjoint(data_1.4_GER)
+data_conjoint_ROM <- extract_conjoint(data_1.4_ROM)
 
-data_2_GER <- data_1.4_GER %>%
-  mutate(Support_1N       = as.numeric(Support_1),
-         Effectiveness_1N = as.numeric(Effectiveness_1),
-         Vulnerable_1N    = as.numeric(Vulnerable_1),
-         Fairness_1N      = as.numeric(Fairness_1),
-         Support_2N       = as.numeric(Support_2),
-         Effectiveness_2N = as.numeric(Effectiveness_2),
-         Vulnerable_2N    = as.numeric(Vulnerable_2),
-         Fairness_2N      = as.numeric(Fairness_2),
-         Relative_loss_1N = as.numeric(Relative_loss_1),
-         Relative_loss_2N = as.numeric(Relative_loss_2),
-         Trust_National_N = as.numeric(Trust_National))%>%
-  mutate_at(vars(t1:t6), ~ as.numeric(.))%>%
-  mutate(absolute_t       = ifelse(absolute_value < t1, 1,
-                                   ifelse(absolute_value < t2, 2,
-                                          ifelse(absolute_value < t3, 3,
-                                                 ifelse(absolute_value < t4, 4,
-                                                        ifelse(absolute_value < t5, 5,
-                                                               ifelse(absolute_value < t6, 6,
-                                                                      ifelse(absolute_value > t6, 7,absolute_value))))))))%>%
-  mutate(Expected_cost_1_absolute = as.numeric(Expected_cost_1_true),
-         Expected_cost_2_absolute = as.numeric(Expected_cost_2_true))%>%
-  mutate(Dif_cost_1 = Expected_cost_1_absolute - absolute_t,
-         Dif_cost_2 = Expected_cost_2_absolute - absolute_t)
+data_1.5_ESP <- data_1.4_ESP %>%
+  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
+data_1.5_FRA <- data_1.4_FRA %>%
+  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
+data_1.5_GER <- data_1.4_GER %>%
+  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
+data_1.5_ROM <- data_1.4_ROM %>%
+  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
 
-data_2_ROM <- data_1.4_ROM %>%
-  mutate(Support_1N       = as.numeric(Support_1),
-         Effectiveness_1N = as.numeric(Effectiveness_1),
-         Vulnerable_1N    = as.numeric(Vulnerable_1),
-         Fairness_1N      = as.numeric(Fairness_1),
-         Support_2N       = as.numeric(Support_2),
-         Effectiveness_2N = as.numeric(Effectiveness_2),
-         Vulnerable_2N    = as.numeric(Vulnerable_2),
-         Fairness_2N      = as.numeric(Fairness_2),
-         Relative_loss_1N = as.numeric(Relative_loss_1),
-         Relative_loss_2N = as.numeric(Relative_loss_2),
-         Trust_National_N = as.numeric(Trust_National))%>%
-  mutate_at(vars(t1:t6), ~ as.numeric(.))%>%
-  mutate(absolute_t       = ifelse(absolute_value < t1, 1,
-                                   ifelse(absolute_value < t2, 2,
-                                          ifelse(absolute_value < t3, 3,
-                                                 ifelse(absolute_value < t4, 4,
-                                                        ifelse(absolute_value < t5, 5,
-                                                               ifelse(absolute_value < t6, 6,
-                                                                      ifelse(absolute_value > t6, 7,absolute_value))))))))%>%
-  mutate(Expected_cost_1_absolute = as.numeric(Expected_cost_1_true),
-         Expected_cost_2_absolute = as.numeric(Expected_cost_2_true))%>%
-  mutate(Dif_cost_1 = Expected_cost_1_absolute - absolute_t,
-         Dif_cost_2 = Expected_cost_2_absolute - absolute_t)
+rm(data_1.4_ESP, data_1.4_FRA, data_1.4_GER, data_1.4_ROM, median_costs, extract_conjoint)
 
-rm(data_1.4_ESP, data_1.4_GER, data_1.4_FRA, data_1.4_ROM)
+# 1.6     Create outcomes ####
 
+create_outcomes <- function(data_1.5_0){
+  data_1.6.0 <- data_1.5_0 %>%
+    mutate(Q41_1N = as.numeric(Q41_1),
+           Q41_2N = as.numeric(Q41_2),
+           Q42_1N = as.numeric(Q42_1_true),
+           Q42_2N = as.numeric(Q42_2_true),
+           Q43_1N = as.numeric(Q43_1),
+           Q43_2N = as.numeric(Q43_2),
+           Q44_1N = as.numeric(Q44_1),
+           Q44_2N = as.numeric(Q44_2),
+           Q45_1N = as.numeric(Q45_1),
+           Q45_2N = as.numeric(Q45_2),
+           Q46_1N = as.numeric(Q46_1),
+           Q46_2N = as.numeric(Q46_2),
+           Q30_1N = as.numeric(Q30_1),
+           Q30_2N = as.numeric(Q30_2),
+           Q30_3N = as.numeric(Q30_3))%>%
+    mutate_at(vars(t1:t6), ~ as.numeric(.))%>%
+    mutate(absolute_t       = ifelse(absolute_value < t1, 1,
+                                     ifelse(absolute_value < t2, 2,
+                                            ifelse(absolute_value < t3, 3,
+                                                   ifelse(absolute_value < t4, 4,
+                                                          ifelse(absolute_value < t5, 5,
+                                                                 ifelse(absolute_value < t6, 6,
+                                                                        ifelse(absolute_value > t6, 7,absolute_value))))))))%>%
+    # \tilde{l}
+    mutate(Dif_cost_1 = Q42_1N - absolute_t,
+           Dif_cost_2 = Q42_2N - absolute_t)%>%
+    # \tilde{lr}
+    mutate(Percentile_abs = as.numeric(as.character(Percentile)))%>%
+    mutate(Quintile = case_when(Percentile_abs<= 20         ~ 5,
+                                Percentile_abs> 20 & Percentile_abs<= 40 ~ 4,
+                                Percentile_abs> 40 & Percentile_abs<= 60 ~ 3,
+                                Percentile_abs> 60 & Percentile_abs<= 80 ~ 2,
+                                Percentile_abs> 80          ~ 1))%>%
+    mutate(Dif_Percentile_1 = Q43_1N - Quintile,
+           Dif_Percentile_2 = Q43_2N - Quintile)
+    
+    return(data_1.6.0)
+}
 
-# 3.1   Baseline outcome distribution ####
+data_1.6_ESP <- create_outcomes(data_1.5_ESP)
+data_1.6_FRA <- create_outcomes(data_1.5_FRA)
+data_1.6_GER <- create_outcomes(data_1.5_GER)
+data_1.6_ROM <- create_outcomes(data_1.5_ROM)
+
+rm(data_1.5_ESP, data_1.5_GER, data_1.5_FRA, data_1.5_ROM)
+
+# 2.1   Baseline outcome distribution - TBD ####
 
 data_3 <- bind_rows(data_2_ESP, data_2_FRA)%>%
   bind_rows(data_2_GER)%>%
@@ -669,7 +661,7 @@ data_3 <- bind_rows(data_2_ESP, data_2_FRA)%>%
 
 rm(data_2_ESP, data_2_FRA, data_2_GER, data_2_ROM)
 
-# 3.1.1 Support ####
+# 2.1.1 Support ####
 
 data_3.1.1 <- data_3 %>%
   group_by(Support_1N, Country)%>%
@@ -755,7 +747,7 @@ dev.off()
 
 rm(data_3.1, P_1)
 
-# 3.1.2 Effectiveness ####
+# 2.1.2 Effectiveness ####
 
 data_3.2.1 <- data_3 %>%
   group_by(Effectiveness_1N, Country)%>%
@@ -822,7 +814,7 @@ dev.off()
 
 rm(data_3.2, P_2)
 
-# 3.1.3 Expected costs ####
+# 2.1.3 Expected costs ####
 
 data_3.3.1 <- data_3 %>%
   mutate(Cost_estimation = ifelse(is.na(Dif_cost_1), "Don't know", 
@@ -900,7 +892,7 @@ dev.off()
 
 rm(data_3.3, P_3)
 
-# 3.1.4 Relative loss ####
+# 2.1.4 Relative loss ####
 
 data_3.4.1 <- data_3 %>%
   group_by(Relative_loss_1N, Country)%>%
@@ -965,7 +957,7 @@ dev.off()
 
 rm(data_3.4, P_4)
 
-# 3.1.5 Vulnerable ####
+# 2.1.5 Vulnerable ####
 
 data_3.5.1 <- data_3 %>%
   group_by(Vulnerable_1N, Country)%>%
@@ -1030,7 +1022,7 @@ dev.off()
 
 rm(data_3.5, P_5)
 
-# 3.1.6 Fairness ####
+# 2.1.6 Fairness ####
 
 data_3.6.1 <- data_3 %>%
   group_by(Fairness_1N, Country)%>%
@@ -1095,7 +1087,7 @@ dev.off()
 
 rm(data_3.6, P_6)
 
-# 3.2   Baseline correlation between policy support and institutional trust ####
+# 2.2   Baseline correlation between policy support and institutional trust ####
 
 data_3.2 <- data_3 %>%
   mutate(Trust = ifelse(Trust_National_N <= 2, "Low trust",
@@ -1145,7 +1137,7 @@ dev.off()
 rm(data_3.2, P_2)
 
 
-# 3.3  Treatment effects (A,B,C1 to C4) on overall policy support ####
+# 2.3   Treatment effects (A,B,C1 to C4) on overall policy support ####
 
 tex.style <- style.tex(model.title = "", fixef.title = "\\midrule Fixed Effects",
                        stats.title = "\\midrule", model.format = "",
@@ -1202,78 +1194,101 @@ etable(model_BC, tex = TRUE, dict = dict_latex,
 )
 
 
-# 4     Hypothesis tests ####
-# 4.1   Hypothesis 1 ####
-# 4.5   Hypotheses 5 to 8 ####
+# 3     Hypothesis tests ####
 
-test_hypothesis_5 <- function(data_2_X){
-  model_5 <- feols(Support_1N ~ i(Treatment_A, ref = "nonEU"), data = data_2_X)
+data_3_ESP <- data_1.6_ESP
+data_3_FRA <- data_1.6_FRA
+data_3_GER <- data_1.6_GER
+data_3_ROM <- data_1.6_ROM
+
+# 3.1   Hypotheses 1 to 6 ####
+
+# Institutional trust at national level: Q30_2/Q30_2N
+# Institutional trust at EU-level: Q30_3/Q30_3N
+
+# Overall policy support: Q46_1N
+# Perception of effectiveness: Q41_1N
+# Perception of fairness: Q45_1N
+# Perception of effects on vulnerable households: Q44_1N
+# Estimation of additional costs: Dif_cost_1 (>0 - overestimate costs)
+# Estimation of relative additional costs: Dif_Percentile_1 (>0 - overestimate costs)
+
+model_3.1_ESP <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_ESP)
+model_3.1_FRA <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_FRA)
+model_3.1_GER <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_GER)
+model_3.1_ROM <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_ROM)
+
+# P-values not yet adjusted for one-sided t-test and they are not yet BH-corrected
+
+rm(model_3.1_ESP, model_3.1_FRA, model_3.1_GER, model_3.1_ROM)
+
+# 3.2   Hypothesis 7 ####
+
+model_3.2_ESP <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_ESP)
+model_3.2_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_FRA)
+model_3.2_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_GER)
+model_3.2_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_ROM)
+
+# P-values not yet adjusted for one-sided t-test and they are not yet BH-corrected
+
+adjust_hypothesis_7b <- function(data_3_0){
+  data_3_1 <- data_3_0 %>%
+    mutate(tau = ifelse(Q30_3N < 3,1,0))%>%
+    mutate(tau_Treatment_A = ifelse(tau == 1 & Treatment_A == "EU",1,0))
+  
+  return(data_3_1)
 }
 
-jpeg("../2_Data/Figures/Pilot/Figure_1_%d.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_0)
-print(P_1)
-dev.off()
+model_3.2.1_ESP <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_ESP))
+model_3.2.1_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_FRA))
+model_3.2.1_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_GER))
+model_3.2.1_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_ROM))
 
-rm(data_3.1, P_1)model_5_ESP <- test_hypothesis_5(data_2_ESP)
-model_5_FRA <- test_hypothesis_5(data_2_FRA)
-model_5_GER <- test_hypothesis_5(data_2_GER)
-model_5_ROM <- test_hypothesis_5(data_2_ROM)
+rm(adjust_hypothesis_7b)
 
-test_hypothesis_6 <- function(data_2_X){
-  model_6 <- feols(Effectiveness_1N ~ i(Treatment_A, ref = "nonEU"), data = data_2_X)
+# 3.3   Hypotheses 8 to 9 ####
+
+adjust_hypothesis_89 <- function(data_3_0, filter_1){
+  data_3_3 <- data_3_0 %>%
+    select(ID, Treatment_B, Treatment_C, Q30_2N, Q41_1N, Q41_2N, Q45_1N, Q45_2N)%>%
+    pivot_longer(Q41_1N:Q45_2N, names_to = "Variable", values_to = "value")%>%
+    mutate(Period  = ifelse(Variable %in% c("Q41_1N", "Q45_1N"),1,2),
+           Outcome = ifelse(Variable %in% c("Q41_1N", "Q41_2N"), "Effectiveness", "Fairness"))%>%
+    mutate(Post_B = ifelse(Period == 2 & Treatment_B == "Treatment",1,0),
+           Post_C = ifelse(Period == 2, "Baseline", as.character(Treatment_C)))%>%
+    filter(Outcome == filter_1)%>%
+    mutate(tau = ifelse(Q30_2N < 3,1,0))%>%
+    mutate(tau_Post_B = ifelse(tau == 1 & Post_B == 1,1,0))
+  
+  return(data_3_3)
 }
 
-model_6_ESP <- test_hypothesis_6(data_2_ESP)
-model_6_FRA <- test_hypothesis_6(data_2_FRA)
-model_6_GER <- test_hypothesis_6(data_2_GER)
-model_6_ROM <- test_hypothesis_6(data_2_ROM)
+model_3.3.1_ESP <- feols(value ~ Post_B| ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Effectiveness"))
+model_3.3.1_FRA <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_FRA, "Effectiveness"))
+model_3.3.1_GER <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Effectiveness"))
+model_3.3.1_ROM <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Effectiveness")) 
 
-test_hypothesis_7 <- function(data_2_X){
-  model_7 <- feols(Dif_cost_1 ~ i(Treatment_A, ref = "nonEU"), data = data_2_X)
-}
+model_3.3.2_ESP <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Fairness"))
+model_3.3.2_FRA <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_FRA, "Fairness"))
+model_3.3.2_GER <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Fairness"))
+model_3.3.2_ROM <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Fairness"))
 
-model_7_ESP <- test_hypothesis_7(data_2_ESP)
-model_7_FRA <- test_hypothesis_7(data_2_FRA)
-model_7_GER <- test_hypothesis_7(data_2_GER)
-model_7_ROM <- test_hypothesis_7(data_2_ROM)
+# Hypotheses 8a and 9a
 
-test_hypothesis_8 <- function(data_2_X){
-  model_8 <- feols(Vulnerable_1N ~ i(Treatment_A, ref = "nonEU"), data = data_2_X)
-}
+model_3.3.3_ESP <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Effectiveness"))
+model_3.3.3_FRA <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_FRA, "Effectiveness"))
+model_3.3.3_GER <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Effectiveness"))
+model_3.3.3_ROM <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Effectiveness"))
 
-model_8_ESP <- test_hypothesis_8(data_2_ESP)
-model_8_FRA <- test_hypothesis_8(data_2_FRA)
-model_8_GER <- test_hypothesis_8(data_2_GER)
-model_8_ROM <- test_hypothesis_8(data_2_ROM)
+model_3.3.4_ESP <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Fairness"))
+model_3.3.4_FRA <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_FRA, "Fairness"))
+model_3.3.4_GER <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Fairness"))
+model_3.3.4_ROM <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Fairness"))
 
-rm(test_hypothesis_5, test_hypothesis_6, test_hypothesis_7, test_hypothesis_8)
+rm(model_3.3.1_ESP, model_3.3.1_FRA, model_3.3.1_GER, model_3.3.1_ROM, model_3.3.2_ESP, model_3.3.2_FRA, model_3.3.2_GER, model_3.3.2_ROM,
+   model_3.3.3_ESP, model_3.3.3_FRA, model_3.3.3_GER, model_3.3.3_ROM, model_3.3.4_ESP, model_3.3.4_FRA, model_3.3.4_GER, model_3.3.4_ROM)
 
-# 4.6   Hypotheses 9 to 10 ####
-
-data_3.6_ESP <- data_2_ESP %>%
-  select(Country, ID, Treatment_B, Treatment_C, Effectiveness_1N, Effectiveness_2N, Fairness_1N, Fairness_2N)%>%
-  pivot_longer(Effectiveness_1N:Fairness_2N, names_to = "Name", values_to = "value")%>%
-  mutate(time = ifelse(grepl("1", Name),1,2),
-         Outcome = ifelse(grepl("Fairness", Name), "Fairness", "Effectiveness"))%>%
-  mutate(POST = ifelse(time == 2,1,0))%>%
-  mutate(POST_B = ifelse(Treatment_B == "Treatment" & POST == 1,1,0),
-         POST_C = ifelse(POST == 0, "Baseline", as.character(Treatment_C)))
-
-test_hypothesis_9 <- function(data_3.6_X){
-  model_9 <- feols(value ~ POST_B | ID + time + POST_C, data = filter(data_3.6_ESP, Outcome == "Effectiveness"))
-}
-
-model_9_ESP <- test_hypothesis_9(data_3.6_ESP)
-model_9_FRA <- test_hypothesis_9(data_3.6_FRA)
-model_9_GER <- test_hypothesis_9(data_3.6_GER)
-model_9_ROM <- test_hypothesis_9(data_3.6_ROM)
-
-test_hypothesis_10 <- function(data_3.6_X){
-  model_10 <- feols(value ~ POST_B | ID + time + POST_C, data = filter(data_3.6_ESP, Outcome == "Fairness"))
-}
-
-model_10_ESP <- test_hypothesis_10(data_3.6_ESP)
-model_10_FRA <- test_hypothesis_10(data_3.6_FRA)
-model_10_GER <- test_hypothesis_10(data_3.6_GER)
-model_10_ROM <- test_hypothesis_10(data_3.6_ROM)
+# 3.4   Hypotheses 10 to 17 ####
+# 3.5   Hypotheses 18 to 22 ####
+# 3.6   Hypotheses 23 to 29 (Conjoint) ####
+# 3.7   Hypotheses 30 to 34 (Part III) ####
