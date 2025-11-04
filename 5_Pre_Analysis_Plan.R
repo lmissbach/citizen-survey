@@ -562,7 +562,7 @@ rm(data_1_ROM, data_1.1_ROM, data_1.1.1_ROM, data_1.1.2_ROM, data_1.2_ROM, data_
 # 1.5   Editing the conjoint experiment data ####
 
 extract_conjoint <- function(data_1.4.0){
-  data_1.5 <- data_1.4.0 %>%
+  data_1.5.1 <- data_1.4.0 %>%
     select(ID, starts_with("profile"))%>%
     pivot_longer(starts_with("profile"), names_to = "names", values_to = "values")%>%
     mutate(Profile = case_when(grepl("profileA", names) ~ "A",
@@ -580,9 +580,26 @@ extract_conjoint <- function(data_1.4.0){
       bind_rows(map(jsons, "result"))                            # combine parsed pieces
     })) %>%
     unnest(parsed)%>%
+    mutate_at(vars(budget_control:community_mobility_support), ~ ifelse(is.na(.), "Missing", .))%>%
+    arrange(ID, Task, Profile)%>%
     select(-values)%>%
-    left_join(select(data_1.4.0, ID, starts_with("Q62"), starts_with("Q63"), starts_with("Q64"), starts_with("Q65")))%>%
-    select(ID, starts_with("Q"), everything())
+    select(ID, Task, Profile, everything())
+  
+  data_1.5.2 <- data_1.4.0 %>%
+    select(ID, starts_with("Q62"), starts_with("Q63"), starts_with("Q64"), starts_with("Q65"))%>%
+    pivot_longer(-ID, names_to = "names", values_to = "Rank")%>%
+    mutate(Task = case_when(grepl("Q62", names) ~ "0",
+                            grepl("Q63", names) ~ "1",
+                            grepl("Q64", names) ~ "2",
+                            grepl("Q65", names) ~ "3"))%>%
+    mutate(Profile = case_when(grepl("_1", names) ~ "A",
+                               grepl("_2", names) ~ "B",
+                               grepl("_3", names) ~ "C"))%>%
+    select(ID, Task, Profile, Rank, -names)
+  
+  data_1.5 <- left_join(data_1.5.2, data_1.5.1)%>%
+    mutate_at(vars(budget_control:community_mobility_support), ~ ifelse(is.na(.), "Repeal",.))%>%
+    mutate_at(vars(budget_control:community_mobility_support), ~ ifelse(. == "Missing", NA,.))
   
   return(data_1.5)
 }
@@ -1199,7 +1216,8 @@ etable(model_BC, tex = TRUE, dict = dict_latex,
 data_3_ESP <- data_1.6_ESP
 data_3_FRA <- data_1.6_FRA
 data_3_GER <- data_1.6_GER
-data_3_ROM <- data_1.6_ROM
+data_3_ROM <- data_1.6_ROM %>%
+  rename(Pricelevel = Priceleveleuro)
 
 # 3.1   Hypotheses 1 to 6 ####
 
@@ -1389,5 +1407,514 @@ model_3.4.7_ROM <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post
 
 
 # 3.5   Hypotheses 18 to 22 ####
+
+adjust_hypothesis_18f <- function(data_3_0, filter_1){
+  data_3_4 <- data_3_0 %>%
+    select(ID, Treatment_B, Treatment_C, Dif_cost_1, Dif_cost_2, Dif_Percentile_1, Dif_Percentile_2, Q41_1N, Q41_2N, Q44_1N, Q44_2N, Q45_1N, Q45_2N, Q46_1N, Q46_2N)%>%
+    # Overestimated/underestimated
+    mutate(Overestimated_Absolute = ifelse(Dif_cost_1 > 0, "Overestimated",
+                                           ifelse(Dif_cost_1 < 0, "Underestimated", NA)))%>%
+    mutate(Overestimated_Distribution = ifelse(Dif_Percentile_1 > 0, "Overestimated",
+                                               ifelse(Dif_Percentile_1 < 0, "Underestimated", NA)))%>%
+    pivot_longer(Dif_cost_1:Q46_2N, names_to = "Variable", values_to = "value")%>%
+    mutate(Period  = ifelse(Variable %in% c("Q41_1N", "Q44_1N", "Q45_1N", "Q46_1N", "Dif_cost_1", "Dif_Percentile_1"),1,2),
+           Outcome = case_when(Variable %in% c("Q41_1N", "Q41_2N") ~ "Effectiveness",
+                               Variable %in% c("Q44_1N", "Q44_2N") ~ "Vulnerable",
+                               Variable %in% c("Q45_1N", "Q45_2N") ~ "Fairness",
+                               Variable %in% c("Q46_1N", "Q46_2N") ~ "Support",
+                               Variable %in% c("Dif_Percentile_1", "Dif_Percentile_2") ~ "Distribution_costs",
+                               Variable %in% c("Dif_cost_1", "Dif_cost_2")             ~ "Absolute_costs"))%>%
+    mutate(Post_B   = ifelse(Period == 2 & Treatment_B == "Treatment",1,0),
+           Post_C1  = ifelse(Period == 2 & Treatment_C == "C1",1,0),
+           Post_C2  = ifelse(Period == 2 & Treatment_C == "C2",1,0),
+           Post_C3  = ifelse(Period == 2 & Treatment_C == "C3",1,0),
+           Post_C4  = ifelse(Period == 2 & Treatment_C == "C4",1,0),
+           Post_C12 = ifelse(Period == 2 & (Treatment_C == "C1" | Treatment_C == "C2"),1,0),
+           Post_C34 = ifelse(Period == 2 & (Treatment_C == "C3" | Treatment_C == "C4"),1,0),
+           Post_C1234 = ifelse(Period == 2 & Treatment_C != "C5",1,0))
+  
+  data_3_4.1 <- data_3_4 %>%
+    select(ID, Period, Outcome, value)%>%
+    filter(Outcome == "Support")%>%
+    rename(Support = value)%>%
+    select(-Outcome)
+  
+  data_3_4.2 <- data_3_4 %>%
+    left_join(data_3_4.1)%>%
+    filter(Outcome == filter_1)
+  
+  return(data_3_4.2)
+}
+
+# Hypothesis 18a:
+
+model_3.5.1_a_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ESP, "Effectiveness"))
+model_3.5.1_a_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_FRA, "Effectiveness"))
+model_3.5.1_a_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_GER, "Effectiveness"))
+model_3.5.1_a_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ROM, "Effectiveness"))
+
+# Hypothesis 18b:
+
+model_3.5.1_b_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ESP, "Fairness"))
+model_3.5.1_b_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_FRA, "Fairness"))
+model_3.5.1_b_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_GER, "Fairness"))
+model_3.5.1_b_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ROM, "Fairness"))
+
+# Hypothesis 18c:
+
+model_3.5.1_c_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ESP, "Vulnerable"))
+model_3.5.1_c_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_FRA, "Vulnerable"))
+model_3.5.1_c_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_GER, "Vulnerable"))
+model_3.5.1_c_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ROM, "Vulnerable"))
+
+# Hypothesis 18d:
+
+model_3.5.1_d_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ESP, "Absolute_costs"))
+model_3.5.1_d_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_FRA, "Absolute_costs"))
+model_3.5.1_d_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_GER, "Absolute_costs"))
+model_3.5.1_d_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ROM, "Absolute_costs"))
+
+# Hypothesis 18e:
+
+model_3.5.1_e_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ESP, "Distribution_costs"))
+model_3.5.1_e_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_FRA, "Distribution_costs"))
+model_3.5.1_e_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_GER, "Distribution_costs"))
+model_3.5.1_e_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ROM, "Distribution_costs"))
+
+# Hypothesis 19:
+adjust_hypothesis_19 <- function(data_3_0){
+  data_3_5.1 <- data_3_0 %>%
+    select(ID, Q41_1N, Q44_1N, Q45_1N, Dif_cost_1, Dif_Percentile_1, Q46_1N)%>%
+    rename(Q41 = Q41_1N,
+           Q44 = Q44_1N,
+           Q45 = Q45_1N,
+           Dif_cost = Dif_cost_1,
+           Dif_Percentile = Dif_Percentile_1,
+           Q46 = Q46_1N)%>%
+    mutate(Period = 1)
+  
+  data_3_5.2 <- data_3_0 %>%
+    select(ID, Q41_2N, Q44_2N, Q45_2N, Dif_cost_2, Dif_Percentile_2, Q46_2N)%>%
+    rename(Q41 = Q41_2N,
+           Q44 = Q44_2N,
+           Q45 = Q45_2N,
+           Dif_cost = Dif_cost_2,
+           Dif_Percentile = Dif_Percentile_2,
+           Q46 = Q46_2N)%>%
+    mutate(Period = 2)
+  
+  data_3_5.3 <- bind_rows(data_3_5.1, data_3_5.2)%>%
+    arrange(ID, Period)%>%
+    left_join(select(data_3_0, ID, Treatment_B, Treatment_C))%>%
+    mutate(Post_B   = ifelse(Period == 2 & Treatment_B == "Treatment",1,0),
+           Post_C1  = ifelse(Period == 2 & Treatment_C == "C1",1,0),
+           Post_C2  = ifelse(Period == 2 & Treatment_C == "C2",1,0),
+           Post_C3  = ifelse(Period == 2 & Treatment_C == "C3",1,0),
+           Post_C4  = ifelse(Period == 2 & Treatment_C == "C4",1,0),
+           Post_C12 = ifelse(Period == 2 & (Treatment_C == "C1" | Treatment_C == "C2"),1,0),
+           Post_C34 = ifelse(Period == 2 & (Treatment_C == "C3" | Treatment_C == "C4"),1,0),
+           Post_C1234 = ifelse(Period == 2 & Treatment_C != "C5",1,0))
+  
+  return(data_3_5.3)
+}
+
+model_3.5.2_ESP <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_ESP))
+model_3.5.2_FRA <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_FRA))
+model_3.5.2_GER <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_ESP))
+model_3.5.2_ROM <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_ROM))
+
+# Hypothesis 20:
+
+adjust_hypothesis_20 <- function(data_3_0){
+  data_3_5 <- data_3_0 %>%
+    select(ID, Treatment_B, Treatment_C, Q46_1N, Q46_2N, Pricelevel)%>%
+    pivot_longer(Q46_1N:Q46_2N, names_to = "Variable", values_to = "value")%>%
+    mutate(Period  = ifelse(Variable %in% c("Q46_1N"),1,2))%>%
+    mutate(Post_B   = ifelse(Period == 2 & Treatment_B == "Treatment",1,0),
+           Post_C1  = ifelse(Period == 2 & Treatment_C == "C1",1,0),
+           Post_C2  = ifelse(Period == 2 & Treatment_C == "C2",1,0),
+           Post_C3  = ifelse(Period == 2 & Treatment_C == "C3",1,0),
+           Post_C4  = ifelse(Period == 2 & Treatment_C == "C4",1,0),
+           Post_C12 = ifelse(Period == 2 & (Treatment_C == "C1" | Treatment_C == "C2"),1,0),
+           Post_C34 = ifelse(Period == 2 & (Treatment_C == "C3" | Treatment_C == "C4"),1,0),
+           Post_C1234 = ifelse(Period == 2 & Treatment_C != "C5",1,0))%>%
+    mutate(Post_P1 = ifelse(Period == 2 & Pricelevel == "85",1,0),
+           Post_P2 = ifelse(Period == 2 & Pricelevel == "125",1,0))
+  
+  return(data_3_5)
+}
+
+model_3.5.3_ESP <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_ESP))
+model_3.5.3_FRA <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_FRA))
+model_3.5.3_GER <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_GER))
+model_3.5.3_ROM <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_ROM))
+
+# Hypothesis 21:
+
+adjust_hypothesis_21 <- function(data_3_0){
+  data_3_5 <- data_3_0 %>%
+    filter(Dif_cost_1 > 0)%>%
+    select(ID, Q46_1N, Q46_2N, Treatment_B, Treatment_C)%>%
+    pivot_longer(Q46_1N:Q46_2N, names_to = "names", values_to = "value")%>%
+    mutate(Period = ifelse(names == "Q46_1N",1,2))%>%
+    mutate(Post_B = ifelse(Treatment_B == "Treatment" & Period == 2,1,0),
+           Post_Gamma = ifelse(Treatment_C != "Control" & Period == 2,1,0))
+  
+  return(data_3_5)
+}
+
+model_3.5.4_ESP <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_ESP))
+model_3.5.4_FRA <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_FRA))
+model_3.5.4_GER <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_GER))
+model_3.5.4_ROM <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_ROM))
+
+# Hypothesis 22:
+
+adjust_hypothesis_22 <- function(data_3_0){
+  data_3_5 <- data_3_0 %>%
+    select(ID, Q46_1N, Q46_2N, Treatment_B, Treatment_C)%>%
+    pivot_longer(Q46_1N:Q46_2N, names_to = "names", values_to = "value")%>%
+    mutate(Period = ifelse(names == "Q46_1N",1,2))%>%
+    mutate(Post_B = ifelse(Treatment_B == "Treatment" & Period == 2,1,0),
+           Post_C1 = ifelse(Treatment_C == "C1" & Period == 2,1,0),
+           Post_C2 = ifelse(Treatment_C == "C2" & Period == 2,1,0),
+           Post_C3 = ifelse(Treatment_C == "C3" & Period == 2,1,0),
+           Post_C4 = ifelse(Treatment_C == "C4" & Period == 2,1,0))%>%
+    mutate(Post_B_C24 = ifelse(Treatment_C %in% c("C2", "C4") & Treatment_B == "Treatment" & Period == 2,1,0))
+  
+  return(data_3_5)
+}
+
+model_3.5.5_ESP <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_ESP))
+model_3.5.5_FRA <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_FRA))
+model_3.5.5_GER <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_GER))
+model_3.5.5_ROM <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_ROM))
+
 # 3.6   Hypotheses 23 to 29 (Conjoint) ####
+
+data_3.6_ESP <- data_conjoint_ESP %>%
+  left_join(select(data_3_ESP, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>% # Information about rural households are missing
+  mutate(Rank_weighted = ifelse(Rank == 1,1,
+                                ifelse(Rank == 2, 2/3,
+                                       ifelse(Rank == 3, 1/3,NA))))
+data_3.6_FRA <- data_conjoint_FRA %>%
+  left_join(select(data_3_FRA, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
+  mutate(Rank_weighted = ifelse(Rank == 1,1,
+                                ifelse(Rank == 2, 2/3,
+                                       ifelse(Rank == 3, 1/3,NA))))
+data_3.6_GER <- data_conjoint_GER %>%
+  left_join(select(data_3_GER, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
+  mutate(Rank_weighted = ifelse(Rank == 1,1,
+                                ifelse(Rank == 2, 2/3,
+                                       ifelse(Rank == 3, 1/3,NA))))
+data_3.6_ROM <- data_conjoint_ROM %>%
+  left_join(select(data_3_ROM, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
+  mutate(Rank_weighted = ifelse(Rank == 1,1,
+                                ifelse(Rank == 2, 2/3,
+                                       ifelse(Rank == 3, 1/3,NA))))
+
+# Hypothesis 23: Preferences of respondents with lower institutional trust are more strongly influenced by institutional design attributes.
+
+data_3.6.1_ESP <- data_3.6_ESP %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(!is.na(lower))%>%
+  group_by(lower, budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(lower)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+  
+data_3.6.1_FRA <- data_3.6_FRA %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(!is.na(lower))%>%
+  group_by(lower, budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(lower)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+data_3.6.1_GER <- data_3.6_GER %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(!is.na(lower))%>%
+  group_by(lower, budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(lower)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+data_3.6.1_ROM <- data_3.6_ROM %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(!is.na(lower))%>%
+  group_by(lower, budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(lower)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+# Hypothesis 24: Respondents with lower institutional trust and specifically low trust in the integrity of governments use of funds will prefer
+# all other options to "The government, as with any other public revenue"
+data_3.6.2_ESP <- data_3.6_ESP %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(Q31_Gov_nat %in% c("En absoluto", "Probablemente no"))%>%
+  group_by(budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.2_FRA <- data_3.6_FRA %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(Q31_Gov_nat %in% c("Certainement pas", "Probablement pas"))%>%
+  group_by(budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.2_GER <- data_3.6_GER %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(Q31_Gov_nat %in% c("Definitiv nicht", "Vermutlich nicht"))%>%
+  group_by(budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.2_ROM <- data_3.6_ROM %>%
+  mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  mutate_at(vars(Q31_Gov_nat:Q31_Gov_loc), ~ stri_trans_general(., "Latin-ASCII"))%>%
+  filter(Q31_Gov_nat %in% c("In mod sigur nu", "Probabil ca nu"))%>%
+  group_by(budget_control)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+# Hypothesis 25: Respondents with higher trust in their local government than in their national government will prefer 'A local climate center, where an advisor can guide you' to other options for this attribute.
+data_3.6.3_ESP <- data_3.6_ESP %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(information))%>%
+  group_by(information)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.3_FRA <- data_3.6_FRA %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(information))%>%
+  group_by(information)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.3_GER <- data_3.6_GER %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(information))%>%
+  group_by(information)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.3_ROM <- data_3.6_ROM %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(information))%>%
+  group_by(information)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+# Hypothesis 26: Respondents with higher overall trust in their local government than in their national government will prefer the option 'Preferentially energy project co-owned by local residents' for clean energy subsidy targets. 
+data_3.6.4a_ESP <- data_3.6_ESP %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.4b_FRA <- data_3.6_FRA %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.4b_GER <- data_3.6_GER %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.4b_ROM <- data_3.6_ROM %>%
+  mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
+  filter(local == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+# Hypothesis 26b: Respondents with higher overall trust in their national government than in their local government will prefer the option 'Government-owned firms reinvesting profits in the transition'. 
+data_3.6.4b_ESP <- data_3.6_ESP %>%
+  mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
+  filter(national == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.4b_FRA <- data_3.6_FRA %>%
+  mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
+  filter(national == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.4b_GER <- data_3.6_GER %>%
+  mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
+  filter(national == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.4b_ROM <- data_3.6_ROM %>%
+  mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
+  filter(national == 1)%>%
+  filter(!is.na(infrastructure_ownership))%>%
+  group_by(infrastructure_ownership)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+# Hypothesis 27: Respondents that are unsatisfied with their current access to public transport will prefer all other options to option 'Maintain quality of existing public transport'.
+data_3.6.5_ESP <- data_3.6_ESP %>%
+  filter(Q16 %in% c("Muy mala", "Mala"))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.5_FRA <- data_3.6_FRA %>%
+  filter(Q16 %in% c("Très mauvais", "Mauvais"))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.5_GER <- data_3.6_GER %>%
+  filter(Q16 %in% c("Sehr schlecht", "Schlecht"))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.5_ROM <- data_3.6_ROM %>%
+  filter(Q16 %in% c("Foarte proasta", "Proasta"))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+# Hypothesis 28: The preferences of respondents that work in more carbon-intensive sectors are more strongly influenced by the attribute 'support for workers' compared to respondents working in less carbon-intensive sectors.
+# TBD
+
+# Hypothesis 29: The preferences of respondents having a higher carbon intensity of consumption are more strongly influenced by the attribute 'Support for households' than for other households.
+data_3.6.5_ESP <- data_3.6_ESP %>%
+  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  group_by(Higher, household_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.5_FRA <- data_3.6_FRA %>%
+  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  group_by(Higher, household_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.5_GER <- data_3.6_GER %>%
+  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  group_by(Higher, household_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+data_3.6.5_ROM <- data_3.6_ROM %>%
+  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  group_by(Higher, household_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
 # 3.7   Hypotheses 30 to 34 (Part III) ####
+
+data_3.7_GER <- data_3_GER %>%
+  select(ID, Q71_4, Q71_2, Q71_3, Q30_2N, Q30_3N, Q38)%>%
+  rename(Q71_1 = Q71_4)%>%
+  filter(!is.na(Q71_1)&!is.na(Q71_2)&!is.na(Q71_3))%>%
+  mutate_at(vars(Q71_1:Q71_3), ~ as.numeric(.))%>%
+  mutate(nA_B = ifelse(Q71_1 < Q71_2,1,0))
+
+data_3.7_FRA <- data_3_FRA %>%
+  select(ID, Q71_1, Q71_2, Q71_3, Q30_2N, Q30_3N, Q38)%>%
+  filter(!is.na(Q71_1)&!is.na(Q71_2)&!is.na(Q71_3))%>%
+  mutate_at(vars(Q71_1:Q71_3), ~ as.numeric(.))
+
+# Hypothesis 30: Respondents prefer option A over option B.
+t.test(data_3.7_FRA$Q71_1, data_3.7_FRA$Q71_2, paired = TRUE, alternative = "less")
+t.test(data_3.7_GER$Q71_1, data_3.7_GER$Q71_2, paired = TRUE, alternative = "less")
+
+# Hypothesis 31: Respondents that do not trust their national government will prefer option C to both option A and option B.
+data_3.7.1_GER <- data_3.7_GER %>%
+  filter(Q30_2N < 3)
+
+data_3.7.1_FRA <- data_3.7_FRA %>%
+  filter(Q30_2N < 3)
+
+t.test(data_3.7.1_FRA$Q71_3, data_3.7.1_FRA$Q71_1, paired = TRUE, alternative = "less")
+t.test(data_3.7.1_GER$Q71_3, data_3.7.1_GER$Q71_1, paired = TRUE, alternative = "less")
+t.test(data_3.7.1_FRA$Q71_3, data_3.7.1_FRA$Q71_2, paired = TRUE, alternative = "less")
+t.test(data_3.7.1_GER$Q71_3, data_3.7.1_GER$Q71_2, paired = TRUE, alternative = "less")
+
+# Hypothesis 32: Respondents that indicate political leaning towards right-wing extremist parties will prefer option C to both option A and option B.
+data_3.7.2_GER <- data_3.7_GER %>%
+  filter(Q38 == "AfD")
+
+data_3.7.2_FRA <- data_3.7_FRA %>%
+  filter(Q38 == "Extrême droite (RN etc...)")
+
+t.test(data_3.7.2_FRA$Q71_3, data_3.7.2_FRA$Q71_1, paired = TRUE, alternative = "less")
+t.test(data_3.7.2_GER$Q71_3, data_3.7.2_GER$Q71_1, paired = TRUE, alternative = "less")
+t.test(data_3.7.2_FRA$Q71_3, data_3.7.2_FRA$Q71_2, paired = TRUE, alternative = "less")
+t.test(data_3.7.2_GER$Q71_3, data_3.7.2_GER$Q71_2, paired = TRUE, alternative = "less")
+
+# Hypothesis 33: Respondents that indicate political leaning towards right-wing extremist parties will be more likely to prefer A to option B than others
+data_3.7.3_GER <- data_3.7_GER %>%
+  mutate(A_B = Q71_1 - Q71_2,
+         RW  = ifelse(Q38 == "AfD",1,0))
+
+data_3.7.3_FRA <- data_3.7_FRA %>%
+  mutate(A_B = Q71_1 - Q71_2,
+         RW  = ifelse(Q38 == "Extrême droite (RN etc...)",1,0))
+
+# A_B is more likely to be negative for RW = 1
+t.test(A_B ~ RW, data = data_3.7.3_FRA, alternative = "less")
+t.test(A_B ~ RW, data = data_3.7.3_GER, alternative = "less")
+
+# Hypothesis 34: Respondents that have a higher trust in their national government thatn in the EU commission will prefer option A to option B.
+data_3.7.4_GER <- data_3.7_GER %>%
+  mutate(Filter = ifelse(Q30_2N > Q30_3N,1,0))%>%
+  filter(Filter == 1)
+
+data_3.7.4_FRA <- data_3.7_FRA %>%
+  mutate(Filter = ifelse(Q30_2N > Q30_3N,1,0))%>%
+  filter(Filter == 1)
+
+t.test(data_3.7.4_FRA$Q71_1, data_3.7.4_FRA$Q71_2, paired = TRUE, alternative = "less")
+t.test(data_3.7.4_GER$Q71_1, data_3.7.4_GER$Q71_2, paired = TRUE, alternative = "less")
