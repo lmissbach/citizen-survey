@@ -1236,7 +1236,8 @@ model_3.1_FRA <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percent
 model_3.1_GER <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_GER)
 model_3.1_ROM <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_ROM)
 
-# P-values not yet adjusted for one-sided t-test and they are not yet BH-corrected
+# Adjust p-values for one-sided t-test.
+# Adjust for multiple hypothesis testing.
 
 rm(model_3.1_ESP, model_3.1_FRA, model_3.1_GER, model_3.1_ROM)
 
@@ -1247,7 +1248,8 @@ model_3.2_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percent
 model_3.2_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_GER)
 model_3.2_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_ROM)
 
-# P-values not yet adjusted for one-sided t-test and they are not yet BH-corrected
+# Adjust p-values for one-sided t-test.
+# Adjust for multiple hypothesis testing.
 
 adjust_hypothesis_7b <- function(data_3_0){
   data_3_1 <- data_3_0 %>%
@@ -1262,6 +1264,9 @@ model_3.2.1_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Perce
 model_3.2.1_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_GER))
 model_3.2.1_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_ROM))
 
+# Adjust p-values for one-sided t-test.
+# Adjust for multiple hypothesis testing.
+
 rm(adjust_hypothesis_7b)
 
 # 3.3   Hypotheses 8 to 9 ####
@@ -1273,7 +1278,7 @@ adjust_hypothesis_89 <- function(data_3_0, filter_1){
     mutate(Period  = ifelse(Variable %in% c("Q41_1N", "Q45_1N"),1,2),
            Outcome = ifelse(Variable %in% c("Q41_1N", "Q41_2N"), "Effectiveness", "Fairness"))%>%
     mutate(Post_B = ifelse(Period == 2 & Treatment_B == "Treatment",1,0),
-           Post_C = ifelse(Period == 2, "Baseline", as.character(Treatment_C)))%>%
+           Post_C = ifelse(Period == 1, "Baseline", as.character(Treatment_C)))%>%
     filter(Outcome == filter_1)%>%
     mutate(tau = ifelse(Q30_2N < 3,1,0))%>%
     mutate(tau_Post_B = ifelse(tau == 1 & Post_B == 1,1,0))
@@ -1281,7 +1286,7 @@ adjust_hypothesis_89 <- function(data_3_0, filter_1){
   return(data_3_3)
 }
 
-model_3.3.1_ESP <- feols(value ~ Post_B| ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Effectiveness"))
+model_3.3.1_ESP <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Effectiveness"))
 model_3.3.1_FRA <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_FRA, "Effectiveness"))
 model_3.3.1_GER <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Effectiveness"))
 model_3.3.1_ROM <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Effectiveness")) 
@@ -1330,7 +1335,11 @@ adjust_hypothesis_10f <- function(data_3_0, filter_1){
            Post_C4  = ifelse(Period == 2 & Treatment_C == "C4",1,0),
            Post_C12 = ifelse(Period == 2 & (Treatment_C == "C1" | Treatment_C == "C2"),1,0),
            Post_C34 = ifelse(Period == 2 & (Treatment_C == "C3" | Treatment_C == "C4"),1,0),
-           Post_C1234 = ifelse(Period == 2 & Treatment_C != "C5",1,0))%>%
+           Post_C13 = ifelse(Period == 2 & (Treatment_C == "C1" | Treatment_C == "C3"),1,0),
+           Post_C24 = ifelse(Period == 2 & (Treatment_C == "C2" | Treatment_C == "C4"),1,0),
+           Post_C234 = ifelse(Period == 2 & (Treatment_C == "C2" | Treatment_C == "C3"| Treatment_C == "C4"),1,0),
+           Post_C1234 = ifelse(Period == 2 & Treatment_C != "C5",1,0),
+           Post_C5  = ifelse(Period == 2 & Treatment_C == "C5",1,0))%>%
     filter(Outcome == filter_1)%>%
     # Transform into absolute value
     mutate(value_abs = abs(value))
@@ -1341,72 +1350,89 @@ adjust_hypothesis_10f <- function(data_3_0, filter_1){
 
 # Hypothesis 10:
 
-model_3.4.1_ESP <- feols(value_abs ~ Post_C12 | ID + Period + Post_B + Post_C3, data = adjust_hypothesis_10f(data_3_ESP, "Absolute_costs"))
-model_3.4.1_FRA <- feols(value_abs ~ Post_C12 | ID + Period + Post_B + Post_C3, data = adjust_hypothesis_10f(data_3_FRA, "Absolute_costs"))
-model_3.4.1_GER <- feols(value_abs ~ Post_C12 | ID + Period + Post_B + Post_C3, data = adjust_hypothesis_10f(data_3_GER, "Absolute_costs"))
-model_3.4.1_ROM <- feols(value_abs ~ Post_C12 | ID + Period + Post_B + Post_C3, data = adjust_hypothesis_10f(data_3_ROM, "Absolute_costs"))
+model_3.4.1_ESP <- feols(value_abs ~ Post_C13 | ID + Period + Post_B + Post_C2, data = adjust_hypothesis_10f(data_3_ESP, "Absolute_costs"))
+model_3.4.1_FRA <- feols(value_abs ~ Post_C13 | ID + Period + Post_B + Post_C2, data = adjust_hypothesis_10f(data_3_FRA, "Absolute_costs"))
+model_3.4.1_GER <- feols(value_abs ~ Post_C13 | ID + Period + Post_B + Post_C2, data = adjust_hypothesis_10f(data_3_GER, "Absolute_costs"))
+model_3.4.1_ROM <- feols(value_abs ~ Post_C13 | ID + Period + Post_B + Post_C2, data = adjust_hypothesis_10f(data_3_ROM, "Absolute_costs"))
 
 # Hypothesis 11:
 
-model_3.4.2_ESP <- feols(value_abs ~ Post_C34 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_ESP, "Distribution_costs"))
-model_3.4.2_FRA <- feols(value_abs ~ Post_C34 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_FRA, "Distribution_costs"))
-model_3.4.2_GER <- feols(value_abs ~ Post_C34 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_GER, "Distribution_costs"))
-model_3.4.2_ROM <- feols(value_abs ~ Post_C34 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_ROM, "Distribution_costs"))
+model_3.4.2_ESP <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_ESP, "Distribution_costs"))
+model_3.4.2_FRA <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_FRA, "Distribution_costs"))
+model_3.4.2_GER <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_GER, "Distribution_costs"))
+model_3.4.2_ROM <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_ROM, "Distribution_costs"))
 
 # Hypothesis 12:
 
-model_3.4.2_ESP_1 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Absolute == "Overestimated"))
-model_3.4.2_FRA_1 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Absolute == "Overestimated"))
-model_3.4.2_GER_1 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Absolute == "Overestimated"))
-model_3.4.2_ROM_1 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Absolute == "Overestimated"))
+model_3.4.2_ESP_1 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Absolute == "Overestimated"))
+model_3.4.2_FRA_1 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Absolute == "Overestimated"))
+model_3.4.2_GER_1 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Absolute == "Overestimated"))
+model_3.4.2_ROM_1 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Absolute == "Overestimated"))
 
-model_3.4.2_ESP_2 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Absolute == "Underestimated"))
-model_3.4.2_FRA_2 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Absolute == "Underestimated"))
-model_3.4.2_GER_2 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Absolute == "Underestimated"))
-model_3.4.2_ROM_2 <- feols(value ~ Post_C12 | ID + Period + Post_B + Post_C3 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Absolute == "Underestimated"))
+model_3.4.2_ESP_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Absolute == "Underestimated"))
+model_3.4.2_FRA_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Absolute == "Underestimated"))
+model_3.4.2_GER_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Absolute == "Underestimated"))
+model_3.4.2_ROM_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Absolute == "Underestimated"))
 
 # Hypothesis 13:
 
-model_3.4.3_ESP_1 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Distribution == "Overestimated"))
-model_3.4.3_FRA_1 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Distribution == "Overestimated"))
-model_3.4.3_GER_1 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Distribution == "Overestimated"))
-model_3.4.3_ROM_1 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Distribution == "Overestimated"))
+model_3.4.3_ESP_1 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Distribution == "Overestimated"))
+model_3.4.3_FRA_1 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Distribution == "Overestimated"))
+model_3.4.3_GER_1 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Distribution == "Overestimated"))
+model_3.4.3_ROM_1 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Distribution == "Overestimated"))
 
-model_3.4.3_ESP_2 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Distribution == "Underestimated"))
-model_3.4.3_FRA_2 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Distribution == "Underestimated"))
-model_3.4.3_GER_2 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Distribution == "Underestimated"))
-model_3.4.3_ROM_2 <- feols(value ~ Post_C34 | ID + Period + Post_B + Post_C1 + Post_C2, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Distribution == "Underestimated"))
+model_3.4.3_ESP_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_ESP, "Fairness"), Overestimated_Distribution == "Underestimated"))
+model_3.4.3_FRA_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Distribution == "Underestimated"))
+model_3.4.3_GER_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Distribution == "Underestimated"))
+model_3.4.3_ROM_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Distribution == "Underestimated"))
 
 # Hypothesis 14:
-
-model_3.4.4_ESP <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_ESP, "Effectiveness"))
-model_3.4.4_FRA <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_FRA, "Effectiveness"))
-model_3.4.4_GER <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_GER, "Effectiveness"))
-model_3.4.4_ROM <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_ROM, "Effectiveness"))
+model_3.4.4_ESP <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
+model_3.4.4_FRA <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
+model_3.4.4_GER <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
+model_3.4.4_ROM <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
 
 # Hypothesis 15:
 
-model_3.4.5_ESP <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
-model_3.4.5_FRA <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
-model_3.4.5_GER <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
-model_3.4.5_ROM <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C12 + Post_C34, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+model_3.4.5_ESP <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_ESP, "Effectiveness"))
+model_3.4.5_FRA <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_FRA, "Effectiveness"))
+model_3.4.5_GER <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_GER, "Effectiveness"))
+model_3.4.5_ROM <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_ROM, "Effectiveness"))
 
 # Hypothesis 16:
 
-model_3.4.6_ESP <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_ESP, "Vulnerable"))
-model_3.4.6_FRA <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_FRA, "Vulnerable"))
-model_3.4.6_GER <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_GER, "Vulnerable"))
-model_3.4.6_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_ROM, "Vulnerable"))
+model_3.4.6_ESP <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
+model_3.4.6_FRA <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
+model_3.4.6_GER <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
+model_3.4.6_ROM <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
 
 # Hypothesis 17:
 
-model_3.4.7_ESP <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
-model_3.4.7_FRA <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
-model_3.4.7_GER <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
-model_3.4.7_ROM <- feols(value ~ Post_C2 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+model_3.4.7_ESP <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_ESP, "Vulnerable"))
+model_3.4.7_FRA <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_FRA, "Vulnerable"))
+model_3.4.7_GER <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_GER, "Vulnerable"))
+model_3.4.7_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_ROM, "Vulnerable"))
 
+# Hypothesis 18:
 
-# 3.5   Hypotheses 18 to 22 ####
+model_3.4.8_ESP <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
+model_3.4.8_FRA <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
+model_3.4.8_GER <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
+model_3.4.8_ROM <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+
+# Hypothesis 19:
+model_3.4.9_ESP <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
+model_3.4.9_FRA <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
+model_3.4.9_GER <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
+model_3.4.9_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+
+# Hypothesis 20:
+model_3.4.10_ESP <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
+model_3.4.10_FRA <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
+model_3.4.10_GER <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
+model_3.4.10_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+
+# 3.5   Hypotheses 21 to 27 ####
 
 adjust_hypothesis_18f <- function(data_3_0, filter_1){
   data_3_4 <- data_3_0 %>%
