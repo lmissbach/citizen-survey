@@ -1434,7 +1434,7 @@ model_3.4.10_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Pos
 
 # 3.5   Hypotheses 21 to 27 ####
 
-adjust_hypothesis_18f <- function(data_3_0, filter_1){
+adjust_hypothesis_21f <- function(data_3_0, filter_1){
   data_3_4 <- data_3_0 %>%
     select(ID, Treatment_B, Treatment_C, Dif_cost_1, Dif_cost_2, Dif_Percentile_1, Dif_Percentile_2, Q41_1N, Q41_2N, Q44_1N, Q44_2N, Q45_1N, Q45_2N, Q46_1N, Q46_2N)%>%
     # Overestimated/underestimated
@@ -1472,43 +1472,43 @@ adjust_hypothesis_18f <- function(data_3_0, filter_1){
   return(data_3_4.2)
 }
 
-# Hypothesis 18a:
+# Hypothesis 21a:
 
-model_3.5.1_a_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ESP, "Effectiveness"))
-model_3.5.1_a_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_FRA, "Effectiveness"))
-model_3.5.1_a_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_GER, "Effectiveness"))
-model_3.5.1_a_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ROM, "Effectiveness"))
+model_3.5.1_a_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ESP, "Effectiveness"))
+model_3.5.1_a_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_FRA, "Effectiveness"))
+model_3.5.1_a_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_GER, "Effectiveness"))
+model_3.5.1_a_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ROM, "Effectiveness"))
 
-# Hypothesis 18b:
+# Hypothesis 21b:
 
-model_3.5.1_b_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ESP, "Fairness"))
-model_3.5.1_b_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_FRA, "Fairness"))
-model_3.5.1_b_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_GER, "Fairness"))
-model_3.5.1_b_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ROM, "Fairness"))
+model_3.5.1_b_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ESP, "Fairness"))
+model_3.5.1_b_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_FRA, "Fairness"))
+model_3.5.1_b_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_GER, "Fairness"))
+model_3.5.1_b_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ROM, "Fairness"))
 
-# Hypothesis 18c:
+# Hypothesis 21c:
 
-model_3.5.1_c_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ESP, "Vulnerable"))
-model_3.5.1_c_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_FRA, "Vulnerable"))
-model_3.5.1_c_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_GER, "Vulnerable"))
-model_3.5.1_c_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_18f(data_3_ROM, "Vulnerable"))
+model_3.5.1_c_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ESP, "Vulnerable"))
+model_3.5.1_c_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_FRA, "Vulnerable"))
+model_3.5.1_c_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_GER, "Vulnerable"))
+model_3.5.1_c_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ROM, "Vulnerable"))
 
-# Hypothesis 18d:
+# Hypothesis 21d:
 
-model_3.5.1_d_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ESP, "Absolute_costs"))
-model_3.5.1_d_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_FRA, "Absolute_costs"))
-model_3.5.1_d_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_GER, "Absolute_costs"))
-model_3.5.1_d_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ROM, "Absolute_costs"))
+model_3.5.1_d_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_ESP, "Absolute_costs"))
+model_3.5.1_d_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_FRA, "Absolute_costs"))
+model_3.5.1_d_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_GER, "Absolute_costs"))
+model_3.5.1_d_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_ROM, "Absolute_costs"))
 
-# Hypothesis 18e:
+# Hypothesis 21e:
 
-model_3.5.1_e_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ESP, "Distribution_costs"))
-model_3.5.1_e_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_FRA, "Distribution_costs"))
-model_3.5.1_e_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_GER, "Distribution_costs"))
-model_3.5.1_e_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_18f(data_3_ROM, "Distribution_costs"))
+model_3.5.1_e_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_ESP, "Distribution_costs"))
+model_3.5.1_e_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_FRA, "Distribution_costs"))
+model_3.5.1_e_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_GER, "Distribution_costs"))
+model_3.5.1_e_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_ROM, "Distribution_costs"))
 
-# Hypothesis 19:
-adjust_hypothesis_19 <- function(data_3_0){
+# Hypothesis 22:
+adjust_hypothesis_22 <- function(data_3_0){
   data_3_5.1 <- data_3_0 %>%
     select(ID, Q41_1N, Q44_1N, Q45_1N, Dif_cost_1, Dif_Percentile_1, Q46_1N)%>%
     rename(Q41 = Q41_1N,
@@ -1544,14 +1544,14 @@ adjust_hypothesis_19 <- function(data_3_0){
   return(data_3_5.3)
 }
 
-model_3.5.2_ESP <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_ESP))
-model_3.5.2_FRA <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_FRA))
-model_3.5.2_GER <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_ESP))
-model_3.5.2_ROM <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_19(data_3_ROM))
+model_3.5.2_ESP <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_ESP))
+model_3.5.2_FRA <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_FRA))
+model_3.5.2_GER <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_ESP))
+model_3.5.2_ROM <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_ROM))
 
-# Hypothesis 20:
+# Hypothesis 23:
 
-adjust_hypothesis_20 <- function(data_3_0){
+adjust_hypothesis_23 <- function(data_3_0){
   data_3_5 <- data_3_0 %>%
     select(ID, Treatment_B, Treatment_C, Q46_1N, Q46_2N, Pricelevel)%>%
     pivot_longer(Q46_1N:Q46_2N, names_to = "Variable", values_to = "value")%>%
@@ -1570,14 +1570,14 @@ adjust_hypothesis_20 <- function(data_3_0){
   return(data_3_5)
 }
 
-model_3.5.3_ESP <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_ESP))
-model_3.5.3_FRA <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_FRA))
-model_3.5.3_GER <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_GER))
-model_3.5.3_ROM <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_20(data_3_ROM))
+model_3.5.3_ESP <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_23(data_3_ESP))
+model_3.5.3_FRA <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_23(data_3_FRA))
+model_3.5.3_GER <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_23(data_3_GER))
+model_3.5.3_ROM <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_23(data_3_ROM))
 
-# Hypothesis 21:
+# Hypothesis 24:
 
-adjust_hypothesis_21 <- function(data_3_0){
+adjust_hypothesis_24 <- function(data_3_0){
   data_3_5 <- data_3_0 %>%
     filter(Dif_cost_1 > 0)%>%
     select(ID, Q46_1N, Q46_2N, Treatment_B, Treatment_C)%>%
@@ -1589,14 +1589,14 @@ adjust_hypothesis_21 <- function(data_3_0){
   return(data_3_5)
 }
 
-model_3.5.4_ESP <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_ESP))
-model_3.5.4_FRA <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_FRA))
-model_3.5.4_GER <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_GER))
-model_3.5.4_ROM <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_21(data_3_ROM))
+model_3.5.4_ESP <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_24(data_3_ESP))
+model_3.5.4_FRA <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_24(data_3_FRA))
+model_3.5.4_GER <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_24(data_3_GER))
+model_3.5.4_ROM <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_24(data_3_ROM))
 
-# Hypothesis 22:
+# Hypothesis 25:
 
-adjust_hypothesis_22 <- function(data_3_0){
+adjust_hypothesis_25 <- function(data_3_0){
   data_3_5 <- data_3_0 %>%
     select(ID, Q46_1N, Q46_2N, Treatment_B, Treatment_C)%>%
     pivot_longer(Q46_1N:Q46_2N, names_to = "names", values_to = "value")%>%
@@ -1605,16 +1605,29 @@ adjust_hypothesis_22 <- function(data_3_0){
            Post_C1 = ifelse(Treatment_C == "C1" & Period == 2,1,0),
            Post_C2 = ifelse(Treatment_C == "C2" & Period == 2,1,0),
            Post_C3 = ifelse(Treatment_C == "C3" & Period == 2,1,0),
-           Post_C4 = ifelse(Treatment_C == "C4" & Period == 2,1,0))%>%
-    mutate(Post_B_C24 = ifelse(Treatment_C %in% c("C2", "C4") & Treatment_B == "Treatment" & Period == 2,1,0))
+           Post_C4 = ifelse(Treatment_C == "C4" & Period == 2,1,0),
+           Post_C5 = ifelse(Treatment_C == "C5" & Period == 2,1,0))%>%
+    mutate(Post_B_C34 = ifelse(Treatment_C %in% c("C3", "C4") & Treatment_B == "Treatment" & Period == 2,1,0))
   
   return(data_3_5)
 }
 
-model_3.5.5_ESP <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_ESP))
-model_3.5.5_FRA <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_FRA))
-model_3.5.5_GER <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_GER))
-model_3.5.5_ROM <- feols(value ~ Post_B_C24 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_22(data_3_ROM))
+model_3.5.5_ESP <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_ESP))
+model_3.5.5_FRA <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_FRA))
+model_3.5.5_GER <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_GER))
+model_3.5.5_ROM <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_ROM))
+
+# Hypothesis 26: 
+model_3.5.6_ESP <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_ESP))
+model_3.5.6_FRA <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_FRA))
+model_3.5.6_GER <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_GER))
+model_3.5.6_ROM <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_ROM))
+
+# Hypothesis 27
+model_3.5.7_ESP <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_ESP))
+model_3.5.7_FRA <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_FRA))
+model_3.5.7_GER <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_GER))
+model_3.5.7_ROM <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_ROM))
 
 # 3.6   Hypotheses 23 to 29 (Conjoint) ####
 
