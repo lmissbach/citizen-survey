@@ -1629,7 +1629,7 @@ model_3.5.7_FRA <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post
 model_3.5.7_GER <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_GER))
 model_3.5.7_ROM <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_ROM))
 
-# 3.6   Hypotheses 23 to 29 (Conjoint) ####
+# 3.6   Hypotheses 28 to 36 (Conjoint) ####
 
 data_3.6_ESP <- data_conjoint_ESP %>%
   left_join(select(data_3_ESP, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>% # Information about rural households are missing
@@ -1652,7 +1652,43 @@ data_3.6_ROM <- data_conjoint_ROM %>%
                                 ifelse(Rank == 2, 2/3,
                                        ifelse(Rank == 3, 1/3,NA))))
 
-# Hypothesis 23: Preferences of respondents with lower institutional trust are more strongly influenced by institutional design attributes.
+# Hypothesis 28: A is preferred to B and B is preferred to C for all attributes
+
+# Definition of A, B, C TBD
+
+data_3.6.0_ESP <- data_3.6_ESP %>%
+  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  filter(!is.na(Levels))%>%
+  group_by(Attributes, Levels)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+data_3.6.0_FRA <- data_3.6_FRA %>%
+  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  filter(!is.na(Levels))%>%
+  group_by(Attributes, Levels)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+data_3.6.0_GER <- data_3.6_GER %>%
+  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  filter(!is.na(Levels))%>%
+  group_by(Attributes, Levels)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+data_3.6.0_ROM <- data_3.6_ROM %>%
+  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  filter(!is.na(Levels))%>%
+  group_by(Attributes, Levels)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)
+
+# Hypothesis 29: Preferences of respondents with lower institutional trust are more strongly influenced by institutional design attributes.
 
 data_3.6.1_ESP <- data_3.6_ESP %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
@@ -1698,7 +1734,7 @@ data_3.6.1_ROM <- data_3.6_ROM %>%
   summarise(range = max(ACP) - min(ACP))%>%
   ungroup()
 
-# Hypothesis 24: Respondents with lower institutional trust and specifically low trust in the integrity of governments use of funds will prefer
+# Hypothesis 30: Respondents with lower institutional trust and specifically low trust in the integrity of governments use of funds will prefer
 # all other options to "The government, as with any other public revenue"
 data_3.6.2_ESP <- data_3.6_ESP %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
@@ -1707,6 +1743,7 @@ data_3.6.2_ESP <- data_3.6_ESP %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.2_FRA <- data_3.6_FRA %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
   filter(Q31_Gov_nat %in% c("Certainement pas", "Probablement pas"))%>%
@@ -1714,6 +1751,7 @@ data_3.6.2_FRA <- data_3.6_FRA %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.2_GER <- data_3.6_GER %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
   filter(Q31_Gov_nat %in% c("Definitiv nicht", "Vermutlich nicht"))%>%
@@ -1721,6 +1759,7 @@ data_3.6.2_GER <- data_3.6_GER %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.2_ROM <- data_3.6_ROM %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
   mutate_at(vars(Q31_Gov_nat:Q31_Gov_loc), ~ stri_trans_general(., "Latin-ASCII"))%>%
@@ -1730,7 +1769,7 @@ data_3.6.2_ROM <- data_3.6_ROM %>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
-# Hypothesis 25: Respondents with higher trust in their local government than in their national government will prefer 'A local climate center, where an advisor can guide you' to other options for this attribute.
+# Hypothesis 31: Respondents with higher trust in their local government than in their national government will prefer 'A local climate center, where an advisor can guide you' to other options for this attribute.
 data_3.6.3_ESP <- data_3.6_ESP %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1739,6 +1778,7 @@ data_3.6.3_ESP <- data_3.6_ESP %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.3_FRA <- data_3.6_FRA %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1747,6 +1787,7 @@ data_3.6.3_FRA <- data_3.6_FRA %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.3_GER <- data_3.6_GER %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1755,6 +1796,7 @@ data_3.6.3_GER <- data_3.6_GER %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.3_ROM <- data_3.6_ROM %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1764,7 +1806,7 @@ data_3.6.3_ROM <- data_3.6_ROM %>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
-# Hypothesis 26: Respondents with higher overall trust in their local government than in their national government will prefer the option 'Preferentially energy project co-owned by local residents' for clean energy subsidy targets. 
+# Hypothesis 32: Respondents with higher overall trust in their local government than in their national government will prefer the option 'Preferentially energy project co-owned by local residents' for clean energy subsidy targets. 
 data_3.6.4a_ESP <- data_3.6_ESP %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1773,6 +1815,7 @@ data_3.6.4a_ESP <- data_3.6_ESP %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.4b_FRA <- data_3.6_FRA %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1781,6 +1824,7 @@ data_3.6.4b_FRA <- data_3.6_FRA %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.4b_GER <- data_3.6_GER %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1789,6 +1833,7 @@ data_3.6.4b_GER <- data_3.6_GER %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.4b_ROM <- data_3.6_ROM %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
@@ -1798,7 +1843,7 @@ data_3.6.4b_ROM <- data_3.6_ROM %>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
-# Hypothesis 26b: Respondents with higher overall trust in their national government than in their local government will prefer the option 'Government-owned firms reinvesting profits in the transition'. 
+# Hypothesis 33: Respondents with higher overall trust in their national government than in their local government will prefer the option 'Government-owned firms reinvesting profits in the transition'. 
 data_3.6.4b_ESP <- data_3.6_ESP %>%
   mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
   filter(national == 1)%>%
@@ -1807,6 +1852,7 @@ data_3.6.4b_ESP <- data_3.6_ESP %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.4b_FRA <- data_3.6_FRA %>%
   mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
   filter(national == 1)%>%
@@ -1815,6 +1861,7 @@ data_3.6.4b_FRA <- data_3.6_FRA %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.4b_GER <- data_3.6_GER %>%
   mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
   filter(national == 1)%>%
@@ -1823,6 +1870,7 @@ data_3.6.4b_GER <- data_3.6_GER %>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
+
 data_3.6.4b_ROM <- data_3.6_ROM %>%
   mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
   filter(national == 1)%>%
@@ -1832,66 +1880,102 @@ data_3.6.4b_ROM <- data_3.6_ROM %>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
-# Hypothesis 27: Respondents that are unsatisfied with their current access to public transport will prefer all other options to option 'Maintain quality of existing public transport'.
-data_3.6.5_ESP <- data_3.6_ESP %>%
-  filter(Q16 %in% c("Muy mala", "Mala"))%>%
-  filter(!is.na(community_mobility_support))%>%
-  group_by(community_mobility_support)%>%
-  summarise(mean = mean(Rank_weighted))%>%
-  ungroup()%>%
-  mutate(ACP = mean - 0.5)
-data_3.6.5_FRA <- data_3.6_FRA %>%
-  filter(Q16 %in% c("Très mauvais", "Mauvais"))%>%
-  filter(!is.na(community_mobility_support))%>%
-  group_by(community_mobility_support)%>%
-  summarise(mean = mean(Rank_weighted))%>%
-  ungroup()%>%
-  mutate(ACP = mean - 0.5)
-data_3.6.5_GER <- data_3.6_GER %>%
-  filter(Q16 %in% c("Sehr schlecht", "Schlecht"))%>%
-  filter(!is.na(community_mobility_support))%>%
-  group_by(community_mobility_support)%>%
-  summarise(mean = mean(Rank_weighted))%>%
-  ungroup()%>%
-  mutate(ACP = mean - 0.5)
-data_3.6.5_ROM <- data_3.6_ROM %>%
-  filter(Q16 %in% c("Foarte proasta", "Proasta"))%>%
-  filter(!is.na(community_mobility_support))%>%
-  group_by(community_mobility_support)%>%
-  summarise(mean = mean(Rank_weighted))%>%
-  ungroup()%>%
-  mutate(ACP = mean - 0.5)
+# Hypothesis 34: Respondents that are unsatisfied with their current access to public transport will prefer all other options to option 'Maintain quality of existing public transport'.
 
-# Hypothesis 28: The preferences of respondents that work in more carbon-intensive sectors are more strongly influenced by the attribute 'support for workers' compared to respondents working in less carbon-intensive sectors.
+data_3.6.5_ESP <- data_3.6_ESP %>%
+  mutate(Bad = ifelse(Q16 %in% c("Muy mala", "Mala"),1,0))%>%
+  filter(!is.na(Bad))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(Bad, community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Bad)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+data_3.6.5_FRA <- data_3.6_FRA %>%
+  mutate(Bad = ifelse(Q16 %in% c("Très mauvais", "Mauvais"),1,0))%>%
+  filter(!is.na(Bad))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(Bad, community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Bad)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+data_3.6.5_GER <- data_3.6_GER %>%
+  mutate(Bad = ifelse(Q16 %in% c("Sehr schlecht", "Schlecht"),1,0))%>%
+  filter(!is.na(Bad))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(Bad, community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Bad)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+data_3.6.5_ROM <- data_3.6_ROM %>%
+  mutate(Bad = ifelse(Q16 %in% c("Foarte proasta", "Proasta"),1,0))%>%
+  filter(!is.na(Bad))%>%
+  filter(!is.na(community_mobility_support))%>%
+  group_by(Bad, community_mobility_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Bad)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+# Hypothesis 35: The preferences of respondents that work in more carbon-intensive sectors are more strongly influenced by the attribute 'support for workers' compared to respondents working in less carbon-intensive sectors.
 # TBD
 
-# Hypothesis 29: The preferences of respondents having a higher carbon intensity of consumption are more strongly influenced by the attribute 'Support for households' than for other households.
-data_3.6.5_ESP <- data_3.6_ESP %>%
+# Hypothesis 36: The preferences of respondents having a higher carbon intensity of consumption are more strongly influenced by the attribute 'Support for households' than for other households.
+data_3.6.7_ESP <- data_3.6_ESP %>%
   mutate(Higher = ifelse(Quintile > 3,1,0))%>%
   group_by(Higher, household_support)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
-  mutate(ACP = mean - 0.5)
-data_3.6.5_FRA <- data_3.6_FRA %>%
-  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
-  group_by(Higher, household_support)%>%
-  summarise(mean = mean(Rank_weighted))%>%
-  ungroup()%>%
-  mutate(ACP = mean - 0.5)
-data_3.6.5_GER <- data_3.6_GER %>%
-  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
-  group_by(Higher, household_support)%>%
-  summarise(mean = mean(Rank_weighted))%>%
-  ungroup()%>%
-  mutate(ACP = mean - 0.5)
-data_3.6.5_ROM <- data_3.6_ROM %>%
-  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
-  group_by(Higher, household_support)%>%
-  summarise(mean = mean(Rank_weighted))%>%
-  ungroup()%>%
-  mutate(ACP = mean - 0.5)
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Higher)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
 
-# 3.7   Hypotheses 30 to 34 (Part III) ####
+data_3.6.7_FRA <- data_3.6_FRA %>%
+  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  group_by(Higher, household_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Higher)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+data_3.6.7_GER <- data_3.6_GER %>%
+  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  group_by(Higher, household_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Higher)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+data_3.6.7_ROM <- data_3.6_ROM %>%
+  mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  filter(!is.na(Higher))%>%
+  group_by(Higher, household_support)%>%
+  summarise(mean = mean(Rank_weighted))%>%
+  ungroup()%>%
+  mutate(ACP = mean - 0.5)%>%
+  group_by(Higher)%>%
+  summarise(range = max(ACP) - min(ACP))%>%
+  ungroup()
+
+# 3.7   Hypotheses 37 to 41 (Part III) ####
 
 data_3.7_GER <- data_3_GER %>%
   select(ID, Q71_4, Q71_2, Q71_3, Q30_2N, Q30_3N, Q38)%>%
@@ -1905,11 +1989,11 @@ data_3.7_FRA <- data_3_FRA %>%
   filter(!is.na(Q71_1)&!is.na(Q71_2)&!is.na(Q71_3))%>%
   mutate_at(vars(Q71_1:Q71_3), ~ as.numeric(.))
 
-# Hypothesis 30: Respondents prefer option A over option B.
+# Hypothesis 37: Respondents prefer option A over option B.
 t.test(data_3.7_FRA$Q71_1, data_3.7_FRA$Q71_2, paired = TRUE, alternative = "less")
 t.test(data_3.7_GER$Q71_1, data_3.7_GER$Q71_2, paired = TRUE, alternative = "less")
 
-# Hypothesis 31: Respondents that do not trust their national government will prefer option C to both option A and option B.
+# Hypothesis 38: Respondents that do not trust their national government will prefer option C to both option A and option B.
 data_3.7.1_GER <- data_3.7_GER %>%
   filter(Q30_2N < 3)
 
@@ -1921,7 +2005,7 @@ t.test(data_3.7.1_GER$Q71_3, data_3.7.1_GER$Q71_1, paired = TRUE, alternative = 
 t.test(data_3.7.1_FRA$Q71_3, data_3.7.1_FRA$Q71_2, paired = TRUE, alternative = "less")
 t.test(data_3.7.1_GER$Q71_3, data_3.7.1_GER$Q71_2, paired = TRUE, alternative = "less")
 
-# Hypothesis 32: Respondents that indicate political leaning towards right-wing extremist parties will prefer option C to both option A and option B.
+# Hypothesis 39: Respondents that indicate political leaning towards right-wing extremist parties will prefer option C to both option A and option B.
 data_3.7.2_GER <- data_3.7_GER %>%
   filter(Q38 == "AfD")
 
@@ -1933,7 +2017,7 @@ t.test(data_3.7.2_GER$Q71_3, data_3.7.2_GER$Q71_1, paired = TRUE, alternative = 
 t.test(data_3.7.2_FRA$Q71_3, data_3.7.2_FRA$Q71_2, paired = TRUE, alternative = "less")
 t.test(data_3.7.2_GER$Q71_3, data_3.7.2_GER$Q71_2, paired = TRUE, alternative = "less")
 
-# Hypothesis 33: Respondents that indicate political leaning towards right-wing extremist parties will be more likely to prefer A to option B than others
+# Hypothesis 40: Respondents that indicate political leaning towards right-wing extremist parties will be more likely to prefer A to option B than others
 data_3.7.3_GER <- data_3.7_GER %>%
   mutate(A_B = Q71_1 - Q71_2,
          RW  = ifelse(Q38 == "AfD",1,0))
@@ -1946,7 +2030,7 @@ data_3.7.3_FRA <- data_3.7_FRA %>%
 t.test(A_B ~ RW, data = data_3.7.3_FRA, alternative = "less")
 t.test(A_B ~ RW, data = data_3.7.3_GER, alternative = "less")
 
-# Hypothesis 34: Respondents that have a higher trust in their national government thatn in the EU commission will prefer option A to option B.
+# Hypothesis 41: Respondents that have a higher trust in their national government thatn in the EU commission will prefer option A to option B.
 data_3.7.4_GER <- data_3.7_GER %>%
   mutate(Filter = ifelse(Q30_2N > Q30_3N,1,0))%>%
   filter(Filter == 1)
