@@ -7,7 +7,7 @@
 if(!require("pacman")) install.packages("pacman")
 
 p_load("arrow", "boot", "broom", "extrafont", "fixest", "ggpubr", "ggrepel",
-       "ggsci", "Hmisc", "knitr", "kableExtra", "openxlsx", "rattle", "scales", "showtext", "tidymodels", "tidyverse", "xtable")
+       "ggsci", "Hmisc", "knitr", "kableExtra", "openxlsx", "rattle", "readxl", "scales", "showtext", "tidymodels", "tidyverse", "xtable")
 
 font_add("wmpeople1", "wm_people_1/wmpeople1.TTF")
 font_import(paths = "wm_people_1", prompt = FALSE)
@@ -963,7 +963,7 @@ data_GER_2.3.3 <- filter(data_GER_2.3.2, building_year == "Zwischen 1949 und 199
   bind_rows(data_GER_2.3.2)
 
 # space
-data_GER_2.3.4 <- filter(data_GER_2.3.3, space == 94)%>%
+data_GER_2.3.4 <- filter(data_GER_2.3.3, space == 86)%>%
   mutate(space = "Weiß nicht")%>%
   bind_rows(mutate(data_GER_2.3.3, space = as.character(space)))
 
@@ -1039,10 +1039,11 @@ pred_FRA[] <- lapply(pred_FRA, function(x) if (is.character(x)) as.factor(x) els
 pred_ESP[] <- lapply(pred_ESP, function(x) if (is.character(x)) as.factor(x) else x)
 pred_ROM[] <- lapply(pred_ROM, function(x) if (is.character(x)) as.factor(x) else x)
 
+# Percentiles relative 
 percentiles_0 <- data.frame()
 
 for(i in c("Germany", "Spain", "France", "Romania")){
-  if(i == "Romania") data_0 <- data_ROM_0%>%
+  if(i == "Romania") data_0 <- data_ROM_0 %>%
       mutate(hh_expenditures_EURO_2018 = hh_expenditures_LEI_2018*0.2)
   if(i == "Spain")   data_0 <- data_ESP_0
   if(i == "France")  data_0 <- data_FRA_0
@@ -1062,6 +1063,34 @@ for(i in c("Germany", "Spain", "France", "Romania")){
     mutate(Country = i)
   
   percentiles_0 <- percentiles_0 %>%
+    bind_rows(percentiles)
+}
+
+# Percentiles absolute
+percentiles_abs_0 <- data.frame()
+
+for(i in c("Germany", "Spain", "France", "Romania")){
+  if(i == "Romania") data_0 <- data_ROM_0 %>%
+      mutate(hh_expenditures_EURO_2018 = hh_expenditures_LEI_2018*0.2)
+  if(i == "Spain")   data_0 <- data_ESP_0
+  if(i == "France")  data_0 <- data_FRA_0
+  if(i == "Germany") data_0 <- data_GER_0
+  
+  percentiles <- data_0 %>%
+    mutate(CO2_t_interest_P = CO2_t_transport_P + CO2_t_gas_direct_P)%>% # TBD
+    mutate(exp_interest_P   = case_when(i != "Romania" ~ CO2_t_interest_P*40,
+                                        i == "Romania" ~ CO2_t_interest_P*202))%>% # TBD
+    mutate(burden_interest_P = exp_interest_P/hh_expenditures_EURO_2018)%>%
+    mutate(Percentiles = as.numeric(binning(exp_interest_P, bins = 100, method = "wtd.quantile", weights = hh_weights)))%>%
+    group_by(Percentiles)%>%
+    summarise(exp_upper = max(exp_interest_P))%>% # If you are that much affected, 100 - Percentiles will be more heavily affected than you are.
+    ungroup()%>%
+    mutate(exp_lower = lag(exp_upper))%>%
+    mutate(exp_lower = ifelse(is.na(exp_lower),-1,exp_lower))%>%
+    select(Percentiles, exp_lower, exp_upper)%>%
+    mutate(Country = i)
+  
+  percentiles_abs_0 <- percentiles_abs_0 %>%
     bind_rows(percentiles)
 }
 
@@ -1090,13 +1119,29 @@ percentiles_ESP <- percentiles_0 %>%
 percentiles_ROM <- percentiles_0 %>%
   filter(Country == "Romania")
 
+percentiles_abs_GER <- percentiles_abs_0 %>%
+  filter(Country == "Germany")
+
+percentiles_abs_FRA <- percentiles_abs_0 %>%
+  filter(Country == "France")
+
+percentiles_abs_ESP <- percentiles_abs_0 %>%
+  filter(Country == "Spain")
+
+percentiles_abs_ROM <- percentiles_abs_0 %>%
+  filter(Country == "Romania")
+
 sample_GER <- pred_GER %>%
   mutate(Percentile = cut(.$.pred,
                           breaks = c(-Inf, percentiles_GER$burden_upper),
                           labels = percentiles_GER$Percentiles,
                           right = FALSE))%>%
   mutate(absolute = round(hh_expenditures_EURO_2018*.pred,1),
-         .pred = round(.pred,4))
+         .pred = round(.pred,4))%>%
+  mutate(Percentile_abs = cut(.$absolute,
+                              breaks = c(-Inf, percentiles_abs_GER$exp_upper),
+                              labels = percentiles_abs_GER$Percentiles,
+                              right  = FALSE))
 
 # hh_expenditures_EURO_2018
 sample_GER_2.4.1 <- sample_GER %>%
@@ -1111,7 +1156,11 @@ sample_FRA <- pred_FRA %>%
                           labels = percentiles_FRA$Percentiles,
                           right = FALSE))%>%
   mutate(absolute = round(hh_expenditures_EURO_2018*.pred,1),
-         .pred = round(.pred,4))
+         .pred = round(.pred,4))%>%
+  mutate(Percentile_abs = cut(.$absolute,
+                              breaks = c(-Inf, percentiles_abs_FRA$exp_upper),
+                              labels = percentiles_abs_FRA$Percentiles,
+                              right  = FALSE))
 
 # hh_expenditures_EURO_2018
 sample_FRA_2.4.1 <- sample_FRA %>%
@@ -1126,7 +1175,11 @@ sample_ESP <- pred_ESP %>%
                           labels = percentiles_ESP$Percentiles,
                           right = FALSE))%>%
   mutate(absolute = round(hh_expenditures_EURO_2018*.pred,1),
-         .pred = round(.pred,4))
+         .pred = round(.pred,4))%>%
+  mutate(Percentile_abs = cut(.$absolute,
+                              breaks = c(-Inf, percentiles_abs_ESP$exp_upper),
+                              labels = percentiles_abs_ESP$Percentiles,
+                              right  = FALSE))
 
 # hh_expenditures_EURO_2018
 sample_ESP_2.4.1 <- sample_ESP %>%
@@ -1141,7 +1194,11 @@ sample_ROM <- pred_ROM %>%
                           labels = percentiles_ROM$Percentiles,
                           right = FALSE))%>%
   mutate(absolute = round(hh_expenditures_LEI_2018*.pred,1),
-         .pred    = round(.pred,4))
+         .pred    = round(.pred,4))%>%
+  mutate(Percentile_abs = cut(.$absolute,
+                              breaks = c(-Inf, percentiles_abs_ROM$exp_upper),
+                              labels = percentiles_abs_ROM$Percentiles,
+                              right  = FALSE))
 
 # hh_expenditures_EURO_2018
 sample_ROM_2.4.1 <- sample_ROM %>%
@@ -1295,16 +1352,16 @@ for(i in 1:100){
                            # ifelse(Less == 1, "Weniger stark betroffen", "Stärker betroffen")))%>%
                            ifelse(Less == 1, "Haushalte mit niedrigeren Kosten", "Haushalte mit höheren Kosten")))%>%
     mutate(Status_ESP = ifelse(Interest == 1, "Usted",
-                               ifelse(Less == 1, "Hogares con menores costes", "Hogares con mayores costes")))%>%
+                               ifelse(Less == 1, "Hogares menos afectados", "Hogares más afectados")))%>%
     mutate(Status_FRA = ifelse(Interest == 1, "Vous",
-                               ifelse(Less == 1, "Ménages à coûts moins élevés", "Ménages à coûts plus élevés")))%>%
+                               ifelse(Less == 1, "Ménages moins impactés", "Ménages plus impactés")))%>%
     mutate(Status_ROM = ifelse(Interest == 1, "Dumneavoastră", 
                                ifelse(Less == 1, "Familii cu costuri mai mici", "Familii cu costuri mai mari")))%>%
     arrange(y)%>%
     mutate(x = rep(c(10:1),10))%>%
     mutate(Status = factor(Status, levels = c("Sie", "Haushalte mit niedrigeren Kosten", "Haushalte mit höheren Kosten")))%>%
-    mutate(Status_ESP = factor(Status_ESP, levels = c("Usted", "Hogares con menores costes", "Hogares con mayores costes")))%>%
-    mutate(Status_FRA = factor(Status_FRA, levels = c("Vous", "Ménages à coûts moins élevés", "Ménages à coûts plus élevés")))%>%
+    mutate(Status_ESP = factor(Status_ESP, levels = c("Usted", "Hogares menos afectados", "Hogares más afectados")))%>%
+    mutate(Status_FRA = factor(Status_FRA, levels = c("Vous", "Ménages moins impactés", "Ménages plus impactés")))%>%
     mutate(Status_ROM = factor(Status_ROM, levels = c("Dumneavoastră", "Familii cu costuri mai mici", "Familii cu costuri mai mari")))
   
   # With icons
@@ -1316,6 +1373,8 @@ for(i in 1:100){
     if(j == "ROM"){
       if(i == 1){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1336,11 +1395,14 @@ for(i in 1:100){
           #guides(colour = "none")+
           theme(legend.position = "bottom",
                 plot.margin = margin(0,0.5,0,0.5),
-                legend.text = element_text(size = 9))
+                legend.text = element_text(size = 9),
+                text = element_text(family = "Arial"))
       }
       
       if(i != 1 & i != 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1371,6 +1433,8 @@ for(i in 1:100){
       
       if(i == 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1402,6 +1466,8 @@ for(i in 1:100){
     if(j == "FRA"){
       if(i == 1){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1413,7 +1479,7 @@ for(i in 1:100){
           annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
           annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Ménages à coûts plus élevés", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Ménages plus impactés", size = 2.5)+
           # Central annotation
           annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
           annotate("text",    x = i-1.75, y = 0.75,  label = "Vous", size = 2.5)+
@@ -1427,6 +1493,8 @@ for(i in 1:100){
       
       if(i != 1 & i != 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1438,12 +1506,12 @@ for(i in 1:100){
           annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
           annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2,12),32),           y = 1.2,  label = "Ménages à coûts moins élevés", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2,12),32),           y = 1.2,  label = "Ménages moins impactés", size = 2.5)+
           # Right bracket
           annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
           annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Ménages à coûts plus élevés", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Ménages plus impactés", size = 2.5)+
           # Central annotation
           annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
           annotate("text",    x = i-1.75, y = 0.75,  label = "Vous", size = 2.5)+
@@ -1457,6 +1525,8 @@ for(i in 1:100){
       
       if(i == 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1468,7 +1538,7 @@ for(i in 1:100){
           annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
           annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2,12),29),           y = 1.2,  label = "Ménages à coûts moins élevés", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2,12),29),           y = 1.2,  label = "Ménages moins impactés", size = 2.5)+
           # Central annotation
           annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
           annotate("text",    x = i-1.75, y = 0.75,  label = "Vous", size = 2.5)+
@@ -1488,6 +1558,8 @@ for(i in 1:100){
     if(j == "ESP"){
       if(i == 1){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1499,7 +1571,7 @@ for(i in 1:100){
           annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
           annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Hogares con mayores costes", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Hogares más afectados", size = 2.5)+
           # Central annotation
           annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
           annotate("text",    x = i-1.75, y = 0.75,  label = "Usted", size = 2.5)+
@@ -1513,6 +1585,8 @@ for(i in 1:100){
       
       if(i != 1 & i != 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1524,12 +1598,12 @@ for(i in 1:100){
           annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
           annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2,11),32),           y = 1.2,  label = "Hogares con menores costes", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2,11),32),           y = 1.2,  label = "Hogares menos afectados", size = 2.5)+
           # Right bracket
           annotate("segment", x = i-0.75,  xend = 98.5, y = 1.1, yend = 1.1,  linewidth = 0.2) + # top horizontal
           annotate("segment", x = i-0.75,  xend = i-0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = 98.5, xend = 98.5, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Hogares con mayores costes", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2+50,63),87),           y = 1.2,  label = "Hogares más afectados", size = 2.5)+
           # Central annotation
           annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
           annotate("text",    x = i-1.75, y = 0.75,  label = "Usted", size = 2.5)+
@@ -1543,6 +1617,8 @@ for(i in 1:100){
       
       if(i == 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1554,10 +1630,10 @@ for(i in 1:100){
           annotate("segment", x = -0.75,  xend = i-2.75, y = 1.1, yend = 1.1, linewidth = 0.2) + # top horizontal
           annotate("segment", x = -0.75,  xend = -0.75,  y = 1.1, yend = 1.05, linewidth = 0.2) + # left vertical
           annotate("segment", x = i-2.75, xend = i-2.75, y = 1.1, yend = 1.05, linewidth = 0.2)  + # right vertical
-          annotate("text",    x = min(max((i-2.5)/2,11),32),           y = 1.2,  label = "Hogares con menores costes", size = 2.5)+
+          annotate("text",    x = min(max((i-2.5)/2,11),32),           y = 1.2,  label = "Hogares menos afectados", size = 2.5)+
           # Central annotation
           annotate("segment", x = i-1.75, xend = i-1.75, y = 0.8, yend = 0.9, linewidth = 0.2)  + # vertical
-          annotate("text",    x = i-1.75, y = 0.75,  label = "USted", size = 2.5)+
+          annotate("text",    x = i-1.75, y = 0.75,  label = "Usted", size = 2.5)+
           coord_cartesian(ylim = c(0.7,1.4))+
           # coord_cartesian(ylim = c(0,2))+
           #guides(colour = "none")+
@@ -1574,6 +1650,8 @@ for(i in 1:100){
     if(j == "GER"){
       if(i == 1){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1599,6 +1677,8 @@ for(i in 1:100){
       
       if(i != 1 & i != 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -1629,6 +1709,8 @@ for(i in 1:100){
       
       if(i == 100){
         P_4 <- ggplot(data_plot_3)+
+          annotate("rect", xmin = -1, xmax = 9, ymin = 0.8, ymax = 0.9, fill = "#FFDC91FF", alpha = 0.7, colour = NA)+
+          annotate("rect", xmin = 89, xmax = 99, ymin = 0.8, ymax = 0.9, fill = "#BC3C29FF", alpha = 0.7, colour = NA)+
           geom_text(aes(x = 100-Position, y = 1, colour = Status), label = "p", family = "wmpeople1", size = 3)+
           # geom_bracket(xmin = 0, xmax = 59, label = "Weniger stark betroffen", y.position = 1.5)+
           # geom_bracket(xmin = 61, xmax = 100, label = "Stärker betroffen", y.position = 1.5)+
@@ -5429,3 +5511,236 @@ for(i in c("Spain")){
   
 }
 
+
+
+# 3.4   Figure for absolute and relative costs in comparison to least affected and most affected 10% ####
+
+inflation_0 <- read_excel("../2_Data/Supplementary/imf-dm-export-20250527.xls")%>%
+  rename(Country = "Inflation rate, average consumer prices (Annual percent change)")%>%
+  filter(Country %in% c("Germany", "France", "Spain", "Romania"))%>%
+  pivot_longer(-Country, names_to = "year", values_to = "rate")%>%
+  filter(year < 2026 & year > 2016)%>%
+  filter((Country == "Germany" & year > 2018)|(Country == "France")|(Country == "Romania" & year > 2019)|(Country == "Spain" & year > 2018))%>%
+  mutate(inflation_rate = 1+as.numeric(rate)/100)%>%
+  group_by(Country)%>%
+  summarise(inflation_rate = prod(inflation_rate))%>%
+  ungroup()
+
+inflation_ESP <- inflation_0$inflation_rate[inflation_0$Country == "Spain"]
+inflation_GER <- inflation_0$inflation_rate[inflation_0$Country == "Germany"]
+inflation_FRA <- inflation_0$inflation_rate[inflation_0$Country == "France"]
+inflation_ROM <- inflation_0$inflation_rate[inflation_0$Country == "Romania"]
+
+data_ESP_3.4 <- data_ESP_0 %>%
+  mutate(CO2_interest     = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45  = CO2_interest*45*inflation_ESP,
+         abs_interest_85  = CO2_interest*85*inflation_ESP,
+         abs_interest_125 = CO2_interest*125*inflation_ESP)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_EURO_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_EURO_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_EURO_2018)%>%
+  mutate(Percentiles      = as.numeric(binning(rel_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)),
+         Percentiles_abs  = as.numeric(binning(abs_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)))
+
+data_FRA_3.4 <- data_FRA_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45  = CO2_interest*45*inflation_FRA,
+         abs_interest_85  = CO2_interest*85*inflation_FRA,
+         abs_interest_125 = CO2_interest*125*inflation_FRA)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_EURO_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_EURO_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_EURO_2018)%>%
+  mutate(Percentiles      = as.numeric(binning(rel_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)),
+         Percentiles_abs  = as.numeric(binning(abs_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)))
+
+data_GER_3.4 <- data_GER_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_GER, 
+         abs_interest_85  = CO2_interest*85*inflation_GER,
+         abs_interest_125 = CO2_interest*125*inflation_GER)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_EURO_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_EURO_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_EURO_2018)%>%
+  mutate(Percentiles      = as.numeric(binning(rel_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)),
+         Percentiles_abs  = as.numeric(binning(abs_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)))
+
+data_ROM_3.4 <- data_ROM_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*202*inflation_ROM,
+         abs_interest_85  = CO2_interest*381.6*inflation_ROM,
+         abs_interest_125 = CO2_interest*561.1*inflation_ROM)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_LEI_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_LEI_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_LEI_2018)%>%
+  mutate(Percentiles      = as.numeric(binning(rel_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)),
+         Percentiles_abs  = as.numeric(binning(abs_interest_45, bins = 100, method = "wtd.quantile", weights = hh_weights)))
+
+for(a in c("absolute", "relative")){
+  for(b in c("ESP", "FRA", "GER", "ROM")){
+    for(c in c("45", "85", "125")){
+      
+      print(paste0("Price level: ", c))
+      
+      if(b == "ESP"){data_3.4 <- data_ESP_3.4}
+      if(b == "FRA"){data_3.4 <- data_FRA_3.4}
+      if(b == "GER"){data_3.4 <- data_GER_3.4}
+      if(b == "ROM"){data_3.4 <- data_ROM_3.4}
+      
+      if(c == "45"){
+        data_3.4 <- data_3.4 %>%
+          rename(abs_interest = abs_interest_45,
+                 rel_interest = rel_interest_45)
+      }
+      
+      if(c == "85"){
+        data_3.4 <- data_3.4 %>%
+          rename(abs_interest = abs_interest_85,
+                 rel_interest = rel_interest_85)
+      }
+      
+      if(c == "125"){
+        data_3.4 <- data_3.4 %>%
+          rename(abs_interest = abs_interest_125,
+                 rel_interest = rel_interest_125)
+      }
+      
+      if(a == "absolute"){data_3.4 <- data_3.4 %>%
+        mutate(value_0      = abs_interest,
+               Percentile_0 = Percentiles_abs)}
+      
+      if(a == "relative"){data_3.4 <- data_3.4 %>%
+        mutate(value_0      = rel_interest,
+               Percentile_0 = Percentiles)}
+      
+      least_0 <- data_3.4 %>%
+        filter(Percentile_0 < 11)%>%
+        summarise(value_0 = wtd.mean(value_0))%>%
+        pull(value_0)
+      
+      most_0 <- data_3.4 %>%
+        filter(Percentile_0 > 89)%>%
+        summarise(value_0 = wtd.mean(value_0))%>%
+        pull(value_0)
+      
+      for(i in c(1:100)){
+        print(i)
+        
+        individual_0 <- data_3.4 %>%
+          filter(Percentile_0 == i)%>%
+          summarise(value_0 = wtd.mean(value_0))%>%
+          pull(value_0)
+        
+        if(b == "ESP"){
+          data_out <- data.frame("Variable" = c("Hogares menos afectados (10%)", "Usted", "Hogares más afectados (10%)"),
+                                 "Measure"  = c(least_0, individual_0, most_0))%>%
+            mutate(Variable = fct_reorder(Variable, Measure))%>%
+            mutate(Colour = case_when(Variable == "Hogares menos afectados (10%)" ~ "#FFDC91FF",
+                                      Variable == "Hogares más afectados (10%)" ~ "#BC3C29FF",
+                                      Variable == "Usted" ~ "#0072B5FF"))%>%
+            arrange(Variable)
+          
+          levels(data_out$Variable) <- str_wrap(levels(data_out$Variable), width = 20)
+          
+          if(a == "relative") {ylab_0 <- "Costes en % de su gasto"}
+          if(a == "absolute") {ylab_0 <- "Costes en €"}
+          
+        }
+        
+        if(b == "GER"){
+          data_out <- data.frame("Variable" = c("Haushalte mit niedrigsten Kosten (10%)", "Sie", "Haushalte mit höchsten Kosten (10%)"),
+                                 "Measure"  = c(least_0, individual_0, most_0))%>%
+            mutate(Variable = fct_reorder(Variable, Measure))%>%
+            mutate(Colour = case_when(Variable == "Haushalte mit niedrigsten Kosten (10%)" ~ "#FFDC91FF",
+                                      Variable == "Haushalte mit höchsten Kosten (10%)" ~ "#BC3C29FF",
+                                      Variable == "Sie" ~ "#0072B5FF"))%>%
+            arrange(Variable)
+          
+          levels(data_out$Variable) <- str_wrap(levels(data_out$Variable), width = 20)
+          
+          if(a == "relative") {ylab_0 <- "Belastung in % Ihrer Ausgaben"}
+          if(a == "absolute") {ylab_0 <- "Belastung in €"}
+          
+        }
+        
+        if(b == "FRA"){
+          data_out <- data.frame("Variable" = c("Ménages les moins impactés (10%)", "Vous", "Ménages les plus impactés (10%)"),
+                                 "Measure"  = c(least_0, individual_0, most_0))%>%
+            mutate(Variable = fct_reorder(Variable, Measure))%>%
+            mutate(Colour = case_when(Variable == "Ménages les moins impactés (10%)" ~ "#FFDC91FF",
+                                      Variable == "Ménages les plus impactés (10%)" ~ "#BC3C29FF",
+                                      Variable == "Vous" ~ "#0072B5FF"))%>%
+            arrange(Variable)
+          
+          levels(data_out$Variable) <- str_wrap(levels(data_out$Variable), width = 20)
+          
+          if(a == "relative") {ylab_0 <- "Coûts en % des dépenses"}
+          if(a == "absolute") {ylab_0 <- "Coûts en €"}
+          
+        }
+        
+        if(b == "ROM"){
+          data_out <- data.frame("Variable" = c("Cu cele mai mici costuri (10%)", "Dumneavoastră", "Cu cele mai mari costuri (10%)"),
+                                 "Measure"  = c(least_0, individual_0, most_0))%>%
+            mutate(Variable = fct_reorder(Variable, Measure))%>%
+            mutate(Colour = case_when(Variable == "Cu cele mai mici costuri (10%)" ~ "#FFDC91FF",
+                                      Variable == "Cu cele mai mari costuri (10%)" ~ "#BC3C29FF",
+                                      Variable == "Dumneavoastră" ~ "#0072B5FF"))%>%
+            arrange(Variable)
+          
+          levels(data_out$Variable) <- str_wrap(levels(data_out$Variable), width = 20)
+          
+          if(a == "relative") {ylab_0 <- "Costuri în % din cheltuielile"}
+          if(a == "absolute") {ylab_0 <- "Costuri în LEI"}
+          
+        }
+        
+        if(a == "relative"){
+          P_3.4 <- ggplot(data_out, aes(x = Variable, y = Measure, fill = Variable))+
+            geom_col(colour = "black", alpha = 0.7, width = 0.65)+
+            scale_fill_manual(values = data_out$Colour)+
+            #coord_flip()+
+            scale_x_discrete()+
+            guides(fill = "none")+
+            scale_y_continuous(expand = c(0,0), labels = scales::percent_format())+
+            coord_cartesian(ylim = c(0,max(data_out$Measure + 0.01)))+
+            theme_bw()+
+            xlab("")+
+            ylab(ylab_0)+
+            theme(axis.text = element_text(size = 7),
+                  axis.title.x = element_blank(),
+                  axis.title.y = element_text(size = 8),
+                  panel.border = element_blank(),
+                  plot.background = element_blank())
+          
+          jpeg(sprintf("../2_Data/Output/Relative Figures/%s/Figure_%s_%s_%s.jpg",b, a, i, c), width = 12, height = 7, unit = "cm", res = 600)
+          print(P_3.4)
+          dev.off()
+        }
+        
+        if(a == "absolute"){
+          P_3.4 <- ggplot(data_out, aes(x = Variable, y = Measure, fill = Variable))+
+            geom_col(colour = "black", alpha = 0.7, width = 0.65)+
+            scale_fill_manual(values = data_out$Colour)+
+            #coord_flip()+
+            scale_x_discrete()+
+            guides(fill = "none")+
+            scale_y_continuous(expand = c(0,0), labels = scales::dollar_format(prefix = "€ "))+
+            coord_cartesian(ylim = c(0,max(data_out$Measure + 10)))+
+            theme_bw()+
+            xlab("")+
+            ylab(ylab_0)+
+            theme(axis.text = element_text(size = 7),
+                  axis.title.x = element_blank(),
+                  axis.title.y = element_text(size = 8),
+                  panel.border = element_blank(),
+                  plot.background = element_blank())
+          
+          jpeg(sprintf("../2_Data/Output/Relative Figures/%s/Figure_%s_%s_%s.jpg",b, a, i, c), width = 12, height = 7, unit = "cm", res = 600)
+          print(P_3.4)
+          dev.off()
+        }
+      }
+      
+    }
+  }
+}

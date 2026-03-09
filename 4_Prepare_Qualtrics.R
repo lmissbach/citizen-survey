@@ -18,13 +18,17 @@ combinations_ESP <- read_parquet("../2_Data/Output/Output data/Combinations_Spai
   rename(hh_expenditures = hh_expenditures_EURO_2018)
 combinations_GER <- read_parquet("../2_Data/Output/Output data/Combinations_Germany_P.parquet")%>%
   mutate_at(vars(space, hh_expenditures_EURO_2018), ~ as.character(.))%>%
-  rename(hh_expenditures = hh_expenditures_EURO_2018)
+  rename(hh_expenditures = hh_expenditures_EURO_2018)%>%
+  mutate(.pred    = ifelse(.pred < 0,0,.pred),
+         absolute = ifelse(absolute < 0,0,absolute))
 combinations_FRA <- read_parquet("../2_Data/Output/Output data/Combinations_France_P.parquet")%>%
   mutate_at(vars(hh_expenditures_EURO_2018), ~ as.character(.))%>%
   rename(hh_expenditures = hh_expenditures_EURO_2018)
 combinations_ROM <- read_parquet("../2_Data/Output/Output data/Combinations_Romania_P.parquet")%>%
   mutate_at(vars(area, hh_expenditures_LEI_2018), ~ as.character(.))%>%
-  rename(space = area, hh_expenditures = hh_expenditures_LEI_2018)
+  rename(space = area, hh_expenditures = hh_expenditures_LEI_2018)%>%
+  mutate(.pred    = ifelse(.pred < 0,0,.pred),
+         absolute = ifelse(absolute < 0,0,absolute))
 
 data_ESP_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Spain.rds")
 data_GER_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Germany.rds")
@@ -64,7 +68,7 @@ combinations_ESP_1 <- combinations_ESP %>%
          relative_165 = .pred*165/40,
          absolute_165 = absolute*165*inflation_ESP/40)%>%
   mutate(CO2_t = round(absolute*inflation_ESP/40,1))%>%
-  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, -.pred)%>%
+  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs, -.pred)%>%
   mutate_at(vars(starts_with("absolute_")), ~ paste0(format(round(.,0), big.mark = ",", trim = "TRUE", decimal.mark = "."),"€"))%>%
   mutate_at(vars(starts_with("relative_")), ~ paste0(round(.,3)*100, "%"))
 
@@ -78,7 +82,7 @@ combinations_GER_1 <- combinations_GER %>%
          relative_165 = .pred*165/40,
          absolute_165 = absolute*165*inflation_GER/40)%>%
   mutate(CO2_t = round(absolute*inflation_GER/40,1))%>%
-  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, -.pred)%>%
+  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs, -.pred)%>%
   mutate_at(vars(starts_with("absolute_")), ~ paste0(format(round(.,0), big.mark = ",", trim = "TRUE", decimal.mark = "."),"€"))%>%
   mutate_at(vars(starts_with("relative_")), ~ paste0(round(.,3)*100, "%"))
 
@@ -92,7 +96,7 @@ combinations_FRA_1 <- combinations_FRA %>%
          relative_165 = .pred*165/40,
          absolute_165 = absolute*165*inflation_FRA/40)%>%
   mutate(CO2_t = round(absolute*inflation_FRA/40,1))%>%
-  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, -.pred)%>%
+  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs, -.pred)%>%
   mutate_at(vars(starts_with("absolute_")), ~ paste0(format(round(.,0), big.mark = ",", trim = "TRUE", decimal.mark = "."),"€"))%>%
   mutate_at(vars(starts_with("relative_")), ~ paste0(round(.,3)*100, "%"))
 
@@ -106,8 +110,8 @@ combinations_ROM_1 <- combinations_ROM %>%
          relative_165 = .pred*165/40,
          absolute_165 = absolute*165*inflation_ROM/40)%>%
   mutate(CO2_t = round(absolute*inflation_ROM/(202),1))%>%
-  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, -.pred)%>%
-  mutate_at(vars(starts_with("absolute_")), ~ paste0(format(round(.,0), big.mark = ",", trim = "TRUE", decimal.mark = "."),"€"))%>%
+  select(everything(), starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs, -.pred)%>%
+  mutate_at(vars(starts_with("absolute_")), ~ paste0(format(round(.,0), big.mark = ",", trim = "TRUE", decimal.mark = ".")," de lei"))%>%
   mutate_at(vars(starts_with("relative_")), ~ paste0(round(.,3)*100, "%"))
 
 rm(combinations_ESP, combinations_GER, combinations_FRA, combinations_ROM)
@@ -158,7 +162,7 @@ combinations_ESP_2 <- left_join(combinations_ESP_1, income_groups_ESP)%>%
   left_join(age_ESP)%>%
   select(-age_hhh, -IG)%>%
   rename(age_hhh = AGE)%>%
-  select(heating_fuel:hh_expenditures, age_hhh, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile)
+  select(heating_fuel:hh_expenditures, age_hhh, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs)
 
 combinations_ESP_2[] <- lapply(combinations_ESP_2, function(x) if (is.character(x)) as.factor(x) else x)
 
@@ -198,14 +202,15 @@ space_GER <- data_GER_0 %>%
                       ifelse(space_5 %in% c(2,3,4), paste0(min_space, " bis ", max_space, " m2"),
                              paste0("mehr als ", min_space, " m2"))))%>%
   select(space, Space)%>%
-  mutate(space = as.character(round(space)))
+  mutate(space = as.character(round(space)))%>%
+  bind_rows(data.frame(space = "Weiß nicht", Space = "Weiß nicht"))
 
 combinations_GER_2 <- left_join(combinations_GER_1, income_groups_GER)%>%
   mutate(hh_expenditures = ifelse(!is.na(IG), IG, hh_expenditures))%>%
   left_join(space_GER)%>%
   select(-space, -IG)%>%
   rename(space = Space)%>%
-  select(heating_fuel:hh_expenditures, space, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile)
+  select(heating_fuel:hh_expenditures, space, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs)
 
 combinations_GER_2[] <- lapply(combinations_GER_2, function(x) if (is.character(x)) as.factor(x) else x)
 
@@ -236,7 +241,7 @@ income_groups_FRA <- data_FRA_0 %>%
 combinations_FRA_2 <- left_join(combinations_FRA_1, income_groups_FRA)%>%
   mutate(hh_expenditures = ifelse(!is.na(IG), IG, hh_expenditures))%>%
   select(-IG)%>%
-  select(everything(), CO2_t, starts_with("absolute"), starts_with("relative"), Percentile)
+  select(everything(), CO2_t, starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs)
 
 combinations_FRA_2[] <- lapply(combinations_FRA_2, function(x) if (is.character(x)) as.factor(x) else x)
 
@@ -284,7 +289,7 @@ combinations_ROM_2 <- left_join(combinations_ROM_1, income_groups_ROM)%>%
   left_join(space_ROM)%>%
   mutate(space = ifelse(!is.na(Space), Space, space))%>%
   select(-IG)%>%
-  select(heating_fuel:hh_expenditures, space, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile)
+  select(heating_fuel:hh_expenditures, space, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs)
 
 combinations_ROM_2[] <- lapply(combinations_ROM_2, function(x) if (is.character(x)) as.factor(x) else x)
 
@@ -293,7 +298,7 @@ rm(combinations_ROM_1)
 # 1.3  Translation Romania ####
 
 ROM_HF_1 <- distinct(combinations_ROM_2, heating_fuel)%>%
-  mutate(Heating_Fuel = c("Gaz natural", "Lemn, carbune sau petrol", "Incalzire centralizata", "Electricitate", "Alte tipuri de incalzire", "Nu stiu asta"))%>%
+  mutate(Heating_Fuel = c("Nu stiu asta", "Gaz natural", "Lemn, carbune sau petrol", "Incalzire centralizata", "Electricitate", "Alte tipuri de incalzire"))%>%
   mutate(Heating_Fuel = as.factor(Heating_Fuel))
 
 ROM_OC_1 <- distinct(combinations_ROM_2, occupation)%>%
@@ -305,7 +310,7 @@ ROM_CF_1 <- distinct(combinations_ROM_2, cooking_fuel)%>%
   mutate(Cooking_Fuel = as.factor(Cooking_Fuel))
 
 ROM_HT_1 <- distinct(combinations_ROM_2, housing_type)%>%
-  mutate(Housing_Type = c("Nu stiu asta", "Apartament", "Casa unifamlilala", "Alta cladire"))%>%
+  mutate(Housing_Type = c("Nu stiu asta", "Apartament", "Casa unifamiliala", "Alta cladire"))%>%
   mutate(Housing_Type = as.factor(Housing_Type))
 
 combinations_ROM_3 <- combinations_ROM_2 %>%
@@ -315,7 +320,7 @@ combinations_ROM_3 <- combinations_ROM_2 %>%
   left_join(ROM_HT_1)%>%
   select(-heating_fuel, -occupation, -cooking_fuel, -housing_type)%>%
   rename(heating_fuel = Heating_Fuel, occupation = Occupation, cooking_fuel = Cooking_Fuel, housing_type = Housing_Type)%>%
-  select(heating_fuel:housing_type, number_of_cars:hh_expenditures, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile)
+  select(heating_fuel:housing_type, number_of_cars:hh_expenditures, CO2_t, starts_with("absolute"), starts_with("relative"), Percentile, Percentile_abs)
 
 rm(ROM_HF_1, ROM_OC_1, ROM_CF_1, ROM_HT_1, combinations_ROM_2)
 
@@ -328,10 +333,10 @@ combinations_ESP_2.1 <- combinations_ESP_2 %>%
 
 # 1.4  Output data ####
 
-write_parquet(combinations_GER_2, "../2_Data/Output/Output data/Combinations_Qualtrics_Germany_250703.parquet", compression = "gzip")  
-write_parquet(combinations_FRA_2, "../2_Data/Output/Output data/Combinations_Qualtrics_France_250703.parquet",  compression = "gzip")  
-write_parquet(combinations_ESP_2, "../2_Data/Output/Output data/Combinations_Qualtrics_Spain_250703.parquet",   compression = "gzip")  
-write_parquet(combinations_ROM_3, "../2_Data/Output/Output data/Combinations_Qualtrics_Romania_250916.parquet", compression = "gzip")  
+write_parquet(combinations_GER_2, "../2_Data/Output/Output data/Combinations_Qualtrics_Germany_251117.parquet", compression = "gzip")  
+write_parquet(combinations_FRA_2, "../2_Data/Output/Output data/Combinations_Qualtrics_France_251117.parquet",  compression = "gzip")  
+write_parquet(combinations_ESP_2, "../2_Data/Output/Output data/Combinations_Qualtrics_Spain_251117.parquet",   compression = "gzip")  
+write_parquet(combinations_ROM_3, "../2_Data/Output/Output data/Combinations_Qualtrics_Romania_251117.parquet", compression = "gzip")  
 
 rm(combinations_GER_2, combinations_FRA_2, combinations_ESP_2, combinations_ROM_3)
 
@@ -675,3 +680,91 @@ for (i in c("GER", "FRA", "ESP", "ROM")){
   dev.off()
   
 }
+
+# 2.3  Additional costs (summary statistics) ####
+
+data_ESP_2.3 <- data_ESP_0 %>%
+  mutate(CO2_interest     = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45  = CO2_interest*45*inflation_ESP,
+         abs_interest_85  = CO2_interest*85*inflation_ESP,
+         abs_interest_125 = CO2_interest*125*inflation_ESP)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_EURO_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_EURO_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_EURO_2018)
+
+data_FRA_2.3 <- data_FRA_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45  = CO2_interest*45*inflation_FRA,
+         abs_interest_85  = CO2_interest*85*inflation_FRA,
+         abs_interest_125 = CO2_interest*125*inflation_FRA)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_EURO_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_EURO_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_EURO_2018)
+
+data_GER_2.3 <- data_GER_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*45*inflation_GER, 
+         abs_interest_85  = CO2_interest*85*inflation_GER,
+         abs_interest_125 = CO2_interest*125*inflation_GER)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_EURO_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_EURO_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_EURO_2018)
+
+data_ROM_2.3 <- data_ROM_0 %>%
+  mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
+         abs_interest_45 = CO2_interest*202*inflation_ROM,
+         abs_interest_85  = CO2_interest*381.6*inflation_ROM,
+         abs_interest_125 = CO2_interest*561.1*inflation_ROM)%>%
+  mutate(rel_interest_45  = abs_interest_45/hh_expenditures_LEI_2018,
+         rel_interest_85  = abs_interest_85/hh_expenditures_LEI_2018,
+         rel_interest_125 = abs_interest_125/hh_expenditures_LEI_2018)
+
+mean(data_ESP_2.3$rel_interest_45)
+mean(data_FRA_2.3$rel_interest_45)
+mean(data_GER_2.3$rel_interest_45)
+mean(data_ROM_2.3$rel_interest_45)
+
+mean(combinations_ESP_1$relative_45)
+mean(combinations_FRA_1$relative_45)
+mean(combinations_GER_1$relative_45)
+mean(combinations_ROM_1$relative_45)
+
+data_ESP_2.3.1 <- data_ESP_2.3 %>%
+  summarise(rel_interest_45  = wtd.quantile(rel_interest_45, weights = hh_weights, probs = 0.5),
+            rel_interest_85  = wtd.quantile(rel_interest_85, weights = hh_weights, probs = 0.5),
+            rel_interest_125 = wtd.quantile(rel_interest_125, weights = hh_weights, probs = 0.5))%>%
+  pivot_longer(everything(), names_to = "price_level", values_to = "values", names_prefix = "rel_interest_")%>%
+  mutate(median = paste0(round(values*100,1),"%"))%>%
+  select(price_level, median)%>%
+  mutate(Country = "Spain")
+
+data_FRA_2.3.1 <- data_FRA_2.3 %>%
+  summarise(rel_interest_45  = wtd.quantile(rel_interest_45, weights = hh_weights, probs = 0.5),
+            rel_interest_85  = wtd.quantile(rel_interest_85, weights = hh_weights, probs = 0.5),
+            rel_interest_125 = wtd.quantile(rel_interest_125, weights = hh_weights, probs = 0.5))%>%
+  pivot_longer(everything(), names_to = "price_level", values_to = "values", names_prefix = "rel_interest_")%>%
+  mutate(median = paste0(round(values*100,1),"%"))%>%
+  select(price_level, median)%>%
+  mutate(Country = "France")
+
+data_GER_2.3.1 <- data_GER_2.3 %>%
+  summarise(rel_interest_45  = wtd.quantile(rel_interest_45, weights = hh_weights, probs = 0.5),
+            rel_interest_85  = wtd.quantile(rel_interest_85, weights = hh_weights, probs = 0.5),
+            rel_interest_125 = wtd.quantile(rel_interest_125, weights = hh_weights, probs = 0.5))%>%
+  pivot_longer(everything(), names_to = "price_level", values_to = "values", names_prefix = "rel_interest_")%>%
+  mutate(median = paste0(round(values*100,1),"%"))%>%
+  select(price_level, median)%>%
+  mutate(Country = "Germany")
+
+data_ROM_2.3.1 <- data_ROM_2.3 %>%
+  summarise(rel_interest_45  = wtd.quantile(rel_interest_45, weights = hh_weights, probs = 0.5),
+            rel_interest_85  = wtd.quantile(rel_interest_85, weights = hh_weights, probs = 0.5),
+            rel_interest_125 = wtd.quantile(rel_interest_125, weights = hh_weights, probs = 0.5))%>%
+  pivot_longer(everything(), names_to = "price_level", values_to = "values", names_prefix = "rel_interest_")%>%
+  mutate(median = paste0(round(values*100,1),"%"))%>%
+  select(price_level, median)%>%
+  mutate(Country = "Romania")
+
+data_2.3.1 <- bind_rows(data_ESP_2.3.1, data_FRA_2.3.1, data_GER_2.3.1, data_ROM_2.3.1)
+
+write_csv(data_2.3.1, "C:/Users/misl/Nextcloud/1_MCC/4_Papiere und Stuff/Data Sample Citizen Survey/Median_costs.csv")
