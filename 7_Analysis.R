@@ -703,7 +703,9 @@ create_outcomes <- function(data_1.5_0){
                                 Percentile_abs>  80                       ~ 1))%>%
     # Positive values: Overestimation - thinks they are more affected than they are.
     mutate(Dif_Percentile_1 = Q43_1N - Quintile,
-           Dif_Percentile_2 = Q43_2N - Quintile)
+           Dif_Percentile_2 = Q43_2N - Quintile)%>%
+    mutate(Dif_Percentile_1_ABS = abs(Dif_Percentile_1),
+           Dif_Percentile_2_ABS = abs(Dif_Percentile_2))
     
     return(data_1.6.0)
 }
@@ -1280,6 +1282,9 @@ rm(data_2.1.6, data_2.1.6.1, data_2.1.6.2, P_2.1.6)
 # )
 
 
+
+rm(data_2)
+
 # 3     Hypothesis tests ####
 
 data_3_ESP <- data_1.6_ESP
@@ -1301,12 +1306,32 @@ data_3_ROM <- data_1.6_ROM %>%
 # Estimation of relative additional costs: Dif_Percentile_1 (>0 - overestimate costs)
 
 model_3.1_ESP <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_ESP)
-model_3.1_FRA <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_FRA)
-model_3.1_GER <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_GER)
+model_3.1_FRA <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ sw(Q30_2N, Q30_3N), data = data_3_FRA)
+model_3.1_GER <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ sw(Q30_2N, Q30_3N), data = data_3_GER)
 model_3.1_ROM <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_ROM)
 
-# Adjust p-values for one-sided t-test.
-# Adjust for multiple hypothesis testing.
+# Correct p-values
+correct_p_values <- function(model_0){
+  lapply(as.list(model_0), function(model_1) {
+    tidy(model_1) %>%
+      mutate(
+        outcome  = as.character(model_1$fml[[2]]),  # LHS of formula
+        variable = as.character(model_1$fml[[3]])   # RHS of formula
+      )
+  }) %>% bind_rows()%>%
+    filter(term %in% c("Q30_2N", "Q30_3N"))%>%
+    # Adjust p-values for one-sided t-test.
+    mutate(p_value_one_sided = ifelse((outcome %in% c("Q41_1N", "Q44_1N", "Q45_1N", "Q46_1N") & estimate > 0) | (outcome %in% c("Dif_Percentile_1", "Dif_Percentile_1_ABS", "Dif_cost_1") & estimate < 0), p.value/2, 1-p.value/2))%>%
+    # Adjust for Benjamini-Hochberg
+    group_by(term)%>%
+    mutate(p_value_one_sided_bh = p.adjust(p_value_one_sided, method = "BH"))%>%
+    ungroup()
+}
+
+tidy_3.1_ESP <- correct_p_values(model_3.1_ESP)
+tidy_3.1_FRA <- correct_p_values(model_3.1_FRA)
+tidy_3.1_GER <- correct_p_values(model_3.1_GER)
+tidy_3.1_ROM <- correct_p_values(model_3.1_ROM)
 
 rm(model_3.1_ESP, model_3.1_FRA, model_3.1_GER, model_3.1_ROM)
 
