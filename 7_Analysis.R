@@ -20,15 +20,14 @@ options(scipen=999)
 # data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20250826_Pilot/Romanian/Romanian_26. August 2025_04.18.csv")
 
 # Survey data
-data_0_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20250826_Pilot/Spanish/Spanish_28.Oktober2025_06.50.csv")
-data_0_FRA <- read_csv("../2_Data/0_Qualtrics_Output/20250826_Pilot/French/French_28.Oktober2025_06.47.csv")
-data_0_GER <- read_csv("../2_Data/0_Qualtrics_Output/20250826_Pilot/German/German_28.Oktober2025_06.50.csv")
-data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20250826_Pilot/Romanian/Romanian_28.Oktober2025_06.49.csv")
+# data_0_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20250309_Final/Spanish/Spanish_28.Oktober2025_06.50.csv")
+data_0_FRA <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/French/French_9.+März+2026_09.31.csv")
+data_0_GER <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/German/German_9.+März+2026_09.31.csv")
+# data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20250309_Final/Romanian/Romanian_28.Oktober2025_06.49.csv")
 
 com_0_ESP <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Spain_251117.parquet")
 com_0_FRA <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_France_251117.parquet")
 com_0_GER <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Germany_251117.parquet")
-# com_0_ROM <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Romania_250703.parquet")
 com_0_ROM <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Romania_251117.parquet")
 
 median_costs <- read.xlsx("../2_Data/Supplementary/Median_Costs_Countries.xlsx")
@@ -175,7 +174,7 @@ data_1_FRA <- data_0_FRA %>%
   # Convert date
   mutate(StartDate = as.POSIXct(StartDate, format = "%Y-%m-%d %H:%M:%S"))%>%
   mutate(Date = format(StartDate, "%Y-%m-%d"))%>%
-  filter(as.Date(Date) > as.Date("2025-08-18"))%>% # TBA
+  filter(as.Date(Date) > as.Date("2025-12-17"))%>% # TBA
   # Create basic columns
   mutate(Country = "France")%>%
   mutate(ID = 1:n())%>%
@@ -183,6 +182,10 @@ data_1_FRA <- data_0_FRA %>%
   rename(time = "Duration (in seconds)")%>%
   filter(Q02 != "Non")%>%
   filter(Finished == "Wahr")%>%
+  # Attention Check 1
+  filter(Q38A == "D’accord")%>%
+  # For now
+  filter(Q60A == "Énergie")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)
 
@@ -198,9 +201,11 @@ data_1.1.2_FRA <- data_1_FRA %>%
 
 # Institutional trust values
 data_1.1_FRA <- data_1_FRA %>%
-  select(Country, ID, Q31_1:Q34_3)%>%
-  pivot_longer(Q31_1:Q34_3, names_to = "Variable", values_to = "Value_raw")%>%
-  filter(!is.na(Value_raw))%>% # TBA
+  select(Country, ID, Q31_1:Q31_3)%>%
+  pivot_longer(Q31_1:Q31_3, names_to = "Variable", values_to = "Value_raw")%>%
+  # filter(!is.na(Value_raw))%>% # TBA
+  # Decision: NAs == 5 "I don't know"
+  mutate(Value_raw = ifelse(is.na(Value_raw), "${e://Field/Label5}", Value_raw))%>%
   mutate(Label = ifelse(str_detect(Value_raw, "1"),"1",
                         ifelse(str_detect(Value_raw, "2"), "2",
                                ifelse(str_detect(Value_raw, "3"), "3",
@@ -218,9 +223,9 @@ data_1.1_FRA <- data_1_FRA %>%
   pivot_wider(names_from = "Column", values_from = "Value")
 
 data_1.2_FRA <- data_1_FRA %>%
-  select(-(Q31_1:Q34_3), -(Institution1:Label5))%>%
+  select(-(Q31_1:Q31_3), -(Institution1:Label5))%>%
   left_join(data_1.1_FRA)%>%
-  select(Country:Q30_3, starts_with("Q31"), starts_with("Q32"), starts_with("Q33"), starts_with("Q34"), everything())
+  select(Country:Q30_3, starts_with("Q31"), everything())
 
 # Cost range
 data_1.2.1_FRA <- data_1.2_FRA %>%
@@ -241,15 +246,15 @@ data_1.3_FRA <- data_1.2_FRA %>%
   left_join(data_1.2.1_FRA)%>%
   select(Country:Q42_1_true, Q42_1, Q43_1:Q42_2_true, Q42_2, everything())%>%
   # Remove some columns
-  select(-(FairnessPerception:PolicySupport), -"Create New Field or Choose From Dropdown...")%>%
+  select(-(FairnessPerception:PolicySupport), -"Create New Field or Choose From Dropdon...")%>%
   # mutate_at(vars(Effectiveness_1, Effectiveness_2, Expected_cost_1_true, Expected_cost_2_true), ~ ifelse(is.na(.), "No lo sé",.))%>%
   # Introducing factors
   mutate(Q41_1 = factor(Q41_1, levels = c("Certainement inefficace", "Probablement inefficace", "Probablement efficace", "Certainement efficace")),
          Q41_2 = factor(Q41_2, levels = c("Certainement inefficace", "Probablement inefficace", "Probablement efficace", "Certainement efficace")),
          Q42_1_true = factor(Q42_1_true, levels = c("Moins de ${e://Field/t1}€", "Entre ${e://Field/t1}€ et ${e://Field/t2}€", "Entre ${e://Field/t2}€ et ${e://Field/t3}€", "Entre ${e://Field/t3}€ et ${e://Field/t4}€", "Entre ${e://Field/t4}€ et ${e://Field/t5}€", "Entre ${e://Field/t5}€ et ${e://Field/t6}€", "Plus de ${e://Field/t6}€")),
          Q42_2_true = factor(Q42_2_true, levels = c("Moins de ${e://Field/t1}€", "Entre ${e://Field/t1}€ et ${e://Field/t2}€", "Entre ${e://Field/t2}€ et ${e://Field/t3}€", "Entre ${e://Field/t3}€ et ${e://Field/t4}€", "Entre ${e://Field/t4}€ et ${e://Field/t5}€", "Entre ${e://Field/t5}€ et ${e://Field/t6}€", "Plus de ${e://Field/t6}€")),
-         Q43_1 = factor(Q43_1, levels = c("Beaucoup plus qu'un ménage type","Un peu plus qu'un ménage plus","À peu près autant qu’un ménage type", "Un peu moins qu'un ménage plus","Beaucoup moins qu’un ménage type")),
-         Q43_2 = factor(Q43_2, levels = c("Beaucoup plus qu'un ménage type","Un peu plus qu'un ménage plus","À peu près autant qu’un ménage type", "Un peu moins qu'un ménage plus","Beaucoup moins qu’un ménage type")),
+         Q43_1 = factor(Q43_1, levels = c("Beaucoup plus qu’un ménage type","Un peu plus qu'un ménage type","À peu près autant qu’un ménage type", "Un peu moins qu’un ménage type","Beaucoup moins qu'un ménage type")),
+         Q43_2 = factor(Q43_2, levels = c("Beaucoup plus qu’un ménage type","Un peu plus qu'un ménage type","À peu près autant qu’un ménage type", "Un peu moins qu'un ménage type","Beaucoup moins qu’un ménage type")),
          Q44_1 = factor(Q44_1, levels = c("Nuisible", "Ni nuisible ni utile", "Utile")),
          Q44_2 = factor(Q44_2, levels = c("Nuisible", "Ni nuisible ni utile", "Utile")),
          Q45_1 = factor(Q45_1, levels = c("Injuste", "Ni juste ni injuste", "Juste")),
@@ -287,6 +292,17 @@ data_1.4_FRA <- data_1.3_FRA %>%
   left_join(median_costs)%>%
   mutate(above_median = ifelse((absolute_value > median_45 & Pricelevel == "45") | (absolute_value > median_85 & Pricelevel == "85") | (absolute_value > median_125 & Pricelevel == "125"),1,0))
 
+# Edit single columns or filter
+data_1.4_FRA <- data_1.4_FRA %>%
+  # NA in every Q41_1 to Q46_1
+  mutate(filter_2a = ifelse(is.na(Q41_1) & is.na(Q42_1) & is.na(Q43_1) & is.na(Q44_1) & is.na(Q45_1) & is.na(Q46_1),1,0),
+  # NA in every Q41_2 to Q46_2
+         filter_2b = ifelse(is.na(Q41_2) & is.na(Q42_2) & is.na(Q43_2) & is.na(Q44_2) & is.na(Q45_2) & is.na(Q46_2),1,0),
+  # NA in every Q62 to Q68
+         filter_2c = ifelse(is.na(Q62) & is.na(Q63) & is.na(Q64) & is.na(Q65) & is.na(Q66) & is.na(Q67) & is.na(Q68),1,0))%>%
+  # NA in every C1_1, C1_2, C1_3, C1_4
+  mutate(filter_3a = ifelse(is.na(C1_1) & is.na(C2_1) & is.na(C3_1) & is.na(C4_1),1,0))
+
 rm(data_1_FRA, data_1.1_FRA, data_1.1.1_FRA, data_1.1.2_FRA, data_1.2_FRA, data_1.2.1_FRA, data_1.3_FRA, data_0_FRA, com_1_FRA, com_0_FRA)
 
 # 1.3   Germany ####
@@ -296,7 +312,7 @@ data_1_GER <- data_0_GER %>%
   # Convert date
   mutate(StartDate = as.POSIXct(StartDate, format = "%Y-%m-%d %H:%M:%S"))%>%
   mutate(Date = format(StartDate, "%Y-%m-%d"))%>%
-  filter(as.Date(Date) > as.Date("2025-08-18"))%>% # TBA
+  filter(as.Date(Date) > as.Date("2025-12-17"))%>% # TBA
   # Create basic columns
   mutate(Country = "Germany")%>%
   mutate(ID = 1:n())%>%
@@ -305,6 +321,10 @@ data_1_GER <- data_0_GER %>%
   filter(Q02 != "Nein")%>%
   filter(Q10 != "Unter 18")%>%
   filter(Finished == "Wahr")%>%
+  # Attention Check 1:
+  filter(Q38A == "Stimme zu")%>%
+  # For now: Attention Check 2:
+  filter(Q60A == "Energie")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)
 
@@ -320,9 +340,9 @@ data_1.1.2_GER <- data_1_GER %>%
 
 # Institutional trust values
 data_1.1_GER <- data_1_GER %>%
-  select(Country, ID, Q31_1:Q34_3)%>%
-  pivot_longer(Q31_1:Q34_3, names_to = "Variable", values_to = "Value_raw")%>%
-  filter(!is.na(Value_raw))%>%
+  select(Country, ID, Q31_1:Q31_3)%>%
+  pivot_longer(Q31_1:Q31_3, names_to = "Variable", values_to = "Value_raw")%>%
+  # filter(!is.na(Value_raw))%>%
   mutate(Label = ifelse(str_detect(Value_raw, "1"),"1",
                         ifelse(str_detect(Value_raw, "2"), "2",
                                ifelse(str_detect(Value_raw, "3"), "3",
@@ -340,9 +360,9 @@ data_1.1_GER <- data_1_GER %>%
   pivot_wider(names_from = "Column", values_from = "Value")
 
 data_1.2_GER <- data_1_GER %>%
-  select(-(Q31_1:Q34_2), -(Institution1:Label5))%>%
+  select(-(Q31_1:Q31_3), -(Institution1:Label5))%>%
   left_join(data_1.1_GER)%>%
-  select(Country:Q30_3, starts_with("Q31"), starts_with("Q32"), starts_with("Q33"), starts_with("Q34"), everything())
+  select(Country:Q30_3, starts_with("Q31"), everything())
 
 # Cost range
 data_1.2.1_GER <- data_1.2_GER %>%
@@ -369,12 +389,12 @@ data_1.3_GER <- data_1.2_GER %>%
   mutate(Q41_1 = factor(Q41_1, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
          Q41_2 = factor(Q41_2, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
          Q42_1_true = factor(Q42_1_true, levels = c("um weniger als ${e://Field/t1}€", "um ${e://Field/t1}€ bis ${e://Field/t2}€", "um ${e://Field/t2}€ bis ${e://Field/t3}€", "um ${e://Field/t3}€ bis ${e://Field/t4}€", "um ${e://Field/t4}€ bis ${e://Field/t5}€", "um ${e://Field/t5}€ bis ${e://Field/t6}€", "mehr als ${e://Field/t6}€")),
-         Q42_2_true = factor(Q42_2_true, levels = c("um weniger als ${e://Field/t1}€", "um ${e://Field/t1}€ bis ${e://Field/t2}€", "um ${e://Field/t2}€ bis ${e://Field/t3}€", "um ${e://Field/t3}€ bis ${e://Field/t4}€", "um ${e://Field/t4}€ bis ${e://Field/t5}€", "um ${e://Field/t5}€ bis ${e://Field/t6}€", "mehr als ${e://Field/t6}€")),
+         Q42_2_true = factor(Q42_2_true, levels = c("um weniger als ${e://Field/t1}€", "um ${e://Field/t1}€ bis ${e://Field/t2}€", "um ${e://Field/t2}€ bis ${e://Field/t3}€", "um ${e://Field/t3}€ bis ${e://Field/t4}€", "um ${e://Field/t4}€ bis ${e://Field/t5}€", "um ${e://Field/t5}€ bis ${e://Field/t6}€", "um mehr als ${e://Field/t6}€")),
          Q43_1 = factor(Q43_1, levels = c("Viel höher als bei einem durchschnittlichen Haushalt","Etwas höher als bei einem durchschnittlichen Haushalt", "Ungefähr so hoch wie bei einem durchschnittlichen Haushalt", "Etwas niedriger als bei einem durchschnittlichen Haushalt", "Viel niedriger als bei einem durchschnittlichen Haushalt")),
-         Q43_2 = factor(Q43_2, levels = c("Viel höher als bei einem durchschnittlichen Haushalt","Etwas höher als bei einem durchschnittlichen Haushalt", "Ungefähr so hoch wie bei einem durchschnittlichen Haushalt", "Etwas niedriger als bei einem durchschnittlichen Haushalt", "Viel niedriger als bei einem durchschnittlichen Haushalt")),
-         Q44_1 = factor(Q44_1, levels = c("Sie wird eher schaden", "Sie wird weder schaden noch helfen", "Sie wird eher helfen")),
+         Q43_2 = factor(Q43_2, levels = c("Viel höher als bei einem typischen Haushalt","Etwas höher als bei einem typischen Haushalt", "Ungefähr so hoch wie bei einem typischen Haushalt", "Etwas niedriger als bei einem typischen Haushalt", "Viel niedriger als bei einem typischen Haushalt")),
+         Q44_1 = factor(Q44_1, levels = c("Sie wird weder eher schaden", "Sie wird weder schaden noch helfen", "Sie wird eher helfen")),
          Q44_2 = factor(Q44_2, levels = c("Sie wird eher schaden", "Sie wird weder schaden noch helfen", "Sie wird eher helfen")),
-         Q45_1 = factor(Q45_1, levels = c("Ich finde sie ungerecht", "Ich finde sie weder gerecht noch ungerecht", "Ich finde Sie gerecht")),
+         Q45_1 = factor(Q45_1, levels = c("Ich finde sie ungerecht", "Ich finde sie weder gerecht noch ungerecht", "Ich finde sie gerecht")),
          Q45_2 = factor(Q45_2, levels = c("Ich finde sie ungerecht", "Ich finde sie weder gerecht noch ungerecht", "Ich finde sie gerecht")),
          Q46_1 = factor(Q46_1, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
          Q46_2 = factor(Q46_2, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
@@ -386,6 +406,7 @@ data_1.3_GER <- data_1.2_GER %>%
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
          Treatment_C = factor(CostTreatmentGrp, labels = c("C1", "C2", "C3", "C4", "Control")))%>%
   select(-PedTreatmentGrp, -CostTreatmentGrp,-policy)%>%
+  #select(-all_of(starts_with("QT")), all_of(starts_with("QT")))%>%
   arrange(ID)
 
 # Join cost estimates 
@@ -408,6 +429,17 @@ data_1.4_GER <- data_1.3_GER %>%
   select(-(absolute:relative_165))%>%
   left_join(median_costs)%>%
   mutate(above_median = ifelse((absolute_value > median_45 & Pricelevel == "45") | (absolute_value > median_85 & Pricelevel == "85") | (absolute_value > median_125 & Pricelevel == "125"),1,0))
+
+# Edit or filter single columns
+data_1.4_GER <- data_1.4_GER %>%
+  # NA in every Q41_1 to Q46_1
+  mutate(filter_2a = ifelse(is.na(Q41_1) & is.na(Q42_1) & is.na(Q43_1) & is.na(Q44_1) & is.na(Q45_1) & is.na(Q46_1),1,0),
+         # NA in every Q41_2 to Q46_2
+         filter_2b = ifelse(is.na(Q41_2) & is.na(Q42_2) & is.na(Q43_2) & is.na(Q44_2) & is.na(Q45_2) & is.na(Q46_2),1,0),
+         # NA in every Q62 to Q68
+         filter_2c = ifelse(is.na(Q62) & is.na(Q63) & is.na(Q64) & is.na(Q65) & is.na(Q66) & is.na(Q67) & is.na(Q68),1,0))%>%
+  # NA in every C1_1, C1_2, C1_3, C1_4
+  mutate(filter_3a = ifelse(is.na(C1_1) & is.na(C2_1) & is.na(C3_1) & is.na(C4_1),1,0))
 
 rm(data_1_GER, data_1.1_GER, data_1.1.1_GER, data_1.1.2_GER, data_1.2_GER, data_1.2.1_GER, data_1.3_GER, data_0_GER, com_1_GER, com_0_GER)
 
@@ -572,6 +604,7 @@ extract_conjoint <- function(data_1.4.0){
                                grepl("task2", names) ~ "2",
                                grepl("task3", names) ~ "3"))%>%
     select(-names)%>%
+    filter(!is.na(values))%>%
     mutate(parsed = map(values, \(x) {
       x <- gsub('^"|"$', '', x)                                  # remove outer quotes
       parts <- strsplit(x, "\\}\\s*\\{")[[1]]                    # split multiple JSONs
@@ -580,26 +613,34 @@ extract_conjoint <- function(data_1.4.0){
       bind_rows(map(jsons, "result"))                            # combine parsed pieces
     })) %>%
     unnest(parsed)%>%
-    mutate_at(vars(budget_control:community_mobility_support), ~ ifelse(is.na(.), "Missing", .))%>%
+    mutate_at(vars(-c(ID:Task)), ~ ifelse(is.na(.), "Missing", .))%>%
     arrange(ID, Task, Profile)%>%
     select(-values)%>%
     select(ID, Task, Profile, everything())
   
   data_1.5.2 <- data_1.4.0 %>%
-    select(ID, starts_with("Q62"), starts_with("Q63"), starts_with("Q64"), starts_with("Q65"))%>%
-    pivot_longer(-ID, names_to = "names", values_to = "Rank")%>%
-    mutate(Task = case_when(grepl("Q62", names) ~ "0",
-                            grepl("Q63", names) ~ "1",
-                            grepl("Q64", names) ~ "2",
-                            grepl("Q65", names) ~ "3"))%>%
-    mutate(Profile = case_when(grepl("_1", names) ~ "A",
-                               grepl("_2", names) ~ "B",
-                               grepl("_3", names) ~ "C"))%>%
-    select(ID, Task, Profile, Rank, -names)
+    select(ID, starts_with("C1_1"), starts_with("C2_1"), starts_with("C3_1"), starts_with("C4_1"))%>%
+    pivot_longer(-ID, names_to = "names", values_to = "Profile")%>%
+    mutate(Task = case_when(grepl("C1_1", names) ~ "0",
+                            grepl("C2_1", names) ~ "1",
+                            grepl("C3_1", names) ~ "2",
+                            grepl("C4_1", names) ~ "3"))%>%
+    # mutate(Profile = case_when(grepl("_1", names) ~ "A",
+    #                            grepl("_2", names) ~ "B",
+    #                            grepl("_3", names) ~ "C"))%>%
+    select(ID, Task, Profile, -names)
+  
+  data_1.5.3 <- data_1.4.0 %>%
+    select(ID, Q62:Q68)
+  
+  data_1.5.4 <- data_1.4.0 %>%
+    select(ID, starts_with("C1_2"), starts_with("C2_2"), starts_with("C3_2"), starts_with("C4_2"))
   
   data_1.5 <- left_join(data_1.5.2, data_1.5.1)%>%
-    mutate_at(vars(budget_control:community_mobility_support), ~ ifelse(is.na(.), "Repeal",.))%>%
-    mutate_at(vars(budget_control:community_mobility_support), ~ ifelse(. == "Missing", NA,.))
+    mutate_at(vars(-c(ID:Profile)), ~ ifelse(is.na(.), "Repeal",.))%>%
+    mutate_at(vars(-c(ID:Profile)), ~ ifelse(. == "Missing", NA,.))%>%
+    left_join(data_1.5.3)%>%
+    left_join(data_1.5.4)
   
   return(data_1.5)
 }
@@ -610,13 +651,15 @@ data_conjoint_GER <- extract_conjoint(data_1.4_GER)
 data_conjoint_ROM <- extract_conjoint(data_1.4_ROM)
 
 data_1.5_ESP <- data_1.4_ESP %>%
-  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
+  select(-starts_with("profile"))
 data_1.5_FRA <- data_1.4_FRA %>%
-  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
+  select(-starts_with("profile"), - c(Q62:`QT11_Click Count`), -d1, -d2)%>%
+  select(-all_of(starts_with("QT")), -all_of(starts_with("Q139")), all_of(starts_with("Q139")), all_of(starts_with("QT")))
 data_1.5_GER <- data_1.4_GER %>%
-  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
+  select(-starts_with("profile"), - c(Q62:`QT11_Click Count`), -d1, -d2)%>%
+  select(-all_of(starts_with("QT")), all_of(starts_with("QT")))
 data_1.5_ROM <- data_1.4_ROM %>%
-  select(-starts_with("Q62"), -starts_with("Q63"), -starts_with("Q64"), -starts_with("Q65"), -starts_with("profile"))
+  select(-starts_with("profile"))
 
 rm(data_1.4_ESP, data_1.4_FRA, data_1.4_GER, data_1.4_ROM, median_costs, extract_conjoint)
 
@@ -646,17 +689,19 @@ create_outcomes <- function(data_1.5_0){
                                                    ifelse(absolute_value < t4, 4,
                                                           ifelse(absolute_value < t5, 5,
                                                                  ifelse(absolute_value < t6, 6,
-                                                                        ifelse(absolute_value > t6, 7,absolute_value))))))))%>%
+                                                                        ifelse(absolute_value >= t6, 7,absolute_value))))))))%>%
     # \tilde{l}
+    # Positive values: Overestimation
     mutate(Dif_cost_1 = Q42_1N - absolute_t,
            Dif_cost_2 = Q42_2N - absolute_t)%>%
     # \tilde{lr}
     mutate(Percentile_abs = as.numeric(as.character(Percentile)))%>%
-    mutate(Quintile = case_when(Percentile_abs<= 20         ~ 5,
-                                Percentile_abs> 20 & Percentile_abs<= 40 ~ 4,
-                                Percentile_abs> 40 & Percentile_abs<= 60 ~ 3,
-                                Percentile_abs> 60 & Percentile_abs<= 80 ~ 2,
-                                Percentile_abs> 80          ~ 1))%>%
+    mutate(Quintile = case_when(Percentile_abs<= 20                       ~ 5,
+                                Percentile_abs>  20 & Percentile_abs<= 40 ~ 4,
+                                Percentile_abs>  40 & Percentile_abs<= 60 ~ 3,
+                                Percentile_abs>  60 & Percentile_abs<= 80 ~ 2,
+                                Percentile_abs>  80                       ~ 1))%>%
+    # Positive values: Overestimation - thinks they are more affected than they are.
     mutate(Dif_Percentile_1 = Q43_1N - Quintile,
            Dif_Percentile_2 = Q43_2N - Quintile)
     
@@ -668,7 +713,19 @@ data_1.6_FRA <- create_outcomes(data_1.5_FRA)
 data_1.6_GER <- create_outcomes(data_1.5_GER)
 data_1.6_ROM <- create_outcomes(data_1.5_ROM)
 
-rm(data_1.5_ESP, data_1.5_GER, data_1.5_FRA, data_1.5_ROM)
+rm(data_1.5_ESP, data_1.5_GER, data_1.5_FRA, data_1.5_ROM, create_outcomes)
+
+# 1.7   Filters ####
+
+# Wrong second attention check
+
+data_1.6_FRA <- data_1.6_FRA %>%
+  filter(Q60A == "Énergie")%>%
+  filter(filter_2a == 0 | filter_2b == 0)
+
+data_1.6_GER <- data_1.6_GER %>%
+  filter(Q60A == "Energie")%>%
+  filter(filter_2a == 0 | filter_2b == 0)
 
 # 2.1   Baseline outcome distribution - TBD ####
 
@@ -1546,7 +1603,7 @@ adjust_hypothesis_22 <- function(data_3_0){
 
 model_3.5.2_ESP <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_ESP))
 model_3.5.2_FRA <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_FRA))
-model_3.5.2_GER <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_ESP))
+model_3.5.2_GER <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_GER))
 model_3.5.2_ROM <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_ROM))
 
 # Hypothesis 23:
@@ -1978,8 +2035,10 @@ data_3.6.7_ROM <- data_3.6_ROM %>%
 # 3.7   Hypotheses 37 to 41 (Part III) ####
 
 data_3.7_GER <- data_3_GER %>%
-  select(ID, Q71_4, Q71_2, Q71_3, Q30_2N, Q30_3N, Q38)%>%
-  rename(Q71_1 = Q71_4)%>%
+  select(ID, Q71_4, Q71_7, Q71_8, Q30_2N, Q30_3N, Q38)%>%
+  # TBD
+  rename(Q71_1 = Q71_4, Q71_2 = Q71_7, Q71_3 = Q71_8)%>%
+  # rename(Q71_1 = Q71_4)%>%
   filter(!is.na(Q71_1)&!is.na(Q71_2)&!is.na(Q71_3))%>%
   mutate_at(vars(Q71_1:Q71_3), ~ as.numeric(.))%>%
   mutate(nA_B = ifelse(Q71_1 < Q71_2,1,0))
@@ -1987,7 +2046,8 @@ data_3.7_GER <- data_3_GER %>%
 data_3.7_FRA <- data_3_FRA %>%
   select(ID, Q71_1, Q71_2, Q71_3, Q30_2N, Q30_3N, Q38)%>%
   filter(!is.na(Q71_1)&!is.na(Q71_2)&!is.na(Q71_3))%>%
-  mutate_at(vars(Q71_1:Q71_3), ~ as.numeric(.))
+  mutate_at(vars(Q71_1:Q71_3), ~ as.numeric(.))%>%
+  mutate(nA_B = ifelse(Q71_1 < Q71_2,1,0))
 
 # Hypothesis 37: Respondents prefer option A over option B.
 t.test(data_3.7_FRA$Q71_1, data_3.7_FRA$Q71_2, paired = TRUE, alternative = "less")
