@@ -28,8 +28,8 @@ data_0.1_FRA <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/French
 data_0.1_GER <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/German_14.+Januar+2026_15.11.csv")
 data_0.1_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Romanian_14.+Januar+2026_15.10.csv")
 
-data_0.2_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Spanish_5.+März+2026_13.38.csv")
-data_0.2_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Romanian_5.+März+2026_13.39.csv")
+data_0.2_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Spanish_12.+März+2026_08.35.csv")
+data_0.2_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Romanian_12.+März+2026_08.34.csv")
 
 com_0_ESP <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Spain_251117.parquet")
 com_0_FRA <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_France_251117.parquet")
@@ -89,7 +89,8 @@ data_1.2_ESP <- data_0.2_ESP %>%
   # Order of columns
   select(Country, ID, time, Q10:Date)%>%
   filter(!is.na(Q11))%>%
-  filter(!is.na(Q15))
+  filter(!is.na(Q15))%>%
+  filter(Q38A == "De acuerdo")
 
 # 1.2   France ####
 
@@ -208,7 +209,8 @@ data_1.2_ROM <- data_0.2_ROM %>%
   filter(Q10 != "Sub 18")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)%>%
-  filter(!is.na(Q15))
+  filter(!is.na(Q15))%>%
+  filter(Q38A == "De acord")
 
 # 2. Sampling ####
 

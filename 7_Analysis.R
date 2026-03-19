@@ -20,10 +20,10 @@ options(scipen=999)
 # data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20250826_Pilot/Romanian/Romanian_26. August 2025_04.18.csv")
 
 # Survey data
-# data_0_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20250309_Final/Spanish/Spanish_28.Oktober2025_06.50.csv")
+data_0_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Spanish_19.+März+2026_12.19.csv")
 data_0_FRA <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/French/French_9.+März+2026_09.31.csv")
 data_0_GER <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/German/German_9.+März+2026_09.31.csv")
-# data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20250309_Final/Romanian/Romanian_28.Oktober2025_06.49.csv")
+data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Romanian_19.+März+2026_12.19.csv")
 
 com_0_ESP <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Spain_251117.parquet")
 com_0_FRA <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_France_251117.parquet")
@@ -40,7 +40,7 @@ data_1_ESP <- data_0_ESP %>%
   # Convert date
   mutate(StartDate = as.POSIXct(StartDate, format = "%Y-%m-%d %H:%M:%S"))%>%
   mutate(Date = format(StartDate, "%Y-%m-%d"))%>%
-  filter(as.Date(Date) > as.Date("2025-08-18"))%>%   # TBA
+  filter(as.Date(Date) > as.Date("2025-12-17"))%>%   # TBA
   # Create basic columns
   mutate(Country = "Spain")%>%
   mutate(ID = 1:n())%>%
@@ -48,6 +48,10 @@ data_1_ESP <- data_0_ESP %>%
   rename(time = "Duration (in seconds)")%>%
   filter(Q02 != "No")%>%
   filter(Finished == "Wahr")%>%
+  # Attention Check 1
+  filter(Q38A == "De acuerdo")%>%
+  # For now
+  filter(Q60A == "Energía")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)
 
@@ -294,6 +298,10 @@ data_1.4_FRA <- data_1.3_FRA %>%
 
 # Edit single columns or filter
 data_1.4_FRA <- data_1.4_FRA %>%
+  # Time in seconds - slowest 2% and fastest 5%
+  mutate(time = as.numeric(time))%>%
+  mutate(filter_1a = ifelse(time <= quantile(time, probs = 0.05, na.rm = TRUE),1,0),
+         filter_1b = ifelse(time >= quantile(time, probs = 0.98, na.rm = TRUE),1,0))%>%
   # NA in every Q41_1 to Q46_1
   mutate(filter_2a = ifelse(is.na(Q41_1) & is.na(Q42_1) & is.na(Q43_1) & is.na(Q44_1) & is.na(Q45_1) & is.na(Q46_1),1,0),
   # NA in every Q41_2 to Q46_2
@@ -432,6 +440,10 @@ data_1.4_GER <- data_1.3_GER %>%
 
 # Edit or filter single columns
 data_1.4_GER <- data_1.4_GER %>%
+  # Time in seconds - slowest 2% and fastest 5%
+  mutate(time = as.numeric(time))%>%
+  mutate(filter_1a = ifelse(time <= quantile(time, probs = 0.05, na.rm = TRUE),1,0),
+         filter_1b = ifelse(time >= quantile(time, probs = 0.98, na.rm = TRUE),1,0))%>%
   # NA in every Q41_1 to Q46_1
   mutate(filter_2a = ifelse(is.na(Q41_1) & is.na(Q42_1) & is.na(Q43_1) & is.na(Q44_1) & is.na(Q45_1) & is.na(Q46_1),1,0),
          # NA in every Q41_2 to Q46_2
@@ -450,7 +462,7 @@ data_1_ROM <- data_0_ROM %>%
   # Convert date
   mutate(StartDate = as.POSIXct(StartDate, format = "%Y-%m-%d %H:%M:%S"))%>%
   mutate(Date = format(StartDate, "%Y-%m-%d"))%>%
-  filter(as.Date(Date) > as.Date("2025-08-18"))%>%
+  filter(as.Date(Date) > as.Date("2025-12-17"))%>%
   # Create basic columns
   mutate(Country = "Romania")%>%
   mutate(ID = 1:n())%>%
@@ -459,6 +471,10 @@ data_1_ROM <- data_0_ROM %>%
   filter(Q02 != "Nu")%>%
   filter(Q10 != "Sub 18")%>%
   filter(Finished == "Wahr")%>%
+  # Attention Check 1 %>%
+  filter(Q38A == "De acord")%>%
+  # For now
+  filter(Q60A == "Energie")%>%
   # Order of columns
   select(Country, ID, time, Q10:Date)
 
@@ -596,6 +612,7 @@ rm(data_1_ROM, data_1.1_ROM, data_1.1.1_ROM, data_1.1.2_ROM, data_1.2_ROM, data_
 extract_conjoint <- function(data_1.4.0){
   data_1.5.1 <- data_1.4.0 %>%
     select(ID, starts_with("profile"))%>%
+    drop_na()%>%
     pivot_longer(starts_with("profile"), names_to = "names", values_to = "values")%>%
     mutate(Profile = case_when(grepl("profileA", names) ~ "A",
                                grepl("profileB", names) ~ "B"),
@@ -618,9 +635,17 @@ extract_conjoint <- function(data_1.4.0){
     select(-values)%>%
     select(ID, Task, Profile, everything())
   
+  data_1.5.1_b <- expand_grid("ID" = unique(data_1.5.1$ID), Task = c("0","1","2","3"))%>%
+    mutate(Profile = "C")
+  
+  data_1.5.1 <- data_1.5.1 %>%
+    bind_rows(data_1.5.1_b)%>%
+    arrange(ID, Task, Profile)%>%
+    mutate_all(., ~ ifelse(is.na(.), "Repeal",.))
+  
   data_1.5.2 <- data_1.4.0 %>%
     select(ID, starts_with("C1_1"), starts_with("C2_1"), starts_with("C3_1"), starts_with("C4_1"))%>%
-    pivot_longer(-ID, names_to = "names", values_to = "Profile")%>%
+    pivot_longer(-ID, names_to = "names", values_to = "Choice")%>%
     mutate(Task = case_when(grepl("C1_1", names) ~ "0",
                             grepl("C2_1", names) ~ "1",
                             grepl("C3_1", names) ~ "2",
@@ -628,26 +653,105 @@ extract_conjoint <- function(data_1.4.0){
     # mutate(Profile = case_when(grepl("_1", names) ~ "A",
     #                            grepl("_2", names) ~ "B",
     #                            grepl("_3", names) ~ "C"))%>%
-    select(ID, Task, Profile, -names)
+    select(ID, Task, Choice, -names)
   
   data_1.5.3 <- data_1.4.0 %>%
-    select(ID, Q62:Q68)
-  
+    select(ID, Q62:Q68, filter_3a)
+  # TBD
+
   data_1.5.4 <- data_1.4.0 %>%
-    select(ID, starts_with("C1_2"), starts_with("C2_2"), starts_with("C3_2"), starts_with("C4_2"))
+    select(ID, starts_with("C1_2"), starts_with("C2_2"), starts_with("C3_2"), starts_with("C4_2"))%>%
+    pivot_longer(-ID, names_to = "names", values_to = "values")%>%
+    mutate(Task = case_when(grepl("C1", names) ~ "0",
+                            grepl("C2", names) ~ "1",
+                            grepl("C3", names) ~ "2",
+                            grepl("C4", names) ~ "3"))%>%
+    mutate(Choice_2 = case_when(grepl("enario A", values) ~ "A",
+                                grepl("enario B", values) ~ "B",
+                                grepl("enario C", values) ~ "C"))%>%
+    mutate(Choice_3 = case_when(grepl("enario A", values) & grepl("_2B", names) ~ "C",
+                                grepl("enario B", values) & grepl("_2C", names) ~ "A",
+                                grepl("enario C", values) & grepl("_2A", names) ~ "B",
+                                grepl("enario A", values) & grepl("_2C", names) ~ "B",
+                                grepl("enario B", values) & grepl("_2A", names) ~ "C",
+                                grepl("enario C", values) & grepl("_2B", names) ~ "A"))%>%
+    filter(!is.na(values))%>%
+    select(ID, Task, Choice_2, Choice_3)
   
   data_1.5 <- left_join(data_1.5.2, data_1.5.1)%>%
-    mutate_at(vars(-c(ID:Profile)), ~ ifelse(is.na(.), "Repeal",.))%>%
-    mutate_at(vars(-c(ID:Profile)), ~ ifelse(. == "Missing", NA,.))%>%
+    left_join(data_1.5.4)%>%
+    filter(!is.na(Profile))%>%
+    select(ID, Task, Profile, budget_and_funding, budget_control, household_support, information, infrastructure_ownership, worker_support, community_mobility_support, everything())%>%
+    mutate_at(vars(budget_and_funding:community_mobility_support), ~ ifelse(. == "Missing", NA,.))%>%
+    mutate(Preferred        = ifelse(Profile == Choice,  1,0),
+           Preferred_Second = ifelse(Profile == Choice_2,1,0),
+           Preferred_Least  = ifelse(Profile == Choice_3,1,0))%>%
     left_join(data_1.5.3)%>%
-    left_join(data_1.5.4)
+    filter(filter_3a == 0)
   
   return(data_1.5)
 }
 
 data_conjoint_ESP <- extract_conjoint(data_1.4_ESP)
-data_conjoint_FRA <- extract_conjoint(data_1.4_FRA)
-data_conjoint_GER <- extract_conjoint(data_1.4_GER)
+data_conjoint_FRA <- extract_conjoint(data_1.4_FRA)%>%
+  mutate_at(vars(budget_and_funding:community_mobility_support), ~ str_trim(.))%>%
+  mutate(household_support = str_replace_all(household_support, "\u00a0", " "))%>%
+  mutate(budget_and_funding = factor(budget_and_funding, levels = c("Les recettes de la politique de tarification du carbone, mais sans budget supplémentaire",
+                                                                    "Un budget plus important (pour aider un plus grand nombre de personnes) financé par l’emprunt",
+                                                                    "Un budget plus important (pour aider un plus grand nombre de personnes) financé par un impôt sur la fortune des 10 % les plus riches",
+                                                                    "Repeal")),
+         budget_control = factor(budget_control, levels = c("Le gouvernement, comme pour toute autre recette publique",
+                                                            "Un fonds protégé qui garantit que le gouvernement consacrera les dépenses à la transition au cours des deux prochaines décennies",
+                                                            "Un fonds protégé qui garantit que le gouvernement consacrera les dépenses à la transition au cours des deux prochaines décennies et dont la gestion sera supervisée par un conseil composé de citoyens",
+                                                            "Repeal")),
+         household_support = factor(household_support, levels = c("15 % des coûts supplémentaires",
+                                                                  "50 % des coûts supplémentaires",
+                                                                  "90 % des coûts supplémentaires",
+                                                                  "Repeal")),
+         information = factor(information, levels = c("Sur les sites web du gouvernement",
+                                                      "Dans un centre d'information local, où un conseiller peut vous guider",
+                                                      "Repeal")),
+         infrastructure_ownership = factor(infrastructure_ownership, levels = c("Toute entreprise disposée à investir",
+                                                                                "Des projets à propriété partagée avec les habitants du territoire",
+                                                                                "Les entreprises publiques réinvestissant leurs bénéfices dans la transition",
+                                                                                "Repeal")),
+         worker_support = factor(worker_support, levels = c("Aide sociale existante (assurance chômage et services de formation et d’emploi)",
+                                                            "Formation entièrement financée pendant un an maximum",
+                                                            "Formation entièrement financée pendant un an maximum et salaire garanti pendant trois ans",
+                                                            "Repeal")),
+         community_mobility_support = factor(community_mobility_support, levels = c("Maintien de la qualité des transports publics existants",
+                                                                                    "Augmentation des investissements dans des transports publics propres, fréquents et abordables dans chaque communauté",
+                                                                                    "Augmentation des investissements dans des transports publics propres, fréquents et abordables dans chaque communauté et dans des trains interurbains rapides",
+                                                                                    "Repeal")))
+
+data_conjoint_GER <- extract_conjoint(data_1.4_GER)%>%
+  mutate(budget_control           = str_replace(budget_control, fixed("Ein geschützter Fonds, der garantiert"), "Ein Fond, der garantiert"),
+         infrastructure_ownership = str_replace(infrastructure_ownership, fixed("in den Übergang"), "in der Transformation"))%>%
+  mutate_at(vars(budget_and_funding:community_mobility_support), ~ str_trim(.))%>%
+  mutate(budget_and_funding = factor(budget_and_funding,                  levels = c("Die Einnahmen aus der CO2-Bepreisung, aber kein zusätzliches Budget",
+                                                                                     "Ein größeres Budget (um mehr Menschen zu unterstützen), das durch Kreditaufnahme finanziert wird",
+                                                                                     "Ein größeres Budget (um mehr Menschen zu unterstützen), das durch eine  Steuer auf das Vermögen der reichsten 10 % bezahlt wird",
+                                                                                     "Repeal")),
+         budget_control = factor(budget_control,                          levels = c("Die Regierung, wie bei allen anderen staatlichen Einnahmen auch",
+                                                                                     "Ein Fond, der garantiert, dass die Regierung die Mittel in den nächsten zwei Jahrzehnten für die Transformation ausgibt",
+                                                                                     "Ein Fond, der garantiert, dass die Regierung die Mittel in den nächsten zwei Jahrzehnten Geld für die Transformation ausgibt, wobei die Bürgerinnen und Bürger über die Verwendung des Geldes mitentscheiden.",
+                                                                                     "Repeal")),
+         household_support = factor(household_support,                    levels = c("15 % der Mehrkosten", "50 % der Mehrkosten", "90 % der Mehrkosten", "Repeal")),
+         information = factor(information,                                levels = c("Von Websites der Regierung",
+                                                                                     "Von einem lokalen Informationzentrum, in dem Sie sich beraten lassen können",
+                                                                                     "Repeal")),
+         infrastructure_ownership = factor(infrastructure_ownership,      levels = c("Jedes Unternehmen, das bereit ist zu investieren",
+                                                                                     "Vorzugsweise Energieprojekte im Miteigentum der ortsansässigen Bevölkerung",
+                                                                                     "Staatseigene Unternehmen, die ihre Gewinne in der Transformation reinvestieren",
+                                                                                     "Repeal")),
+         worker_support = factor(worker_support,                          levels = c("Bestehende Sozialleistungen (Arbeitslosenversicherung, Schulungen und Arbeitsvermittlung)",
+                                                                                     "Vollständig finanzierte Schulung für bis zu einem Jahr",
+                                                                                     "Vollständig finanzierte Schulung für bis zu einem Jahr und eine Lohngarantie für 3 Jahre",
+                                                                                     "Repeal")),
+         community_mobility_support = factor(community_mobility_support,  levels = c("Beibehaltung der Qualität der bestehenden öffentlichen Verkehrsmittel",
+                                                                                     "Verstärkte Investitionen in einen nachhaltigen, häufig verkehrenden und erschwinglichen ÖPNV in  jeder Gemeinde",
+                                                                                     "Verstärkte Investitionen in einen nachhaltigen, häufig verkehrenden und erschwinglichen ÖPNV in  jeder Gemeinde und in schnelle Intercity-Zugverbindungen",
+                                                                                     "Repeal")))
 data_conjoint_ROM <- extract_conjoint(data_1.4_ROM)
 
 data_1.5_ESP <- data_1.4_ESP %>%
@@ -705,7 +809,9 @@ create_outcomes <- function(data_1.5_0){
     mutate(Dif_Percentile_1 = Q43_1N - Quintile,
            Dif_Percentile_2 = Q43_2N - Quintile)%>%
     mutate(Dif_Percentile_1_ABS = abs(Dif_Percentile_1),
-           Dif_Percentile_2_ABS = abs(Dif_Percentile_2))
+           Dif_Percentile_2_ABS = abs(Dif_Percentile_2),
+           Dif_cost_1_ABS       = abs(Dif_cost_1),
+           Dif_cost_2_ABS       = abs(Dif_cost_2))
     
     return(data_1.6.0)
 }
@@ -723,11 +829,15 @@ rm(data_1.5_ESP, data_1.5_GER, data_1.5_FRA, data_1.5_ROM, create_outcomes)
 
 data_1.6_FRA <- data_1.6_FRA %>%
   filter(Q60A == "Énergie")%>%
-  filter(filter_2a == 0 | filter_2b == 0)
+  filter(filter_1a == 0 & filter_1b == 0)%>%
+  filter(filter_2a == 0 | filter_2b == 0)%>%
+  mutate(Inclusion = 1)
 
 data_1.6_GER <- data_1.6_GER %>%
   filter(Q60A == "Energie")%>%
-  filter(filter_2a == 0 | filter_2b == 0)
+  filter(filter_1a == 0 & filter_1b == 0)%>%
+  filter(filter_2a == 0 | filter_2b == 0)%>%
+  mutate(Inclusion = 1)
 
 # 2     DESCRIPTIVE STATISTICS ####
 
@@ -1311,7 +1421,7 @@ model_3.1_GER <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percent
 model_3.1_ROM <- feols(c(Q41_1N, Q46_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ sw(Q30_2N, Q30_3N), data = data_3_ROM)
 
 # Correct p-values
-correct_p_values <- function(model_0){
+correct_p_values_1 <- function(model_0){
   lapply(as.list(model_0), function(model_1) {
     tidy(model_1) %>%
       mutate(
@@ -1328,40 +1438,90 @@ correct_p_values <- function(model_0){
     ungroup()
 }
 
-tidy_3.1_ESP <- correct_p_values(model_3.1_ESP)
-tidy_3.1_FRA <- correct_p_values(model_3.1_FRA)
-tidy_3.1_GER <- correct_p_values(model_3.1_GER)
-tidy_3.1_ROM <- correct_p_values(model_3.1_ROM)
+tidy_3.1_ESP <- correct_p_values_1(model_3.1_ESP)
+tidy_3.1_FRA <- correct_p_values_1(model_3.1_FRA)
+tidy_3.1_GER <- correct_p_values_1(model_3.1_GER)
+tidy_3.1_ROM <- correct_p_values_1(model_3.1_ROM)
 
-rm(model_3.1_ESP, model_3.1_FRA, model_3.1_GER, model_3.1_ROM)
+# Export tables
+
+# TBA
+
+rm(model_3.1_ESP, model_3.1_FRA, model_3.1_GER, model_3.1_ROM,
+   tidy_3.1_ESP, tidy_3.1_FRA, tidy_3.1_GER, tidy_3.1_ROM, correct_p_values_1)
 
 # 3.2   Hypothesis 7 ####
 
-model_3.2_ESP <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_ESP)
-model_3.2_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_FRA)
-model_3.2_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_GER)
-model_3.2_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU"), data = data_3_ROM)
+model_3.2_ESP <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU"), data = data_3_ESP)
+model_3.2_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU"), data = data_3_FRA)
+model_3.2_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU"), data = data_3_GER)
+model_3.2_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU"), data = data_3_ROM)
 
-# Adjust p-values for one-sided t-test.
-# Adjust for multiple hypothesis testing.
+correct_p_values_7 <- function(model_0){
+  model_1 <- lapply(seq_along(model_0), function(i) {
+    tidy(model_0[[i]]) %>%
+      mutate(model_index = i,
+             outcome  = names(model_3.2_FRA)[i])
+  }) %>% bind_rows()%>%
+    filter(term == "Treatment_A::EU")%>%
+    # Adjust p-values for one-sided t-test.
+    mutate(p_value_one_sided = ifelse((outcome %in% c("Q41_1N", "Q44_1N", "Q45_1N", "Q46_1N") & estimate < 0) | (outcome %in% c("Dif_Percentile_1", "Dif_Percentile_1_ABS", "Dif_cost_1") & estimate > 0), p.value/2, 1-p.value/2))%>%
+    # Adjust for Benjamini-Hochberg
+    group_by(term)%>%
+    mutate(p_value_one_sided_bh = p.adjust(p_value_one_sided, method = "BH"))%>%
+    ungroup()
+}
+
+tidy_3.2_ESP <- correct_p_values_7(model_3.2_ESP)
+tidy_3.2_FRA <- correct_p_values_7(model_3.2_FRA)
+tidy_3.2_GER <- correct_p_values_7(model_3.2_GER)
+tidy_3.2_ROM <- correct_p_values_7(model_3.2_ROM)
+
+# Export tables
+
+# TBA
 
 adjust_hypothesis_7b <- function(data_3_0){
   data_3_1 <- data_3_0 %>%
     mutate(tau = ifelse(Q30_3N < 3,1,0))%>%
+    filter(!is.na(tau))%>%
     mutate(tau_Treatment_A = ifelse(tau == 1 & Treatment_A == "EU",1,0))
   
   return(data_3_1)
 }
 
-model_3.2.1_ESP <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_ESP))
-model_3.2.1_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_FRA))
-model_3.2.1_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_GER))
-model_3.2.1_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_ROM))
+model_3.2.1_ESP <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_ESP))
+model_3.2.1_FRA <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_FRA))
+model_3.2.1_GER <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_GER))
+model_3.2.1_ROM <- feols(c(Q46_1N, Q41_1N, Q45_1N, Q44_1N, Dif_cost_1, Dif_Percentile_1, Dif_Percentile_1_ABS) ~ i(Treatment_A, ref = "nonEU") + tau + tau_Treatment_A, data = adjust_hypothesis_7b(data_3_ROM))
 
-# Adjust p-values for one-sided t-test.
-# Adjust for multiple hypothesis testing.
+correct_p_values_7b <- function(model_0){
+  model_1 <- lapply(seq_along(model_0), function(i) {
+    tidy(model_0[[i]]) %>%
+      mutate(model_index = i,
+             outcome  = names(model_3.2_FRA)[i])
+  }) %>% bind_rows()%>%
+    filter(term == "tau_Treatment_A")%>%
+    # Adjust p-values for one-sided t-test.
+    mutate(p_value_one_sided = ifelse((outcome %in% c("Q41_1N", "Q44_1N", "Q45_1N", "Q46_1N") & estimate < 0) | (outcome %in% c("Dif_Percentile_1", "Dif_Percentile_1_ABS", "Dif_cost_1") & estimate > 0), p.value/2, 1-p.value/2))%>%
+    # Adjust for Benjamini-Hochberg
+    group_by(term)%>%
+    mutate(p_value_one_sided_bh = p.adjust(p_value_one_sided, method = "BH"))%>%
+    ungroup()
+}
 
-rm(adjust_hypothesis_7b)
+tidy_3.2.1_ESP <- correct_p_values_7b(model_3.2.1_ESP)
+tidy_3.2.1_FRA <- correct_p_values_7b(model_3.2.1_FRA)
+tidy_3.2.1_GER <- correct_p_values_7b(model_3.2.1_GER)
+tidy_3.2.1_ROM <- correct_p_values_7b(model_3.2.1_ROM)
+
+# Export tables
+
+# TBA
+
+rm(adjust_hypothesis_7b, correct_p_values_7, correct_p_values_7b,
+   model_3.2_ROM, model_3.2_FRA, model_3.2_GER, model_3.2_ESP, tidy_3.2_ROM, tidy_3.2_FRA, tidy_3.2_GER, tidy_3.2_ESP,
+   model_3.2.1_ROM, model_3.2.1_FRA, model_3.2.1_GER, model_3.2.1_ESP, tidy_3.2.1_ROM, tidy_3.2.1_FRA, tidy_3.2.1_GER, tidy_3.2.1_ESP)
 
 # 3.3   Hypotheses 8 to 9 ####
 
@@ -1390,6 +1550,10 @@ model_3.3.2_FRA <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hy
 model_3.3.2_GER <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Fairness"))
 model_3.3.2_ROM <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Fairness"))
 
+# Export tables
+
+# TBA
+
 # Hypotheses 8a and 9a
 
 model_3.3.3_ESP <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Effectiveness"))
@@ -1402,26 +1566,33 @@ model_3.3.4_FRA <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_
 model_3.3.4_GER <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Fairness"))
 model_3.3.4_ROM <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Fairness"))
 
+# Export tables
+
+# TBA
+
 rm(model_3.3.1_ESP, model_3.3.1_FRA, model_3.3.1_GER, model_3.3.1_ROM, model_3.3.2_ESP, model_3.3.2_FRA, model_3.3.2_GER, model_3.3.2_ROM,
    model_3.3.3_ESP, model_3.3.3_FRA, model_3.3.3_GER, model_3.3.3_ROM, model_3.3.4_ESP, model_3.3.4_FRA, model_3.3.4_GER, model_3.3.4_ROM)
 
-# 3.4   Hypotheses 10 to 17 ####
+# 3.4   Hypotheses 10 to 20 ####
 
 adjust_hypothesis_10f <- function(data_3_0, filter_1){
   data_3_4 <- data_3_0 %>%
-    select(ID, Treatment_B, Treatment_C, Dif_cost_1, Dif_cost_2, Dif_Percentile_1, Dif_Percentile_2, Q41_1N, Q41_2N, Q44_1N, Q44_2N, Q45_1N, Q45_2N)%>%
+    select(ID, Treatment_B, Treatment_C, Dif_cost_1, Dif_cost_2, Dif_Percentile_1, Dif_Percentile_2, Q41_1N, Q41_2N, Q44_1N, Q44_2N, Q45_1N, Q45_2N, 
+           Dif_Percentile_1_ABS, Dif_Percentile_2_ABS, Dif_cost_1_ABS, Dif_cost_2_ABS)%>%
     # Overestimated/underestimated
     mutate(Overestimated_Absolute = ifelse(Dif_cost_1 > 0, "Overestimated",
                                            ifelse(Dif_cost_1 < 0, "Underestimated", NA)))%>%
     mutate(Overestimated_Distribution = ifelse(Dif_Percentile_1 > 0, "Overestimated",
                                            ifelse(Dif_Percentile_1 < 0, "Underestimated", NA)))%>%
-    pivot_longer(Dif_cost_1:Q45_2N, names_to = "Variable", values_to = "value")%>%
+    pivot_longer(Dif_cost_1:Dif_cost_2_ABS, names_to = "Variable", values_to = "value")%>%
     mutate(Period  = ifelse(Variable %in% c("Q41_1N", "Q44_1N", "Q45_1N", "Dif_cost_1", "Dif_Percentile_1"),1,2),
            Outcome = case_when(Variable %in% c("Q41_1N", "Q41_2N") ~ "Effectiveness",
                                Variable %in% c("Q44_1N", "Q44_2N") ~ "Vulnerable",
                                Variable %in% c("Q45_1N", "Q45_2N") ~ "Fairness",
-                               Variable %in% c("Dif_Percentile_1", "Dif_Percentile_2") ~ "Distribution_costs",
-                               Variable %in% c("Dif_cost_1", "Dif_cost_2")             ~ "Absolute_costs"))%>%
+                               Variable %in% c("Dif_Percentile_1", "Dif_Percentile_2")         ~ "Distribution_costs",
+                               Variable %in% c("Dif_cost_1", "Dif_cost_2")                     ~ "Absolute_costs",
+                               Variable %in% c("Dif_Percentile_1_ABS", "Dif_Percentile_2_ABS") ~ "Distribution_ABS",
+                               Variable %in% c("Dif_cost_1_ABS", "Dif_cost_2_ABS")             ~ "Absolute_ABS"))%>%
     mutate(Post_B   = ifelse(Period == 2 & Treatment_B == "Treatment",1,0),
            Post_C1  = ifelse(Period == 2 & Treatment_C == "C1",1,0),
            Post_C2  = ifelse(Period == 2 & Treatment_C == "C2",1,0),
@@ -1437,7 +1608,6 @@ adjust_hypothesis_10f <- function(data_3_0, filter_1){
     filter(Outcome == filter_1)%>%
     # Transform into absolute value
     mutate(value_abs = abs(value))
-    
   
   return(data_3_4)
 }
@@ -1449,12 +1619,16 @@ model_3.4.1_FRA <- feols(value_abs ~ Post_C13 | ID + Period + Post_B + Post_C2, 
 model_3.4.1_GER <- feols(value_abs ~ Post_C13 | ID + Period + Post_B + Post_C2, data = adjust_hypothesis_10f(data_3_GER, "Absolute_costs"))
 model_3.4.1_ROM <- feols(value_abs ~ Post_C13 | ID + Period + Post_B + Post_C2, data = adjust_hypothesis_10f(data_3_ROM, "Absolute_costs"))
 
+# Export tables (TBA)
+rm(model_3.4.1_ESP, model_3.4.1_FRA, model_3.4.1_GER, model_3.4.1_ROM)
+
 # Hypothesis 11:
 
 model_3.4.2_ESP <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_ESP, "Distribution_costs"))
 model_3.4.2_FRA <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_FRA, "Distribution_costs"))
 model_3.4.2_GER <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_GER, "Distribution_costs"))
 model_3.4.2_ROM <- feols(value_abs ~ Post_C24 | ID + Period + Post_B + Post_C1, data = adjust_hypothesis_10f(data_3_ROM, "Distribution_costs"))
+rm(model_3.4.2_ESP, model_3.4.2_FRA, model_3.4.2_GER, model_3.4.2_ROM)
 
 # Hypothesis 12:
 
@@ -1467,6 +1641,8 @@ model_3.4.2_ESP_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + P
 model_3.4.2_FRA_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Absolute == "Underestimated"))
 model_3.4.2_GER_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Absolute == "Underestimated"))
 model_3.4.2_ROM_2 <- feols(value ~ Post_C13 | ID + Period + Post_B + Post_C2 + Post_C4, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Absolute == "Underestimated"))
+rm(model_3.4.2_ESP_1, model_3.4.2_FRA_1, model_3.4.2_GER_1, model_3.4.2_ROM_1,
+   model_3.4.2_ESP_2, model_3.4.2_FRA_2, model_3.4.2_GER_2, model_3.4.2_ROM_2)
 
 # Hypothesis 13:
 
@@ -1479,12 +1655,15 @@ model_3.4.3_ESP_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, d
 model_3.4.3_FRA_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_FRA, "Fairness"), Overestimated_Distribution == "Underestimated"))
 model_3.4.3_GER_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_GER, "Fairness"), Overestimated_Distribution == "Underestimated"))
 model_3.4.3_ROM_2 <- feols(value ~ Post_C234 | ID + Period + Post_B + Post_C1, data = filter(adjust_hypothesis_10f(data_3_ROM, "Fairness"), Overestimated_Distribution == "Underestimated"))
+rm(model_3.4.3_ESP_1, model_3.4.3_FRA_1, model_3.4.3_GER_1, model_3.4.3_ROM_1,
+   model_3.4.3_ESP_2, model_3.4.3_FRA_2, model_3.4.3_GER_2, model_3.4.3_ROM_2)
 
 # Hypothesis 14:
 model_3.4.4_ESP <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
 model_3.4.4_FRA <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
 model_3.4.4_GER <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
 model_3.4.4_ROM <- feols(value ~ Post_C2 | ID + Period + Post_B + Post_C3 + Post_C4 + Post_C5, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+rm(model_3.4.4_ESP, model_3.4.4_FRA, model_3.4.4_GER, model_3.4.4_ROM)
 
 # Hypothesis 15:
 
@@ -1492,6 +1671,7 @@ model_3.4.5_ESP <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post
 model_3.4.5_FRA <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_FRA, "Effectiveness"))
 model_3.4.5_GER <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_GER, "Effectiveness"))
 model_3.4.5_ROM <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_ROM, "Effectiveness"))
+rm(model_3.4.5_ESP, model_3.4.5_FRA, model_3.4.5_GER, model_3.4.5_ROM)
 
 # Hypothesis 16:
 
@@ -1499,6 +1679,7 @@ model_3.4.6_ESP <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post
 model_3.4.6_FRA <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
 model_3.4.6_GER <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
 model_3.4.6_ROM <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C13 + Post_C24, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+rm(model_3.4.6_ESP, model_3.4.6_FRA, model_3.4.6_GER, model_3.4.6_ROM)
 
 # Hypothesis 17:
 
@@ -1506,6 +1687,7 @@ model_3.4.7_ESP <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post
 model_3.4.7_FRA <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_FRA, "Vulnerable"))
 model_3.4.7_GER <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_GER, "Vulnerable"))
 model_3.4.7_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_10f(data_3_ROM, "Vulnerable"))
+rm(model_3.4.7_ESP, model_3.4.7_FRA, model_3.4.7_GER, model_3.4.7_ROM)
 
 # Hypothesis 18:
 
@@ -1513,18 +1695,21 @@ model_3.4.8_ESP <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post
 model_3.4.8_FRA <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
 model_3.4.8_GER <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
 model_3.4.8_ROM <- feols(value ~ Post_C3 + Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+rm(model_3.4.8_ESP, model_3.4.8_FRA, model_3.4.8_GER, model_3.4.8_ROM)
 
 # Hypothesis 19:
 model_3.4.9_ESP <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
 model_3.4.9_FRA <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
 model_3.4.9_GER <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
 model_3.4.9_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C5, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+rm(model_3.4.9_ESP, model_3.4.9_FRA, model_3.4.9_GER, model_3.4.9_ROM)
 
 # Hypothesis 20:
 model_3.4.10_ESP <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_ESP, "Fairness"))
 model_3.4.10_FRA <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_FRA, "Fairness"))
 model_3.4.10_GER <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_GER, "Fairness"))
 model_3.4.10_ROM <- feols(value ~ Post_C4 | ID + Period + Post_B + Post_C1 + Post_C3 + Post_C5, data = adjust_hypothesis_10f(data_3_ROM, "Fairness"))
+rm(model_3.4.10_ESP, model_3.4.10_FRA, model_3.4.10_GER, model_3.4.10_ROM)
 
 # 3.5   Hypotheses 21 to 27 ####
 
@@ -1572,6 +1757,7 @@ model_3.5.1_a_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Po
 model_3.5.1_a_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_FRA, "Effectiveness"))
 model_3.5.1_a_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_GER, "Effectiveness"))
 model_3.5.1_a_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ROM, "Effectiveness"))
+rm(model_3.5.1_a_ESP, model_3.5.1_a_FRA, model_3.5.1_a_GER, model_3.5.1_a_ROM)
 
 # Hypothesis 21b:
 
@@ -1579,6 +1765,7 @@ model_3.5.1_b_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Po
 model_3.5.1_b_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_FRA, "Fairness"))
 model_3.5.1_b_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_GER, "Fairness"))
 model_3.5.1_b_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ROM, "Fairness"))
+rm(model_3.5.1_b_ESP, model_3.5.1_b_FRA, model_3.5.1_b_GER, model_3.5.1_b_ROM)
 
 # Hypothesis 21c:
 
@@ -1586,6 +1773,7 @@ model_3.5.1_c_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Po
 model_3.5.1_c_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_FRA, "Vulnerable"))
 model_3.5.1_c_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_GER, "Vulnerable"))
 model_3.5.1_c_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_21f(data_3_ROM, "Vulnerable"))
+rm(model_3.5.1_c_ESP, model_3.5.1_c_FRA, model_3.5.1_c_GER, model_3.5.1_c_ROM)
 
 # Hypothesis 21d:
 
@@ -1593,6 +1781,7 @@ model_3.5.1_d_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Po
 model_3.5.1_d_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_FRA, "Absolute_costs"))
 model_3.5.1_d_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_GER, "Absolute_costs"))
 model_3.5.1_d_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_ROM, "Absolute_costs"))
+rm(model_3.5.1_d_ESP, model_3.5.1_d_FRA, model_3.5.1_d_GER, model_3.5.1_d_ROM)
 
 # Hypothesis 21e:
 
@@ -1600,6 +1789,7 @@ model_3.5.1_e_ESP <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Po
 model_3.5.1_e_FRA <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_FRA, "Distribution_costs"))
 model_3.5.1_e_GER <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_GER, "Distribution_costs"))
 model_3.5.1_e_ROM <- feols(Support ~ value | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_21f(data_3_ROM, "Distribution_costs"))
+rm(model_3.5.1_e_ESP, model_3.5.1_e_FRA, model_3.5.1_e_GER, model_3.5.1_e_ROM)
 
 # Hypothesis 22:
 adjust_hypothesis_22 <- function(data_3_0){
@@ -1642,6 +1832,7 @@ model_3.5.2_ESP <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID 
 model_3.5.2_FRA <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_FRA))
 model_3.5.2_GER <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_GER))
 model_3.5.2_ROM <- feols(Q46 ~ Q41 + Q44 + Q45 + Dif_cost + Dif_Percentile | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3, data = adjust_hypothesis_22(data_3_ROM))
+rm(model_3.5.2_ESP, model_3.5.2_FRA, model_3.5.2_GER, model_3.5.2_ROM)
 
 # Hypothesis 23:
 
@@ -1668,6 +1859,7 @@ model_3.5.3_ESP <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post
 model_3.5.3_FRA <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_23(data_3_FRA))
 model_3.5.3_GER <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_23(data_3_GER))
 model_3.5.3_ROM <- feols(value ~ Post_P1 + Post_P2 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_23(data_3_ROM))
+rm(model_3.5.3_ESP, model_3.5.3_FRA, model_3.5.3_GER, model_3.5.3_ROM)
 
 # Hypothesis 24:
 
@@ -1687,6 +1879,7 @@ model_3.5.4_ESP <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjus
 model_3.5.4_FRA <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_24(data_3_FRA))
 model_3.5.4_GER <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_24(data_3_GER))
 model_3.5.4_ROM <- feols(value ~ Post_Gamma | ID + Period + Post_B, data = adjust_hypothesis_24(data_3_ROM))
+rm(model_3.5.4_ESP, model_3.5.4_FRA, model_3.5.4_GER, model_3.5.4_ROM)
 
 # Hypothesis 25:
 
@@ -1710,48 +1903,53 @@ model_3.5.5_ESP <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + P
 model_3.5.5_FRA <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_FRA))
 model_3.5.5_GER <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_GER))
 model_3.5.5_ROM <- feols(value ~ Post_B_C34 | ID + Period + Post_B + Post_C1 + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_ROM))
+rm(model_3.5.5_ESP, model_3.5.5_FRA, model_3.5.5_GER, model_3.5.5_ROM)
 
 # Hypothesis 26: 
 model_3.5.6_ESP <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_ESP))
 model_3.5.6_FRA <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_FRA))
 model_3.5.6_GER <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_GER))
 model_3.5.6_ROM <- feols(value ~ Post_C1 | ID + Period + Post_B + Post_C2 + Post_C3 + Post_C4, data = adjust_hypothesis_25(data_3_ROM))
+rm(model_3.5.6_ESP, model_3.5.6_FRA, model_3.5.6_GER, model_3.5.6_ROM)
 
 # Hypothesis 27
 model_3.5.7_ESP <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_ESP))
 model_3.5.7_FRA <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_FRA))
 model_3.5.7_GER <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_GER))
 model_3.5.7_ROM <- feols(value ~ Post_C3 | ID + Period + Post_B + Post_C2 + Post_C4 + Post_C5, data = adjust_hypothesis_25(data_3_ROM))
+rm(model_3.5.7_ESP, model_3.5.7_FRA, model_3.5.7_GER, model_3.5.7_ROM)
 
 # 3.6   Hypotheses 28 to 36 (Conjoint) ####
 
 data_3.6_ESP <- data_conjoint_ESP %>%
   left_join(select(data_3_ESP, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>% # Information about rural households are missing
-  mutate(Rank_weighted = ifelse(Rank == 1,1,
-                                ifelse(Rank == 2, 2/3,
-                                       ifelse(Rank == 3, 1/3,NA))))
+  mutate(Rank_weighted = ifelse(Preferred == 1,1,
+                                ifelse(Preferred_Second == 1, 2/3,
+                                       ifelse(Preferred_Least == 1, 1/3,NA))))
 data_3.6_FRA <- data_conjoint_FRA %>%
-  left_join(select(data_3_FRA, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
-  mutate(Rank_weighted = ifelse(Rank == 1,1,
-                                ifelse(Rank == 2, 2/3,
-                                       ifelse(Rank == 3, 1/3,NA))))
+  left_join(select(data_3_FRA, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile, Inclusion))%>%
+  filter(!is.na(Inclusion))%>%
+  mutate(Rank_weighted = ifelse(Preferred == 1,1,
+                                ifelse(Preferred_Second == 1, 2/3,
+                                       ifelse(Preferred_Least == 1, 1/3,NA))))
 data_3.6_GER <- data_conjoint_GER %>%
-  left_join(select(data_3_GER, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
-  mutate(Rank_weighted = ifelse(Rank == 1,1,
-                                ifelse(Rank == 2, 2/3,
-                                       ifelse(Rank == 3, 1/3,NA))))
+  left_join(select(data_3_GER, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile, Inclusion))%>%
+  filter(!is.na(Inclusion))%>%
+  mutate(Rank_weighted = ifelse(Preferred == 1,1,
+                                ifelse(Preferred_Second == 1, 2/3,
+                                       ifelse(Preferred_Least == 1, 1/3,NA))))
 data_3.6_ROM <- data_conjoint_ROM %>%
   left_join(select(data_3_ROM, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
-  mutate(Rank_weighted = ifelse(Rank == 1,1,
-                                ifelse(Rank == 2, 2/3,
-                                       ifelse(Rank == 3, 1/3,NA))))
+  mutate(Rank_weighted = ifelse(Preferred == 1,1,
+                                ifelse(Preferred_Second == 1, 2/3,
+                                       ifelse(Preferred_Least == 1, 1/3,NA))))
 
 # Hypothesis 28: A is preferred to B and B is preferred to C for all attributes
 
 # Definition of A, B, C TBD
 
 data_3.6.0_ESP <- data_3.6_ESP %>%
-  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  pivot_longer(c("budget_and_funding":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
   filter(!is.na(Levels))%>%
   group_by(Attributes, Levels)%>%
   summarise(mean = mean(Rank_weighted))%>%
@@ -1759,24 +1957,30 @@ data_3.6.0_ESP <- data_3.6_ESP %>%
   mutate(ACP = mean - 0.5)
 
 data_3.6.0_FRA <- data_3.6_FRA %>%
-  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  pivot_longer(c("budget_and_funding":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
   filter(!is.na(Levels))%>%
+  filter(!is.na(Choice))%>% # To be revisited - where do NAs come from?
   group_by(Attributes, Levels)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
-  mutate(ACP = mean - 0.5)
+  mutate(ACP = mean - 0.5)%>%
+  arrange(Attributes, Levels)
+
+# Level müssen hier und da noch synchronisiert werden.
 
 data_3.6.0_GER <- data_3.6_GER %>%
-  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  pivot_longer(c("budget_and_funding":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
   filter(!is.na(Levels))%>%
+  filter(!is.na(Choice_3))%>% # To be revisited - where do NAs come from?
   group_by(Attributes, Levels)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
 data_3.6.0_ROM <- data_3.6_ROM %>%
-  pivot_longer(c("budget_control":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
+  pivot_longer(c("budget_and_funding":"community_mobility_support"), names_to = "Attributes", values_to = "Levels")%>%
   filter(!is.na(Levels))%>%
+  filter(!is.na(Choice))%>% # To be revisited - where do NAs come from?
   group_by(Attributes, Levels)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
@@ -1798,6 +2002,7 @@ data_3.6.1_ESP <- data_3.6_ESP %>%
 data_3.6.1_FRA <- data_3.6_FRA %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
   filter(!is.na(lower))%>%
+  filter(!is.na(Rank_weighted))%>% # TBD - where do NAs come from?
   group_by(lower, budget_control)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
@@ -1809,6 +2014,7 @@ data_3.6.1_FRA <- data_3.6_FRA %>%
 data_3.6.1_GER <- data_3.6_GER %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
   filter(!is.na(lower))%>%
+  filter(!is.na(Rank_weighted))%>% # TBD - where do NAs come from?
   group_by(lower, budget_control)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
@@ -1840,6 +2046,7 @@ data_3.6.2_ESP <- data_3.6_ESP %>%
 
 data_3.6.2_FRA <- data_3.6_FRA %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(Q31_Gov_nat %in% c("Certainement pas", "Probablement pas"))%>%
   group_by(budget_control)%>%
   summarise(mean = mean(Rank_weighted))%>%
@@ -1848,6 +2055,7 @@ data_3.6.2_FRA <- data_3.6_FRA %>%
 
 data_3.6.2_GER <- data_3.6_GER %>%
   mutate(lower = ifelse(Q30_1N < 3,1,0))%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(Q31_Gov_nat %in% c("Definitiv nicht", "Vermutlich nicht"))%>%
   group_by(budget_control)%>%
   summarise(mean = mean(Rank_weighted))%>%
@@ -1876,6 +2084,7 @@ data_3.6.3_ESP <- data_3.6_ESP %>%
 data_3.6.3_FRA <- data_3.6_FRA %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(!is.na(information))%>%
   group_by(information)%>%
   summarise(mean = mean(Rank_weighted))%>%
@@ -1885,6 +2094,7 @@ data_3.6.3_FRA <- data_3.6_FRA %>%
 data_3.6.3_GER <- data_3.6_GER %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(!is.na(information))%>%
   group_by(information)%>%
   summarise(mean = mean(Rank_weighted))%>%
@@ -1910,25 +2120,27 @@ data_3.6.4a_ESP <- data_3.6_ESP %>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
-data_3.6.4b_FRA <- data_3.6_FRA %>%
+data_3.6.4a_FRA <- data_3.6_FRA %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(!is.na(infrastructure_ownership))%>%
   group_by(infrastructure_ownership)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
-data_3.6.4b_GER <- data_3.6_GER %>%
+data_3.6.4a_GER <- data_3.6_GER %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(!is.na(infrastructure_ownership))%>%
   group_by(infrastructure_ownership)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
   mutate(ACP = mean - 0.5)
 
-data_3.6.4b_ROM <- data_3.6_ROM %>%
+data_3.6.4a_ROM <- data_3.6_ROM %>%
   mutate(local = ifelse(Q30_1N > Q30_2N,1,0))%>%
   filter(local == 1)%>%
   filter(!is.na(infrastructure_ownership))%>%
@@ -1950,6 +2162,7 @@ data_3.6.4b_ESP <- data_3.6_ESP %>%
 data_3.6.4b_FRA <- data_3.6_FRA %>%
   mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
   filter(national == 1)%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(!is.na(infrastructure_ownership))%>%
   group_by(infrastructure_ownership)%>%
   summarise(mean = mean(Rank_weighted))%>%
@@ -1959,6 +2172,7 @@ data_3.6.4b_FRA <- data_3.6_FRA %>%
 data_3.6.4b_GER <- data_3.6_GER %>%
   mutate(national = ifelse(Q30_1N < Q30_2N,1,0))%>%
   filter(national == 1)%>%
+  filter(!is.na(Rank_weighted))%>% # TBD
   filter(!is.na(infrastructure_ownership))%>%
   group_by(infrastructure_ownership)%>%
   summarise(mean = mean(Rank_weighted))%>%
@@ -1992,6 +2206,7 @@ data_3.6.5_FRA <- data_3.6_FRA %>%
   mutate(Bad = ifelse(Q16 %in% c("Très mauvais", "Mauvais"),1,0))%>%
   filter(!is.na(Bad))%>%
   filter(!is.na(community_mobility_support))%>%
+  filter(!is.na(Rank_weighted))%>%#TBD
   group_by(Bad, community_mobility_support)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
@@ -2004,6 +2219,7 @@ data_3.6.5_GER <- data_3.6_GER %>%
   mutate(Bad = ifelse(Q16 %in% c("Sehr schlecht", "Schlecht"),1,0))%>%
   filter(!is.na(Bad))%>%
   filter(!is.na(community_mobility_support))%>%
+  filter(!is.na(Rank_weighted))%>%#TBD
   group_by(Bad, community_mobility_support)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
@@ -2030,6 +2246,7 @@ data_3.6.5_ROM <- data_3.6_ROM %>%
 # Hypothesis 36: The preferences of respondents having a higher carbon intensity of consumption are more strongly influenced by the attribute 'Support for households' than for other households.
 data_3.6.7_ESP <- data_3.6_ESP %>%
   mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  filter(!is.na(Rank_weighted))%>%#TBD
   group_by(Higher, household_support)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
@@ -2040,6 +2257,7 @@ data_3.6.7_ESP <- data_3.6_ESP %>%
 
 data_3.6.7_FRA <- data_3.6_FRA %>%
   mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  filter(!is.na(Rank_weighted))%>%#TBD
   group_by(Higher, household_support)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
@@ -2050,6 +2268,7 @@ data_3.6.7_FRA <- data_3.6_FRA %>%
 
 data_3.6.7_GER <- data_3.6_GER %>%
   mutate(Higher = ifelse(Quintile > 3,1,0))%>%
+  filter(!is.na(Rank_weighted))%>%#TBD
   group_by(Higher, household_support)%>%
   summarise(mean = mean(Rank_weighted))%>%
   ungroup()%>%
