@@ -845,7 +845,8 @@ data_conjoint_ROM <- extract_conjoint(data_1.4_ROM)%>%
                                                                                     "Repeal")))
 
 data_1.5_ESP <- data_1.4_ESP %>%
-  select(-starts_with("profile"))
+  select(-starts_with("profile"), - c(Q62:`QT11_Click Count`), -d1, -d2)%>%
+  select(-all_of(starts_with("QT")), -all_of(starts_with("Q139")), all_of(starts_with("Q139")), all_of(starts_with("QT")))
 data_1.5_FRA <- data_1.4_FRA %>%
   select(-starts_with("profile"), - c(Q62:`QT11_Click Count`), -d1, -d2)%>%
   select(-all_of(starts_with("QT")), -all_of(starts_with("Q139")), all_of(starts_with("Q139")), all_of(starts_with("QT")))
@@ -853,7 +854,8 @@ data_1.5_GER <- data_1.4_GER %>%
   select(-starts_with("profile"), - c(Q62:`QT11_Click Count`), -d1, -d2)%>%
   select(-all_of(starts_with("QT")), all_of(starts_with("QT")))
 data_1.5_ROM <- data_1.4_ROM %>%
-  select(-starts_with("profile"))
+  select(-starts_with("profile"), - c(Q62:`QT11_Click Count`), -d1, d2)%>%
+  select(-all_of(starts_with("QT")), -all_of(starts_with("Q139")), all_of(starts_with("Q139")), all_of(starts_with("QT")))
 
 rm(data_1.4_ESP, data_1.4_FRA, data_1.4_GER, data_1.4_ROM, median_costs, extract_conjoint)
 
@@ -1046,7 +1048,67 @@ print(P_2.1.3)
 print(P_2.1.1)
 dev.off()
 
-rm(data_2.1.1, data_2.1.1.1, data_2.1.1.2, P_2.1.1, P_2.1.2)
+# Figure 1
+
+data_2.1.1.3 <- data_2 %>%
+  filter(!is.na(Q46_1N))%>%
+  group_by(Q46_1N, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  group_by(Country)%>%
+  mutate(share_sum = cumsum(share))%>%
+  ungroup()%>%
+  # mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+  mutate(Q46_1N_label = case_when(Q46_1N == 1 ~ "Strongly\n oppose",
+                                  Q46_1N == 2 ~ "Rather\n oppose",
+                                  Q46_1N == 3 ~ "Neutral",
+                                  Q46_1N == 4 ~ "Rather\n support",
+                                  Q46_1N == 5 ~ "Strongly\n support"))%>%
+  mutate(Q46_1N_label = factor(Q46_1N_label, levels = c("Neutral", "Rather\n oppose", "Strongly\n oppose", "Rather\n support", "Strongly\n support")))%>%
+  mutate(Period = "t=0")%>%
+  mutate(share = ifelse(Q46_1N < 3, -share, share))%>%
+  mutate(share = ifelse(Q46_1N == 3, share/2, share))%>%
+  mutate(side = ifelse(Q46_1N == 3, "right", NA))
+
+data_2.1.1.4 <- data_2.1.1.3 %>%
+  bind_rows(mutate(mutate(filter(data_2.1.1.3, Q46_1N == 3), share = -share), side = "left"))%>%
+  arrange(Country, Q46_1N)
+
+P_2.1.4 <- ggplot(data_2.1.1.4, aes(x = share, y = fct_rev(Country), fill = fct_rev(Q46_1N_label)))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  geom_col(position = "stack", colour = "black", width = 0.75, linewidth = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(-0.76,0.76))+
+  scale_fill_manual(guide = guide_legend(title.position = "top"),
+                    values = c("#DC0000FF", "#E64B35FF", "#B09C85FF", "#91D1C2FF", "#00A087FF"),
+                    breaks = c("Strongly\n oppose", "Rather\n oppose", "Neutral", "Rather\n support", "Strongly\n support"))+
+  labs(fill = "Do you support or oppose the EU ETS2?")+
+  scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                     breaks = c(-0.75,-0.5,-0.25,0,0.25,0.5,0.75))+
+  xlab("Share of respondents")+
+  ylab("Country")+
+  # ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(hjust = 0.5, size = 8))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_1.pdf", width = 140/25.4, height = 90/25.4)
+print(P_2.1.4)
+dev.off()
+
+rm(data_2.1.1, data_2.1.1.1, data_2.1.1.2, P_2.1.1, P_2.1.2, data_2.1.1.3, data_2.1.1.4, P_2.1.4)
 
 # 2.1.2 Effectiveness ####
 
@@ -1115,7 +1177,58 @@ jpeg("../5_Analysis/1_Descriptive/Figure_D2.jpg", width = 12, height = 12, unit 
 print(P_2.1.2)
 dev.off()
 
-rm(data_2.1.2, data_2.1.2.1, data_2.1.2.2, P_2.1.2)
+data_2.1.2.3 <- data_2 %>%
+  filter(!is.na(Q41_1N))%>%
+  group_by(Q41_1N, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  group_by(Country)%>%
+  mutate(share_sum = cumsum(share))%>%
+  ungroup()%>%
+  # mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+  mutate(Q41_1N_label = case_when(Q41_1N == 1 ~ "Definetly not",
+                                  Q41_1N == 2 ~ "Probably not",
+                                  Q41_1N == 3 ~ "Probably yes",
+                                  Q41_1N == 4 ~ "Definetly yes",
+                                  is.na(Q41_1N) ~ "Don't know"))%>%
+  mutate(Q41_1N_label = factor(Q41_1N_label, levels = c("Probably not", "Definetly not", "Probably yes", "Definetly yes")))%>%
+  mutate(share = ifelse(Q41_1N < 3, -share, share))
+
+P_2.1.2A <- ggplot(data_2.1.2.3, aes(x = share, y = fct_rev(Country), fill = fct_rev(Q41_1N_label)))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  geom_col(position = "stack", colour = "black", width = 0.75, linewidth = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(-0.76,0.76))+
+  scale_fill_manual(guide = guide_legend(title.position = "top"),
+                    values = c("#DC0000FF", "#E64B35FF", "#91D1C2FF", "#00A087FF"),
+                    breaks = c("Definetly not", "Probably not", "Probably yes", "Definetly yes"))+
+  labs(fill = "Do you think that this policy will contribute to \neffectively reducing greenhouse gas emissions?")+
+  scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                     breaks = c(-0.75,-0.5,-0.25,0,0.25,0.5,0.75))+
+  xlab("Share of respondents")+
+  ylab("Country")+
+  # ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(hjust = 0.5, size = 8))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_A1.pdf", width = 140/25.4, height = 90/25.4)
+print(P_2.1.2A)
+dev.off()
+
+rm(data_2.1.2, data_2.1.2.1, data_2.1.2.2, P_2.1.2, P_2.1.2A, data_2.1.2.3)
 
 # 2.1.3 Expected costs ####
 
@@ -1194,7 +1307,70 @@ jpeg("../5_Analysis/1_Descriptive/Figure_D3.jpg", width = 12, height = 12, unit 
 print(P_2.1.3)
 dev.off()
 
-rm(data_2.1.3, data_2.1.3.1, data_2.1.3.2, P_2.1.3)
+data_2.1.3.3 <- data_2 %>%
+  filter(!is.na(Dif_cost_1))%>%
+  mutate(Cost_estimation = ifelse(is.na(Dif_cost_1), "Don't know", 
+                                  ifelse(Dif_cost_1 < -3, "Strongly\nunderestimated",
+                                         ifelse(Dif_cost_1 < 0, "Under-\nestimated", 
+                                                ifelse(Dif_cost_1 == 0, "Estimated\ncorrectly",
+                                                       ifelse(Dif_cost_1 > 0 & Dif_cost_1 < 4, "Over-\nestimated",
+                                                              ifelse(Dif_cost_1 >= 4, "Strongly\noverestimated", NA)))))))%>%
+  mutate(Cost_estimation = factor(Cost_estimation, levels = c("Estimated\ncorrectly", "Under-\nestimated", "Strongly\nunderestimated", "Over-\nestimated", "Strongly\noverestimated", "Don't know")))%>%
+  group_by(Cost_estimation, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  group_by(Country)%>%
+  mutate(share_sum = cumsum(share))%>%
+  ungroup()%>%
+  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+  # bind_rows(data.frame(Country = factor("France", levels = levels(.$Country)),
+  #                      Cost_estimation = factor("Strongly\n underestimated", levels = levels(.$Cost_estimation)),
+  #                      share_sum = 0, label_0 = "0%"))%>%
+  # filter(Cost_estimation != "Don't know")%>%
+  mutate(Period = "t=0")%>%
+  mutate(share = ifelse(Cost_estimation %in% c("Under-\nestimated", "Strongly\nunderestimated") , -share, share))%>%
+  mutate(share = ifelse(Cost_estimation == "Estimated\ncorrectly", share/2, share))%>%
+  mutate(side = ifelse(Cost_estimation == "Estimated\ncorrectly", "right", NA))
+
+data_2.1.3.4 <- data_2.1.3.3 %>%
+  bind_rows(mutate(mutate(filter(data_2.1.3.3, Cost_estimation == "Estimated\ncorrectly"), share = -share), side = "left"))%>%
+  arrange(Country, Cost_estimation)
+
+P_2.1.3A <- ggplot(data_2.1.3.4, aes(x = share, y = fct_rev(Country), fill = fct_rev(Cost_estimation)))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  geom_col(position = "stack", colour = "black", width = 0.75, linewidth = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(-0.8,0.8))+
+  scale_fill_manual(guide = guide_legend(title.position = "top"),
+                    values = c("#DC0000FF", "#E64B35FF", "#B09C85FF", "#91D1C2FF", "#00A087FF"),
+                    breaks = c("Strongly\nunderestimated", "Under-\nestimated", "Estimated\ncorrectly", "Over-\nestimated", "Strongly\noverestimated"))+
+  labs(fill = "By how much do you think will your annual expenditures increase because of this policy?")+
+  scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                     breaks = c(-0.75,-0.5,-0.25,0,0.25,0.5,0.75))+
+  xlab("Share of respondents")+
+  ylab("Country")+
+  # ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(hjust = 0.5, size = 8))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_A2.pdf", width = 140/25.4, height = 90/25.4)
+print(P_2.1.3A)
+dev.off()
+
+rm(data_2.1.3, data_2.1.3.1, data_2.1.3.2, P_2.1.3, P_2.1.3A, data_2.1.3.3, data_2.1.3.4)
 
 # 2.1.4 Relative loss ####
 
@@ -1266,7 +1442,66 @@ jpeg("../5_Analysis/1_Descriptive/Figure_D4.jpg", width = 12, height = 12, unit 
 print(P_2.1.4)
 dev.off()
 
-rm(data_2.1.4, data_2.1.4.1, data_2.1.4.2, P_2.1.4)
+data_2.1.4.3 <- data_2 %>%
+  filter(!is.na(Q43_1N))%>%
+  group_by(Q43_1N, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  group_by(Country)%>%
+  mutate(share_sum = cumsum(share))%>%
+  ungroup()%>%
+  # mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+  mutate(Q43_1N_label = case_when(Q43_1N == 1 ~ "Much\nhigher",
+                                  Q43_1N == 2 ~ "Somewhat\nhigher",
+                                  Q43_1N == 3 ~ "Similar",
+                                  Q43_1N == 4 ~ "Somewhat\nlower",
+                                  Q43_1N == 5 ~ "Much\nlower",
+                                  is.na(Q43_1N) ~ "Don't know"))%>%
+  mutate(Q43_1N_label = factor(Q43_1N_label, levels = c("Similar", "Somewhat\nhigher", "Much\nhigher", "Somewhat\nlower", "Much\nlower")))%>%
+  mutate(Period = "t=0")%>%
+  mutate(share = ifelse(Q43_1N < 3, -share, share))%>%
+  mutate(share = ifelse(Q43_1N == 3, share/2, share))%>%
+  mutate(side = ifelse(Q43_1N == 3, "right", NA))
+
+data_2.1.4.4 <- data_2.1.4.3 %>%
+  bind_rows(mutate(mutate(filter(data_2.1.4.3, Q43_1N == 3), share = -share), side = "left"))%>%
+  arrange(Country, Q43_1N)
+
+P_2.1.4A <- ggplot(data_2.1.4.4, aes(x = share, y = fct_rev(Country), fill = fct_rev(Q43_1N_label)))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  geom_col(position = "stack", colour = "black", width = 0.75, linewidth = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(-0.76,0.76))+
+  scale_fill_manual(guide = guide_legend(title.position = "top"),
+                    values = c("#DC0000FF", "#E64B35FF", "#B09C85FF", "#91D1C2FF", "#00A087FF"),
+                    breaks = c("Much\nhigher", "Somewhat\nhigher", "Similar", "Somewhat\nlower", "Much\nlower"))+
+  labs(fill = "How high will the costs of this policy be for you compared to an average household?")+
+  scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                     breaks = c(-0.75,-0.5,-0.25,0,0.25,0.5,0.75))+
+  xlab("Share of respondents")+
+  ylab("Country")+
+  # ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(hjust = 0.5, size = 8))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_A3.pdf", width = 140/25.4, height = 90/25.4)
+print(P_2.1.4A)
+dev.off()
+
+rm(data_2.1.4, data_2.1.4.1, data_2.1.4.2, P_2.1.4, data_2.1.4.3, data_2.1.4.4, P_2.1.4A)
 
 # 2.1.5 Vulnerable ####
 
@@ -1333,7 +1568,64 @@ jpeg("../5_Analysis/1_Descriptive/Figure_D5.jpg", width = 12, height = 12, unit 
 print(P_2.1.5)
 dev.off()
 
-rm(data_2.1.5, data_2.1.5.1, data_2.1.5.2, P_2.1.5)
+data_2.1.5.3 <- data_2 %>%
+  filter(!is.na(Q44_1N))%>%
+  group_by(Q44_1N, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  group_by(Country)%>%
+  mutate(share_sum = cumsum(share))%>%
+  ungroup()%>%
+  # mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+  mutate(Q44_1N_label = case_when(Q44_1N == 1 ~ "Rather hurt",
+                                  Q44_1N == 2 ~ "Neither hurt nor help",
+                                  Q44_1N == 3 ~ "Rather help",
+                                  is.na(Q44_1N) ~ "Don't know"))%>%
+  mutate(Q44_1N_label = factor(Q44_1N_label, levels = c("Neither hurt nor help", "Rather hurt", "Rather help")))%>%
+  mutate(Period = "t=0")%>%
+  mutate(share = ifelse(Q44_1N < 2, -share, share))%>%
+  mutate(share = ifelse(Q44_1N == 2, share/2, share))%>%
+  mutate(side = ifelse(Q44_1N == 2, "right", NA))
+
+data_2.1.5.4 <- data_2.1.5.3 %>%
+  bind_rows(mutate(mutate(filter(data_2.1.5.3, Q44_1N == 2), share = -share), side = "left"))%>%
+  arrange(Country, Q44_1N)
+
+P_2.1.5A <- ggplot(data_2.1.5.4, aes(x = share, y = fct_rev(Country), fill = fct_rev(Q44_1N_label)))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  geom_col(position = "stack", colour = "black", width = 0.75, linewidth = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(-0.80,0.80))+
+  scale_fill_manual(guide = guide_legend(title.position = "top"),
+                    values = c("#DC0000FF", "#B09C85FF", "#00A087FF"),
+                    breaks = c("Rather hurt", "Neither hurt nor help", "Rather help"))+
+  labs(fill = "Do you think this policy will help or hurt the most vulnerable households?")+
+  scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                     breaks = c(-0.75,-0.5,-0.25,0,0.25,0.5,0.75))+
+  xlab("Share of respondents")+
+  ylab("Country")+
+  # ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(hjust = 0.5, size = 8))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_A4.pdf", width = 140/25.4, height = 90/25.4)
+print(P_2.1.5A)
+dev.off()
+
+rm(data_2.1.5, data_2.1.5.1, data_2.1.5.2, P_2.1.5, P_2.1.5A, data_2.1.5.3, data_2.1.5.4)
 
 # 2.1.6 Fairness ####
 
@@ -1400,7 +1692,64 @@ jpeg("../5_Analysis/1_Descriptive/Figure_D6.jpg", width = 12, height = 12, unit 
 print(P_2.1.6)
 dev.off()
 
-rm(data_2.1.6, data_2.1.6.1, data_2.1.6.2, P_2.1.6)
+data_2.1.6.3 <- data_2 %>%
+  filter(!is.na(Q45_1N))%>%
+  group_by(Q45_1N, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  group_by(Country)%>%
+  mutate(share_sum = cumsum(share))%>%
+  ungroup()%>%
+  # mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+  mutate(Q45_1N_label = case_when(Q45_1N == 1      ~ "Unfair",
+                                  Q45_1N == 2      ~ "Neither fair nor unfair",
+                                  Q45_1N == 3      ~ "Fair",
+                                  is.na(Q45_1N)    ~ "Don't know"))%>%
+  mutate(Q45_1N_label = factor(Q45_1N_label, levels = c("Neither fair nor unfair", "Unfair", "Fair")))%>%
+  mutate(Period = "t=0")%>%
+  mutate(share = ifelse(Q45_1N < 2, -share, share))%>%
+  mutate(share = ifelse(Q45_1N == 2, share/2, share))%>%
+  mutate(side = ifelse(Q45_1N == 2, "right", NA))
+
+data_2.1.6.4 <- data_2.1.6.3 %>%
+  bind_rows(mutate(mutate(filter(data_2.1.6.3, Q45_1N == 2), share = -share), side = "left"))%>%
+  arrange(Country, Q45_1N)
+
+P_2.1.6A <- ggplot(data_2.1.6.4, aes(x = share, y = fct_rev(Country), fill = fct_rev(Q45_1N_label)))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  geom_col(position = "stack", colour = "black", width = 0.75, linewidth = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(-0.75,0.75))+
+  scale_fill_manual(guide = guide_legend(title.position = "top"),
+                    values = c("#DC0000FF", "#B09C85FF", "#00A087FF"),
+                    breaks = c("Unfair", "Neither fair nor unfair", "Fair"))+
+  labs(fill = "Do you find this policy fair?")+
+  scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                     breaks = c(-0.75,-0.5,-0.25,0,0.25,0.5,0.75))+
+  xlab("Share of respondents")+
+  ylab("Country")+
+  # ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(hjust = 0.5, size = 8))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_A5.pdf", width = 140/25.4, height = 90/25.4)
+print(P_2.1.6A)
+dev.off()
+
+rm(data_2.1.6, data_2.1.6.1, data_2.1.6.2, P_2.1.6, data_2.1.6.3, data_2.1.6.4, P_2.1.6A)
 
 # 2.2   Baseline correlation between policy support and institutional trust ####
 
