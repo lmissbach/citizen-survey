@@ -20,10 +20,10 @@ options(scipen=999)
 # data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20250826_Pilot/Romanian/Romanian_26. August 2025_04.18.csv")
 
 # Survey data
-data_0_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Spanish_19.+März+2026_12.19.csv")
+data_0_ESP <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/Spanish/Spanish_5.+Mai+2026_15.02.csv")
 data_0_FRA <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/French/French_9.+März+2026_09.31.csv")
 data_0_GER <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/German/German_9.+März+2026_09.31.csv")
-data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20260107_Pre_Final/Romanian_19.+März+2026_12.19.csv")
+data_0_ROM <- read_csv("../2_Data/0_Qualtrics_Output/20260309_Final/Romanian/Romanian_5.+Mai+2026_15.02.csv")
 
 com_0_ESP <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Spain_251117.parquet")
 com_0_FRA <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_France_251117.parquet")
@@ -67,9 +67,9 @@ data_1.1.2_ESP <- data_1_ESP %>%
 
 # Institutional trust values
 data_1.1_ESP <- data_1_ESP %>%
-  select(Country, ID, Q31_1:Q34_3)%>%
-  pivot_longer(Q31_1:Q34_3, names_to = "Variable", values_to = "Value_raw")%>%
-  filter(!is.na(Value_raw))%>% # TBA
+  select(Country, ID, Q31_1:Q31_3)%>%
+  pivot_longer(Q31_1:Q31_3, names_to = "Variable", values_to = "Value_raw")%>%
+  # filter(!is.na(Value_raw))%>% # TBA
   mutate(Label = ifelse(str_detect(Value_raw, "1"),"1",
                         ifelse(str_detect(Value_raw, "2"), "2",
                                ifelse(str_detect(Value_raw, "3"), "3",
@@ -87,9 +87,9 @@ data_1.1_ESP <- data_1_ESP %>%
   pivot_wider(names_from = "Column", values_from = "Value")
 
 data_1.2_ESP <- data_1_ESP %>%
-  select(-(Q31_1:Q34_3), -(Institution1:Label5))%>%
+  select(-(Q31_1:Q31_3), -(Institution1:Label5))%>%
   left_join(data_1.1_ESP)%>%
-  select(Country:Q30_3, starts_with("Q31"), starts_with("Q32"), starts_with("Q33"), starts_with("Q34"), everything())
+  select(Country:Q30_3, starts_with("Q31"), everything())
 
 # Cost range
 data_1.2.1_ESP <- data_1.2_ESP %>%
@@ -139,12 +139,13 @@ data_1.3_ESP <- data_1.2_ESP %>%
 
 com_1_ESP <- com_0_ESP %>%
   rename(Q20 = "heating_fuel", Q21 = "tenant", Q29A = "water_energy", Q27 = "urban_identif",
-         Q11 = "gender", Q28 = "hh_expenditures")%>%
+         Q28 = "hh_expenditures")%>%
   mutate_at(vars(Q20:age_hhh), ~ as.character(.))
 
 data_1.4_ESP <- data_1.3_ESP %>%
   mutate(age_hhh = ifelse(Q10 == "Más de 63 años", "más de 63 años",
                           ifelse(Q10 %in% c("Entre 45 y 54 años", "Entre 55 y 63 años"), "47 a 62 años", "hasta 46 años")),
+         gender = ifelse(Q11 == "Otros", "Mujer", Q11),
          occupation = ifelse(Q13 %in% c("Inactivo (no en búsqueda de trabajo)"), "Dedicado/a a las labores del hogar",
                              ifelse(Q13 %in% c("Jubilado"), "Jubilado/a, retirado/a anticipadamente",
                                     ifelse(Q13 %in% c("Estudiante"), "Otra situación",
@@ -168,6 +169,21 @@ data_1.4_ESP <- data_1.3_ESP %>%
   select(-(absolute:relative_165), -(age_hhh:district))%>%
   left_join(median_costs)%>%
   mutate(above_median = ifelse((absolute_value > median_45 & Pricelevel == "45") | (absolute_value > median_85 & Pricelevel == "85") | (absolute_value > median_125 & Pricelevel == "125"),1,0))
+
+# Edit single columns or filter
+data_1.4_ESP <- data_1.4_ESP %>%
+  # Time in seconds - slowest 2% and fastest 5%
+  mutate(time = as.numeric(time))%>%
+  mutate(filter_1a = ifelse(time <= quantile(time, probs = 0.05, na.rm = TRUE),1,0),
+         filter_1b = ifelse(time >= quantile(time, probs = 0.98, na.rm = TRUE),1,0))%>%
+  # NA in every Q41_1 to Q46_1
+  mutate(filter_2a = ifelse(is.na(Q41_1) & is.na(Q42_1) & is.na(Q43_1) & is.na(Q44_1) & is.na(Q45_1) & is.na(Q46_1),1,0),
+  # NA in every Q41_2 to Q46_2       
+         filter_2b = ifelse(is.na(Q41_2) & is.na(Q42_2) & is.na(Q43_2) & is.na(Q44_2) & is.na(Q45_2) & is.na(Q46_2),1,0),
+  # NA in every Q62 to Q68
+         filter_2c = ifelse(is.na(Q62) & is.na(Q63) & is.na(Q64) & is.na(Q65) & is.na(Q66) & is.na(Q67) & is.na(Q68),1,0))%>%
+  # NA in every C1_1, C1_2, C1_3, C1_4
+  mutate(filter_3a = ifelse(is.na(C1_1) & is.na(C2_1) & is.na(C3_1) & is.na(C4_1),1,0))
 
 rm(data_1_ESP, data_1.1_ESP, data_1.1.1_ESP, data_1.1.2_ESP, data_1.2_ESP, data_1.2.1_ESP, data_1.3_ESP, data_0_ESP, com_1_ESP, com_0_ESP)
 
@@ -490,9 +506,10 @@ data_1.1.2_ROM <- data_1_ROM %>%
 
 # Institutional trust values
 data_1.1_ROM <- data_1_ROM %>%
-  select(Country, ID, Q31_1:Q34_3)%>%
-  pivot_longer(Q31_1:Q34_3, names_to = "Variable", values_to = "Value_raw")%>%
-  filter(!is.na(Value_raw))%>%
+  select(Country, ID, Q31_1:Q31_3)%>%
+  pivot_longer(Q31_1:Q31_3, names_to = "Variable", values_to = "Value_raw")%>%
+  # filter(!is.na(Value_raw))%>%
+  # Decision: NAs == 5 "I don't know"
   mutate(Label = ifelse(str_detect(Value_raw, "1"),"1",
                         ifelse(str_detect(Value_raw, "2"), "2",
                                ifelse(str_detect(Value_raw, "3"), "3",
@@ -510,9 +527,9 @@ data_1.1_ROM <- data_1_ROM %>%
   pivot_wider(names_from = "Column", values_from = "Value")
 
 data_1.2_ROM <- data_1_ROM %>%
-  select(-(Q31_1:Q34_3), -(Institution1:Label5))%>%
+  select(-(Q31_1:Q31_3), -(Institution1:Label5))%>%
   left_join(data_1.1_ROM)%>%
-  select(Country:Q30_3, starts_with("Q31"), starts_with("Q32"), starts_with("Q33"), starts_with("Q34"), everything())
+  select(Country:Q30_3, starts_with("Q31"), everything())
 
 # Cost range
 data_1.2.1_ROM <- data_1.2_ROM %>%
@@ -599,11 +616,25 @@ data_1.4_ROM <- data_1.3_ROM %>%
          relative_value = ifelse(Priceleveleuro == "45", as.character(relative_45),
                                  ifelse(Priceleveleuro == "85", as.character(relative_85),
                                         ifelse(Priceleveleuro == "125", as.character(relative_125), NA))))%>%
-  mutate(absolute_value = as.numeric(str_replace_all(absolute_value, "[€,]", "")),
+  mutate(absolute_value = as.numeric(str_replace_all(absolute_value, "[de lei,]", "")),
          relative_value = as.numeric(str_replace_all(relative_value, "%",""))/100)%>%
   select(-(absolute:relative_165))%>%
   left_join(median_costs)%>%
   mutate(above_median = ifelse((absolute_value > median_45 & Priceleveleuro == "45") | (absolute_value > median_85 & Priceleveleuro == "85") | (absolute_value > median_125 & Priceleveleuro == "125"),1,0))
+
+data_1.4_ROM <- data_1.4_ROM %>%
+  # Time in seconds - slowest 2% and fastest 5%
+  mutate(time = as.numeric(time))%>%
+  mutate(filter_1a = ifelse(time <= quantile(time, probs = 0.05, na.rm = TRUE),1,0),
+         filter_1b = ifelse(time >= quantile(time, probs = 0.98, na.rm = TRUE),1,0))%>%
+  # NA in every Q41_1 to Q46_1
+  mutate(filter_2a = ifelse(is.na(Q41_1) & is.na(Q42_1) & is.na(Q43_1) & is.na(Q44_1) & is.na(Q45_1) & is.na(Q46_1),1,0),
+         # NA in every Q41_2 to Q46_2
+         filter_2b = ifelse(is.na(Q41_2) & is.na(Q42_2) & is.na(Q43_2) & is.na(Q44_2) & is.na(Q45_2) & is.na(Q46_2),1,0),
+         # NA in every Q62 to Q68
+         filter_2c = ifelse(is.na(Q62) & is.na(Q63) & is.na(Q64) & is.na(Q65) & is.na(Q66) & is.na(Q67) & is.na(Q68),1,0))%>%
+  # NA in every C1_1, C1_2, C1_3, C1_4
+  mutate(filter_3a = ifelse(is.na(C1_1) & is.na(C2_1) & is.na(C3_1) & is.na(C4_1),1,0))
 
 rm(data_1_ROM, data_1.1_ROM, data_1.1.1_ROM, data_1.1.2_ROM, data_1.2_ROM, data_1.2.1_ROM, data_1.3_ROM, data_0_ROM, com_1_ROM, com_0_ROM)
 
@@ -692,7 +723,36 @@ extract_conjoint <- function(data_1.4.0){
   return(data_1.5)
 }
 
-data_conjoint_ESP <- extract_conjoint(data_1.4_ESP)
+data_conjoint_ESP <- extract_conjoint(data_1.4_ESP)%>%
+  mutate_at(vars(budget_and_funding:community_mobility_support), ~ str_trim(.))%>%
+  mutate(budget_and_funding = factor(budget_and_funding, levels = c("Los ingresos de la política de tarificación del carbono, pero sin presupuesto adicional",
+                                                                    "Un presupuesto mayor (para apoyar a las personas de una forma más amplia) financiado mediante endeudamiento",
+                                                                    "Un presupuesto mayor (para apoyar a las personas de una forma más amplia) financiado por un impuesto sobre la riqueza al 10% de la población más rica",
+                                                                    "Repeal")),
+         budget_control = factor(budget_control, levels = c("El gobierno, como ocurre con cualquier otro ingreso público",
+                                                            "Un fondo protegido que garantice que el gobierno invierta en la transición durante las próximas dos décadas",
+                                                            "Un fondo protegido que garantice que el gobierno invierta en la transición durante las próximas dos décadas, con ciudadanos en el consejo para decidir cómo se utiliza el dinero",
+                                                            "Repeal")),
+         household_support = factor(household_support, levels = c("El 15% de los costes adicionales",
+                                                                  "El 50% de los costes adicionales",
+                                                                  "El 90% de los costes adicionales",
+                                                                  "Repeal")),
+         information = factor(information, levels = c("A través de las páginas web gubernamentales",
+                                                      "A través de un centro climático local, donde un asesor pueda orientarle",
+                                                      "Repeal")),
+         infrastructure_ownership = factor(infrastructure_ownership, levels = c("Cualquier empresa dispuesta a invertir",
+                                                                                "Preferentemente proyectos energéticos en los que participen residentes locales como copropietarios",
+                                                                                "Empresas públicas que reinvierten sus beneficios en la transición",
+                                                                                "Repeal")),
+         worker_support = factor(worker_support, levels = c("La asistencia social existente (seguro de desempleo y servicios de formación y empleo)",
+                                                            "Curso de formación totalmente financiado durante un máximo de 1 año",
+                                                            "Curso de formación totalmente financiado durante un máximo de 1 año y un salario garantizado durante 3 años",
+                                                            "Repeal")),
+         community_mobility_support = factor(community_mobility_support, levels = c("Mantener la calidad del transporte público existente",
+                                                                                    "Mayor inversión en transporte público limpio, frecuente y asequible en todas las comunidades",
+                                                                                    "Mayor inversión en transporte público limpio, frecuente y asequible en todas las comunidades, así como en trenes rápidos interurbanos",
+                                                                                    "Repeal")))
+
 data_conjoint_FRA <- extract_conjoint(data_1.4_FRA)%>%
   mutate_at(vars(budget_and_funding:community_mobility_support), ~ str_trim(.))%>%
   mutate(household_support = str_replace_all(household_support, "\u00a0", " "))%>%
@@ -752,7 +812,36 @@ data_conjoint_GER <- extract_conjoint(data_1.4_GER)%>%
                                                                                      "Verstärkte Investitionen in einen nachhaltigen, häufig verkehrenden und erschwinglichen ÖPNV in  jeder Gemeinde",
                                                                                      "Verstärkte Investitionen in einen nachhaltigen, häufig verkehrenden und erschwinglichen ÖPNV in  jeder Gemeinde und in schnelle Intercity-Zugverbindungen",
                                                                                      "Repeal")))
-data_conjoint_ROM <- extract_conjoint(data_1.4_ROM)
+data_conjoint_ROM <- extract_conjoint(data_1.4_ROM)%>%
+  mutate_at(vars(budget_and_funding:community_mobility_support), ~ str_trim(.))%>%
+  mutate_at(vars(budget_and_funding:community_mobility_support), ~ stri_trans_general(., "Latin-ASCII"))%>%
+  mutate(budget_and_funding = factor(budget_and_funding, levels = c("Veniturile generate de politica de stabilire a pretului carbonului, fara niciun buget suplimentar",
+                                                                    "Un buget mai mare (pentru a sprijini mai multe persoane), finantat prin imprumuturi",
+                                                                    "Un buget mai mare (pentru a sprijini mai multe persoane), finantat printr-un impozit pe averea celor mai bogati 10% din populatie",
+                                                                    "Repeal")),
+         budget_control = factor(budget_control, levels = c("Guvernul, ca pe orice alte venituri publice",
+                                                            "Un fond protejat, care garanteaza ca guvernul va cheltui banii pentru tranzitie in urmatoarele doua decenii",
+                                                            "Un fond protejat, care garanteaza ca guvernul va cheltui banii pentru tranzitie in urmatoarele doua decenii, si care va avea in consiliul de conducere cetateni care vor decide modul in care vor fi utilizati acesti bani",
+                                                            "Repeal")),
+         household_support = factor(household_support, levels = c("15% din costurile suplimentare",
+                                                                  "50% din costurile suplimentare",
+                                                                  "90% din costurile suplimentare",
+                                                                  "Repeal")),
+         information = factor(information, levels = c("De pe site-urile guvernamentale",
+                                                      "Un centru local de informare, unde un consilier va poate indruma",
+                                                      "Repeal")),
+         infrastructure_ownership = factor(infrastructure_ownership, levels = c("Orice companie dispusa sa investeasca",
+                                                                                "Proiect energetic preferential, detinut in comun de catre locuitorii din zona",
+                                                                                "Companiile de stat care reinvestesc profiturile in tranzitie",
+                                                                                "Repeal")),
+         worker_support = factor(worker_support, levels = c("Asistenta sociala existenta (asigurarea de somaj si servicii de formare profesionala si ocupare a fortei de munca)",
+                                                            "Curs de formare profesionala finantat integral, cu durata de pana la 1 an",
+                                                            "Curs de formare profesionala finantat integral, cu durata de pana la 1 an, si salariu garantat pe o perioada de 3 ani",
+                                                            "Repeal")),
+         community_mobility_support = factor(community_mobility_support, levels = c("Mentinerea calitatii transportului public existent",
+                                                                                    "Cresterea investitiilor in transportul public curat, frecvent si accesibil in fiecare comunitate",
+                                                                                    "Cresterea investitiilor in transportul public curat, frecvent si accesibil in fiecare comunitate si in transportul feroviar interurban rapid",
+                                                                                    "Repeal")))
 
 data_1.5_ESP <- data_1.4_ESP %>%
   select(-starts_with("profile"))
@@ -827,6 +916,12 @@ rm(data_1.5_ESP, data_1.5_GER, data_1.5_FRA, data_1.5_ROM, create_outcomes)
 
 # Wrong second attention check
 
+data_1.6_ESP <- data_1.6_ESP %>%
+  filter(Q60A == "Energía")%>%
+  filter(filter_1a == 0 & filter_1b == 0)%>%
+  filter(filter_2a == 0 | filter_2b == 0)%>%
+  mutate(Inclusion = 1)
+
 data_1.6_FRA <- data_1.6_FRA %>%
   filter(Q60A == "Énergie")%>%
   filter(filter_1a == 0 & filter_1b == 0)%>%
@@ -839,11 +934,17 @@ data_1.6_GER <- data_1.6_GER %>%
   filter(filter_2a == 0 | filter_2b == 0)%>%
   mutate(Inclusion = 1)
 
+data_1.6_ROM <- data_1.6_ROM %>%
+  filter(Q60A == "Energie")%>%
+  filter(filter_1a == 0 & filter_1b == 0)%>%
+  filter(filter_2a == 0 | filter_2b == 0)%>%
+  mutate(Inclusion = 1)
+
 # 2     DESCRIPTIVE STATISTICS ####
 
-data_2 <- bind_rows(data_1.6_FRA, data_1.6_GER)# %>%
-  # bind_rows(data_2_ROM)%>%
-  # bind_rows(data_2_ESP)
+data_2 <- bind_rows(data_1.6_FRA, data_1.6_GER)%>%
+  bind_rows(data_1.6_ROM)%>%
+  bind_rows(data_1.6_ESP)
 
 # 2.1   Baseline outcome distribution ####
 # 2.1.1 Overall Policy Support ####
@@ -924,9 +1025,24 @@ P_2.1.2 <- ggplot(data_2.1.1, aes(x = Q46_1N_label, y = Period))+
        axis.text.y = element_text(size = 8),
        axis.title  = element_text(size = 8))
 
+P_2.1.3 <- ggplot(filter(data_2.1.1, Period == "t=0"), aes(y = Country))+
+  theme_bw()+
+  geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_1N_label)), colour = "black", width = 0.75)+
+  scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
+  labs(fill = "Do you support or oppose this policy?")+
+  scale_x_continuous(labels = scales::percent_format())+
+  xlab("Share of respondents")+
+  ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid  = element_blank(),
+        axis.text.x = element_text(size = 7),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 8),
+        legend.position = "bottom")
+
 jpeg("../5_Analysis/1_Descriptive/Figure_D1_%d.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_2.1.1)
 print(P_2.1.2)
+print(P_2.1.3)
+print(P_2.1.1)
 dev.off()
 
 rm(data_2.1.1, data_2.1.1.1, data_2.1.1.2, P_2.1.1, P_2.1.2)
@@ -1927,14 +2043,14 @@ data_3.6_ESP <- data_conjoint_ESP %>%
                                 ifelse(Preferred_Second == 1, 2/3,
                                        ifelse(Preferred_Least == 1, 1/3,NA))))
 data_3.6_FRA <- data_conjoint_FRA %>%
-  left_join(select(data_3_FRA, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile, Inclusion))%>%
-  filter(!is.na(Inclusion))%>%
+  left_join(select(data_3_FRA, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
+  #filter(!is.na(Inclusion))%>%
   mutate(Rank_weighted = ifelse(Preferred == 1,1,
                                 ifelse(Preferred_Second == 1, 2/3,
                                        ifelse(Preferred_Least == 1, 1/3,NA))))
 data_3.6_GER <- data_conjoint_GER %>%
-  left_join(select(data_3_GER, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile, Inclusion))%>%
-  filter(!is.na(Inclusion))%>%
+  left_join(select(data_3_GER, ID, Q30_1N, Q30_2N, Q31_Gov_nat, Q31_Gov_loc, Q16, Q14, Quintile))%>%
+  #filter(!is.na(Inclusion))%>%
   mutate(Rank_weighted = ifelse(Preferred == 1,1,
                                 ifelse(Preferred_Second == 1, 2/3,
                                        ifelse(Preferred_Least == 1, 1/3,NA))))
