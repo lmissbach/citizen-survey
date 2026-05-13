@@ -30,6 +30,7 @@ com_0_FRA <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_F
 com_0_GER <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Germany_251117.parquet")
 com_0_ROM <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_Romania_251117.parquet")
 
+# Median costs
 median_costs <- read.xlsx("../2_Data/Supplementary/Median_Costs_Countries.xlsx")
 
 # 1     Data transformation ####
