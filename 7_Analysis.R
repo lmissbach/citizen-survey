@@ -7,7 +7,7 @@
 if(!require("pacman")) install.packages("pacman")
 
 p_load("arrow", "boot", "broom", "extrafont", "fixest", "ggpubr", "ggrepel",
-       "ggsci", "Hmisc", "jsonlite", "knitr", "kableExtra", "openxlsx", "rattle", "readxl", "scales", "showtext", "stringi", "tidymodels", "tidyverse", "xtable")
+       "ggsci", "Hmisc", "jsonlite", "knitr", "kableExtra", "openxlsx", "rattle", "readxl", "scales", "showtext", "stringi", "tidymodels", "tidyverse", "xtable", "xgboost")
 
 options(scipen=999)
 
@@ -32,6 +32,8 @@ com_0_ROM <- read_parquet("../2_Data/Output/Output data/Combinations_Qualtrics_R
 
 # Median costs
 median_costs <- read.xlsx("../2_Data/Supplementary/Median_Costs_Countries.xlsx")
+
+set.seed(2026)
 
 # 1     Data transformation ####
 # 1.1   Spain ####
@@ -952,101 +954,101 @@ data_2 <- bind_rows(data_1.6_FRA, data_1.6_GER)%>%
 # 2.1   Baseline outcome distribution ####
 # 2.1.1 Overall Policy Support ####
 
-data_2.1.1.1 <- data_2 %>%
-  filter(!is.na(Q46_1N))%>%
-  group_by(Q46_1N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
-  mutate(Q46_1N_label = case_when(Q46_1N == 1 ~ "Strongly\n oppose",
-                                      Q46_1N == 2 ~ "Rather\n oppose",
-                                      Q46_1N == 3 ~ "Neutral",
-                                      Q46_1N == 4 ~ "Rather\n support",
-                                      Q46_1N == 5 ~ "Strongly\n support"))%>%
-   mutate(Q46_1N_label = factor(Q46_1N_label, levels = c("Strongly\n oppose", "Rather\n oppose", "Neutral", "Rather\n support", "Strongly\n support")))%>%
-   mutate(Period = "t=0")
-
-data_2.1.1.2 <- data_2 %>%
-  filter(!is.na(Q46_2N))%>%
-  group_by(Q46_2N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
-  mutate(Q46_2N_label = case_when(Q46_2N == 1 ~ "Strongly\n oppose",
-                                  Q46_2N == 2 ~ "Rather\n oppose",
-                                  Q46_2N == 3 ~ "Neutral",
-                                  Q46_2N == 4 ~ "Rather\n support",
-                                  Q46_2N == 5 ~ "Strongly\n support"))%>%
-  mutate(Q46_1N_label = factor(Q46_2N_label, levels = c("Strongly\n oppose", "Rather\n oppose", "Neutral", "Rather\n support", "Strongly\n support")))%>%
-  mutate(Period = "t=1")
-
-data_2.1.1 <- bind_rows(data_2.1.1.1, data_2.1.1.2)%>%
-  mutate(Period = factor(Period, levels = c("t=1", "t=0")))
- 
-P_2.1.1 <- ggplot(data_2.1.1, aes(y = Period))+
- facet_grid(Country ~ .)+
- theme_bw()+
- geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_1N_label)), colour = "black", width = 0.75)+
- scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
- labs(fill = "Do you support or oppose this policy?")+
- scale_x_continuous(labels = scales::percent_format())+
- xlab("Share of respondents")+
- ggtitle("Overall policy support (Q46_1 and Q46_2)")+
- theme(panel.grid  = element_blank(),
-       axis.text.x = element_text(size = 7),
-       axis.text.y = element_text(size = 8),
-       axis.title  = element_text(size = 8),
-       legend.position = "bottom")
-
-P_2.1.2 <- ggplot(data_2.1.1, aes(x = Q46_1N_label, y = Period))+
- facet_grid(Country ~ .)+
- theme_bw()+
- geom_point(aes(fill = share_sum), shape = 22, size = 14)+
- geom_text(aes(label = label_0), size = 4)+
- scale_fill_distiller(limits = c(0,1))+
- xlab("Do you support or oppose this policy?")+
- ggtitle("Overall policy support (Q46_1 and Q46_2)")+
- guides(fill = "none")+
- theme(panel.grid  = element_blank(),
-       axis.text.x = element_text(size = 7),
-       axis.text.y = element_text(size = 8),
-       axis.title  = element_text(size = 8))
-
-P_2.1.3 <- ggplot(filter(data_2.1.1, Period == "t=0"), aes(y = Country))+
-  theme_bw()+
-  geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_1N_label)), colour = "black", width = 0.75)+
-  scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
-  labs(fill = "Do you support or oppose this policy?")+
-  scale_x_continuous(labels = scales::percent_format())+
-  xlab("Share of respondents")+
-  ggtitle("Overall policy support (Q46_1 and Q46_2)")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 7),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 8),
-        legend.position = "bottom")
-
-jpeg("../5_Analysis/1_Descriptive/Figure_D1_%d.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_2.1.2)
-print(P_2.1.3)
-print(P_2.1.1)
-dev.off()
+# data_2.1.1.1 <- data_2 %>%
+#   filter(!is.na(Q46_1N))%>%
+#   group_by(Q46_1N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+#   mutate(Q46_1N_label = case_when(Q46_1N == 1 ~ "Strongly\n oppose",
+#                                       Q46_1N == 2 ~ "Rather\n oppose",
+#                                       Q46_1N == 3 ~ "Neutral",
+#                                       Q46_1N == 4 ~ "Rather\n support",
+#                                       Q46_1N == 5 ~ "Strongly\n support"))%>%
+#    mutate(Q46_1N_label = factor(Q46_1N_label, levels = c("Strongly\n oppose", "Rather\n oppose", "Neutral", "Rather\n support", "Strongly\n support")))%>%
+#    mutate(Period = "t=0")
+# 
+# data_2.1.1.2 <- data_2 %>%
+#   filter(!is.na(Q46_2N))%>%
+#   group_by(Q46_2N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+#   mutate(Q46_2N_label = case_when(Q46_2N == 1 ~ "Strongly\n oppose",
+#                                   Q46_2N == 2 ~ "Rather\n oppose",
+#                                   Q46_2N == 3 ~ "Neutral",
+#                                   Q46_2N == 4 ~ "Rather\n support",
+#                                   Q46_2N == 5 ~ "Strongly\n support"))%>%
+#   mutate(Q46_1N_label = factor(Q46_2N_label, levels = c("Strongly\n oppose", "Rather\n oppose", "Neutral", "Rather\n support", "Strongly\n support")))%>%
+#   mutate(Period = "t=1")
+# 
+# data_2.1.1 <- bind_rows(data_2.1.1.1, data_2.1.1.2)%>%
+#   mutate(Period = factor(Period, levels = c("t=1", "t=0")))
+#  
+# P_2.1.1 <- ggplot(data_2.1.1, aes(y = Period))+
+#  facet_grid(Country ~ .)+
+#  theme_bw()+
+#  geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_1N_label)), colour = "black", width = 0.75)+
+#  scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
+#  labs(fill = "Do you support or oppose this policy?")+
+#  scale_x_continuous(labels = scales::percent_format())+
+#  xlab("Share of respondents")+
+#  ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+#  theme(panel.grid  = element_blank(),
+#        axis.text.x = element_text(size = 7),
+#        axis.text.y = element_text(size = 8),
+#        axis.title  = element_text(size = 8),
+#        legend.position = "bottom")
+# 
+# P_2.1.2 <- ggplot(data_2.1.1, aes(x = Q46_1N_label, y = Period))+
+#  facet_grid(Country ~ .)+
+#  theme_bw()+
+#  geom_point(aes(fill = share_sum), shape = 22, size = 14)+
+#  geom_text(aes(label = label_0), size = 4)+
+#  scale_fill_distiller(limits = c(0,1))+
+#  xlab("Do you support or oppose this policy?")+
+#  ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+#  guides(fill = "none")+
+#  theme(panel.grid  = element_blank(),
+#        axis.text.x = element_text(size = 7),
+#        axis.text.y = element_text(size = 8),
+#        axis.title  = element_text(size = 8))
+# 
+# P_2.1.3 <- ggplot(filter(data_2.1.1, Period == "t=0"), aes(y = Country))+
+#   theme_bw()+
+#   geom_col(position = "stack", aes(x = share, fill = fct_rev(Q46_1N_label)), colour = "black", width = 0.75)+
+#   scale_fill_viridis_d(direction = -1, guide = guide_legend(reverse = TRUE, title.position = "top"))+
+#   labs(fill = "Do you support or oppose this policy?")+
+#   scale_x_continuous(labels = scales::percent_format())+
+#   xlab("Share of respondents")+
+#   ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+#   theme(panel.grid  = element_blank(),
+#         axis.text.x = element_text(size = 7),
+#         axis.text.y = element_text(size = 8),
+#         axis.title  = element_text(size = 8),
+#         legend.position = "bottom")
+# 
+# jpeg("../5_Analysis/1_Descriptive/Figure_D1_%d.jpg", width = 12, height = 12, unit = "cm", res = 600)
+# print(P_2.1.2)
+# print(P_2.1.3)
+# print(P_2.1.1)
+# dev.off()
 
 # Figure 1
 
@@ -1112,70 +1114,70 @@ rm(data_2.1.1, data_2.1.1.1, data_2.1.1.2, P_2.1.1, P_2.1.2, data_2.1.1.3, data_
 
 # 2.1.2 Effectiveness ####
 
-data_2.1.2.1 <- data_2 %>%
-  group_by(Q41_1N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  #filter(!is.na(Effectiveness_1N))%>%
-  mutate(Q41_1N_label = case_when(Q41_1N == 1 ~ "Definetly not",
-                                  Q41_1N == 2 ~ "Probably not",
-                                  Q41_1N == 3 ~ "Probably yes",
-                                  Q41_1N == 4 ~ "Definetly yes",
-                                  is.na(Q41_1N) ~ "Don't know"))%>%
-  mutate(Q41_1N_label = factor(Q41_1N_label, levels = c("Definetly not", "Probably not", "Probably yes", "Definetly yes", "Don't know")))%>%
-  mutate(Period = "t=0")
-
-data_2.1.2.2 <- data_2 %>%
- group_by(Q41_2N, Country)%>%
- summarise(number = n())%>%
- ungroup()%>%
- group_by(Country)%>%
- mutate(sum = sum(number))%>%
- ungroup()%>%
- mutate(share = number/sum)%>%
- group_by(Country)%>%
- mutate(share_sum = cumsum(share))%>%
- ungroup()%>%
- mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
- mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
- # filter(!is.na(Effectiveness_2N))%>%
-  mutate(Q41_1N_label = case_when(Q41_2N == 1 ~ "Definetly not",
-                                  Q41_2N == 2 ~ "Probably not",
-                                  Q41_2N == 3 ~ "Probably yes",
-                                  Q41_2N == 4 ~ "Definetly yes",
-                                  is.na(Q41_2N) ~ "Don't know"))%>%
-  mutate(Q41_1N_label = factor(Q41_1N_label, levels = c("Definetly not", "Probably not", "Probably yes", "Definetly yes", "Don't know")))%>%
-  mutate(Period = "t=1")
-
-data_2.1.2 <- bind_rows(data_2.1.2.1, data_2.1.2.2)%>%
- mutate(Period = factor(Period, levels = c("t=1", "t=0")))
-
-P_2.1.2 <- ggplot(data_2.1.2, aes(x = Q41_1N_label, y = Period))+
- facet_grid(Country ~ .)+
- theme_bw()+
- geom_point(aes(fill = share_sum), shape = 22, size = 14)+
- geom_text(aes(label = label_0), size = 4)+
- scale_fill_distiller(limits = c(0,1))+
- xlab("Do you think that this policy will contribute to effectively reducing GHG emissions?")+
- ggtitle("Perception of effectiveness (Q41_1 and Q41_2)")+
- guides(fill = "none")+
- theme(panel.grid  = element_blank(),
-       axis.text.x = element_text(size = 7),
-       axis.text.y = element_text(size = 8),
-       axis.title  = element_text(size = 7))
-
-jpeg("../5_Analysis/1_Descriptive/Figure_D2.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_2.1.2)
-dev.off()
+# data_2.1.2.1 <- data_2 %>%
+#   group_by(Q41_1N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   #filter(!is.na(Effectiveness_1N))%>%
+#   mutate(Q41_1N_label = case_when(Q41_1N == 1 ~ "Definetly not",
+#                                   Q41_1N == 2 ~ "Probably not",
+#                                   Q41_1N == 3 ~ "Probably yes",
+#                                   Q41_1N == 4 ~ "Definetly yes",
+#                                   is.na(Q41_1N) ~ "Don't know"))%>%
+#   mutate(Q41_1N_label = factor(Q41_1N_label, levels = c("Definetly not", "Probably not", "Probably yes", "Definetly yes", "Don't know")))%>%
+#   mutate(Period = "t=0")
+# 
+# data_2.1.2.2 <- data_2 %>%
+#  group_by(Q41_2N, Country)%>%
+#  summarise(number = n())%>%
+#  ungroup()%>%
+#  group_by(Country)%>%
+#  mutate(sum = sum(number))%>%
+#  ungroup()%>%
+#  mutate(share = number/sum)%>%
+#  group_by(Country)%>%
+#  mutate(share_sum = cumsum(share))%>%
+#  ungroup()%>%
+#  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#  # filter(!is.na(Effectiveness_2N))%>%
+#   mutate(Q41_1N_label = case_when(Q41_2N == 1 ~ "Definetly not",
+#                                   Q41_2N == 2 ~ "Probably not",
+#                                   Q41_2N == 3 ~ "Probably yes",
+#                                   Q41_2N == 4 ~ "Definetly yes",
+#                                   is.na(Q41_2N) ~ "Don't know"))%>%
+#   mutate(Q41_1N_label = factor(Q41_1N_label, levels = c("Definetly not", "Probably not", "Probably yes", "Definetly yes", "Don't know")))%>%
+#   mutate(Period = "t=1")
+# 
+# data_2.1.2 <- bind_rows(data_2.1.2.1, data_2.1.2.2)%>%
+#  mutate(Period = factor(Period, levels = c("t=1", "t=0")))
+# 
+# P_2.1.2 <- ggplot(data_2.1.2, aes(x = Q41_1N_label, y = Period))+
+#  facet_grid(Country ~ .)+
+#  theme_bw()+
+#  geom_point(aes(fill = share_sum), shape = 22, size = 14)+
+#  geom_text(aes(label = label_0), size = 4)+
+#  scale_fill_distiller(limits = c(0,1))+
+#  xlab("Do you think that this policy will contribute to effectively reducing GHG emissions?")+
+#  ggtitle("Perception of effectiveness (Q41_1 and Q41_2)")+
+#  guides(fill = "none")+
+#  theme(panel.grid  = element_blank(),
+#        axis.text.x = element_text(size = 7),
+#        axis.text.y = element_text(size = 8),
+#        axis.title  = element_text(size = 7))
+# 
+# jpeg("../5_Analysis/1_Descriptive/Figure_D2.jpg", width = 12, height = 12, unit = "cm", res = 600)
+# print(P_2.1.2)
+# dev.off()
 
 data_2.1.2.3 <- data_2 %>%
   filter(!is.na(Q41_1N))%>%
@@ -1232,80 +1234,80 @@ rm(data_2.1.2, data_2.1.2.1, data_2.1.2.2, P_2.1.2, P_2.1.2A, data_2.1.2.3)
 
 # 2.1.3 Expected costs ####
 
-data_2.1.3.1 <- data_2 %>%
-  mutate(Cost_estimation = ifelse(is.na(Dif_cost_1), "Don't know", 
-                                  ifelse(Dif_cost_1 < -3, "Strongly\n underestimated",
-                                         ifelse(Dif_cost_1 < 0, "Under-\nestimated", 
-                                                ifelse(Dif_cost_1 == 0, "Estimated\n correctly",
-                                                       ifelse(Dif_cost_1 > 0 & Dif_cost_1 < 4, "Over-\nestimated",
-                                                              ifelse(Dif_cost_1 >= 4, "Strongly\n overestimated", NA)))))))%>%
-  mutate(Cost_estimation = factor(Cost_estimation, levels = c("Strongly\n underestimated", "Under-\nestimated", "Estimated\n correctly", "Over-\nestimated", "Strongly\n overestimated", "Don't know")))%>%
-  group_by(Cost_estimation, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  # bind_rows(data.frame(Country = factor("France", levels = levels(.$Country)),
-  #                      Cost_estimation = factor("Strongly\n underestimated", levels = levels(.$Cost_estimation)),
-  #                      share_sum = 0, label_0 = "0%"))%>%
-  # filter(Cost_estimation != "Don't know")%>%
-  mutate(Period = "t=0")
-  
-
-data_2.1.3.2 <- data_2 %>%
-  filter(Treatment_C != "Control")%>%
-  mutate(Cost_estimation = ifelse(is.na(Dif_cost_2), "Don't know", 
-                                  ifelse(Dif_cost_2 < -3, "Strongly\n underestimated",
-                                         ifelse(Dif_cost_2 < 0, "Under-\nestimated", 
-                                                ifelse(Dif_cost_2 == 0, "Estimated\n correctly",
-                                                       ifelse(Dif_cost_2 > 0 & Dif_cost_2 < 4, "Over-\nestimated",
-                                                              ifelse(Dif_cost_2 >= 4, "Strongly\n overestimated", NA)))))))%>%
-  mutate(Cost_estimation = factor(Cost_estimation, levels = c("Strongly\n underestimated", "Under-\nestimated", "Estimated\n correctly", "Over-\nestimated", "Strongly\n overestimated", "Don't know")))%>%
-  group_by(Cost_estimation, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  # bind_rows(data.frame(Country = factor("Spain", levels = levels(.$Country)),
-  #                      Cost_estimation = factor("Strongly\n underestimated", levels = levels(.$Cost_estimation)),
-  #                      share_sum = 0, label_0 = "0%"))%>%
-  # filter(Cost_estimation != "Don't know")%>%
-  mutate(Period = "t=1")
-
-data_2.1.3 <- bind_rows(data_2.1.3.1, data_2.1.3.2)%>%
-  mutate(Period = factor(Period, levels = c("t=1", "t=0")))
-
-P_2.1.3 <- ggplot(data_2.1.3, aes(x = Cost_estimation, y = Period))+
-  facet_grid(Country ~ .)+
-  theme_bw()+
-  geom_point(aes(fill = share_sum), shape = 22, size = 14)+
-  geom_text(aes(label = label_0), size = 4)+
-  scale_fill_distiller(limits = c(0,1))+
-  xlab("By how much will this policy increase your costs?")+
-  ggtitle("Perception of additional costs (Q42_1 and Q42_2)")+
-  guides(fill = "none")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 6),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 7))
-
-jpeg("../5_Analysis/1_Descriptive/Figure_D3.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_2.1.3)
-dev.off()
+# data_2.1.3.1 <- data_2 %>%
+#   mutate(Cost_estimation = ifelse(is.na(Dif_cost_1), "Don't know", 
+#                                   ifelse(Dif_cost_1 < -3, "Strongly\n underestimated",
+#                                          ifelse(Dif_cost_1 < 0, "Under-\nestimated", 
+#                                                 ifelse(Dif_cost_1 == 0, "Estimated\n correctly",
+#                                                        ifelse(Dif_cost_1 > 0 & Dif_cost_1 < 4, "Over-\nestimated",
+#                                                               ifelse(Dif_cost_1 >= 4, "Strongly\n overestimated", NA)))))))%>%
+#   mutate(Cost_estimation = factor(Cost_estimation, levels = c("Strongly\n underestimated", "Under-\nestimated", "Estimated\n correctly", "Over-\nestimated", "Strongly\n overestimated", "Don't know")))%>%
+#   group_by(Cost_estimation, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   # bind_rows(data.frame(Country = factor("France", levels = levels(.$Country)),
+#   #                      Cost_estimation = factor("Strongly\n underestimated", levels = levels(.$Cost_estimation)),
+#   #                      share_sum = 0, label_0 = "0%"))%>%
+#   # filter(Cost_estimation != "Don't know")%>%
+#   mutate(Period = "t=0")
+#   
+# 
+# data_2.1.3.2 <- data_2 %>%
+#   filter(Treatment_C != "Control")%>%
+#   mutate(Cost_estimation = ifelse(is.na(Dif_cost_2), "Don't know", 
+#                                   ifelse(Dif_cost_2 < -3, "Strongly\n underestimated",
+#                                          ifelse(Dif_cost_2 < 0, "Under-\nestimated", 
+#                                                 ifelse(Dif_cost_2 == 0, "Estimated\n correctly",
+#                                                        ifelse(Dif_cost_2 > 0 & Dif_cost_2 < 4, "Over-\nestimated",
+#                                                               ifelse(Dif_cost_2 >= 4, "Strongly\n overestimated", NA)))))))%>%
+#   mutate(Cost_estimation = factor(Cost_estimation, levels = c("Strongly\n underestimated", "Under-\nestimated", "Estimated\n correctly", "Over-\nestimated", "Strongly\n overestimated", "Don't know")))%>%
+#   group_by(Cost_estimation, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   # bind_rows(data.frame(Country = factor("Spain", levels = levels(.$Country)),
+#   #                      Cost_estimation = factor("Strongly\n underestimated", levels = levels(.$Cost_estimation)),
+#   #                      share_sum = 0, label_0 = "0%"))%>%
+#   # filter(Cost_estimation != "Don't know")%>%
+#   mutate(Period = "t=1")
+# 
+# data_2.1.3 <- bind_rows(data_2.1.3.1, data_2.1.3.2)%>%
+#   mutate(Period = factor(Period, levels = c("t=1", "t=0")))
+# 
+# P_2.1.3 <- ggplot(data_2.1.3, aes(x = Cost_estimation, y = Period))+
+#   facet_grid(Country ~ .)+
+#   theme_bw()+
+#   geom_point(aes(fill = share_sum), shape = 22, size = 14)+
+#   geom_text(aes(label = label_0), size = 4)+
+#   scale_fill_distiller(limits = c(0,1))+
+#   xlab("By how much will this policy increase your costs?")+
+#   ggtitle("Perception of additional costs (Q42_1 and Q42_2)")+
+#   guides(fill = "none")+
+#   theme(panel.grid  = element_blank(),
+#         axis.text.x = element_text(size = 6),
+#         axis.text.y = element_text(size = 8),
+#         axis.title  = element_text(size = 7))
+# 
+# jpeg("../5_Analysis/1_Descriptive/Figure_D3.jpg", width = 12, height = 12, unit = "cm", res = 600)
+# print(P_2.1.3)
+# dev.off()
 
 data_2.1.3.3 <- data_2 %>%
   filter(!is.na(Dif_cost_1))%>%
@@ -1374,73 +1376,73 @@ rm(data_2.1.3, data_2.1.3.1, data_2.1.3.2, P_2.1.3, P_2.1.3A, data_2.1.3.3, data
 
 # 2.1.4 Relative loss ####
 
-data_2.1.4.1 <- data_2 %>%
-  group_by(Q43_1N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  # filter(!is.na(Relative_loss_1N))%>%
-  mutate(Q43_1N_label = case_when(Q43_1N == 1 ~ "Much higher",
-                                  Q43_1N == 2 ~ "Somewhat higher",
-                                  Q43_1N == 3 ~ "Similar",
-                                  Q43_1N == 4 ~ "Somewhat lower",
-                                  Q43_1N == 5 ~ "Much lower",
-                                  is.na(Q43_1N) ~ "Don't know"))%>%
-  mutate(Q43_1N_label = factor(Q43_1N_label, levels = c("Much higher", "Somewhat higher", "Similar", "Somewhat lower", "Much lower", "Don't know")))%>%
-  mutate(Period = "t=0")
-
-data_2.1.4.2 <- data_2 %>%
-  filter(Treatment_C != "Control")%>%
-  group_by(Q43_2N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  # filter(!is.na(Relative_loss_2N))%>%
-  mutate(Q43_1N_label = case_when(Q43_2N == 1 ~ "Much higher",
-                                  Q43_2N == 2 ~ "Somewhat higher",
-                                  Q43_2N == 3 ~ "Similar",
-                                  Q43_2N == 4 ~ "Somewhat lower",
-                                  Q43_2N == 5 ~ "Much lower",
-                                  is.na(Q43_2N) ~ "Don't know"))%>%
-  mutate(Q43_1N_label = factor(Q43_1N_label, levels = c("Much higher", "Somewhat higher", "Similar", "Somewhat lower", "Much lower", "Don't know")))%>%
-  mutate(Period = "t=1")
-
-data_2.1.4 <- bind_rows(data_2.1.4.1, data_2.1.4.2)%>%
-  mutate(Period = factor(Period, levels = c("t=1", "t=0")))
-
-P_2.1.4 <- ggplot(data_2.1.4, aes(x = Q43_1N_label, y = Period))+
-  facet_grid(Country ~ .)+
-  theme_bw()+
-  geom_point(aes(fill = share_sum), shape = 22, size = 14)+
-  geom_text(aes(label = label_0), size = 4)+
-  scale_fill_distiller(limits = c(0,1))+
-  xlab("How many costs do you expect\n in comparison to an average household?")+
-  ggtitle("Additional relative costs (Q43_1 and Q43_2)")+
-  guides(fill = "none")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 7),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 7))
-
-jpeg("../5_Analysis/1_Descriptive/Figure_D4.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_2.1.4)
-dev.off()
+# data_2.1.4.1 <- data_2 %>%
+#   group_by(Q43_1N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   # filter(!is.na(Relative_loss_1N))%>%
+#   mutate(Q43_1N_label = case_when(Q43_1N == 1 ~ "Much higher",
+#                                   Q43_1N == 2 ~ "Somewhat higher",
+#                                   Q43_1N == 3 ~ "Similar",
+#                                   Q43_1N == 4 ~ "Somewhat lower",
+#                                   Q43_1N == 5 ~ "Much lower",
+#                                   is.na(Q43_1N) ~ "Don't know"))%>%
+#   mutate(Q43_1N_label = factor(Q43_1N_label, levels = c("Much higher", "Somewhat higher", "Similar", "Somewhat lower", "Much lower", "Don't know")))%>%
+#   mutate(Period = "t=0")
+# 
+# data_2.1.4.2 <- data_2 %>%
+#   filter(Treatment_C != "Control")%>%
+#   group_by(Q43_2N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   # filter(!is.na(Relative_loss_2N))%>%
+#   mutate(Q43_1N_label = case_when(Q43_2N == 1 ~ "Much higher",
+#                                   Q43_2N == 2 ~ "Somewhat higher",
+#                                   Q43_2N == 3 ~ "Similar",
+#                                   Q43_2N == 4 ~ "Somewhat lower",
+#                                   Q43_2N == 5 ~ "Much lower",
+#                                   is.na(Q43_2N) ~ "Don't know"))%>%
+#   mutate(Q43_1N_label = factor(Q43_1N_label, levels = c("Much higher", "Somewhat higher", "Similar", "Somewhat lower", "Much lower", "Don't know")))%>%
+#   mutate(Period = "t=1")
+# 
+# data_2.1.4 <- bind_rows(data_2.1.4.1, data_2.1.4.2)%>%
+#   mutate(Period = factor(Period, levels = c("t=1", "t=0")))
+# 
+# P_2.1.4 <- ggplot(data_2.1.4, aes(x = Q43_1N_label, y = Period))+
+#   facet_grid(Country ~ .)+
+#   theme_bw()+
+#   geom_point(aes(fill = share_sum), shape = 22, size = 14)+
+#   geom_text(aes(label = label_0), size = 4)+
+#   scale_fill_distiller(limits = c(0,1))+
+#   xlab("How many costs do you expect\n in comparison to an average household?")+
+#   ggtitle("Additional relative costs (Q43_1 and Q43_2)")+
+#   guides(fill = "none")+
+#   theme(panel.grid  = element_blank(),
+#         axis.text.x = element_text(size = 7),
+#         axis.text.y = element_text(size = 8),
+#         axis.title  = element_text(size = 7))
+# 
+# jpeg("../5_Analysis/1_Descriptive/Figure_D4.jpg", width = 12, height = 12, unit = "cm", res = 600)
+# print(P_2.1.4)
+# dev.off()
 
 data_2.1.4.3 <- data_2 %>%
   filter(!is.na(Q43_1N))%>%
@@ -1505,68 +1507,68 @@ rm(data_2.1.4, data_2.1.4.1, data_2.1.4.2, P_2.1.4, data_2.1.4.3, data_2.1.4.4, 
 
 # 2.1.5 Vulnerable ####
 
-data_2.1.5.1 <- data_2 %>%
-  group_by(Q44_1N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  #filter(!is.na(Vulnerable_1N))%>%
-  mutate(Q44_1N_label = case_when(Q44_1N == 1   ~ "Rather hurt",
-                                  Q44_1N == 2   ~ "Neither hurt\n nor help",
-                                  Q44_1N == 3   ~ "Rather help",
-                                  is.na(Q44_1N) ~ "Don't know"))%>%
-  mutate(Q44_1N_label = factor(Q44_1N_label, levels = c("Rather hurt", "Neither hurt\n nor help", "Rather help", "Don't know")))%>%
-  mutate(Period = "t=0")
-
-data_2.1.5.2 <- data_2 %>%
-  group_by(Q44_2N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  # filter(!is.na(Vulnerable_2N))%>%
-  mutate(Q44_1N_label = case_when(Q44_2N == 1 ~ "Rather hurt",
-                                  Q44_2N == 2 ~ "Neither hurt\n nor help",
-                                  Q44_2N == 3 ~ "Rather help",
-                                  is.na(Q44_2N) ~ "Don't know"))%>%
-  mutate(Q44_1N_label = factor(Q44_1N_label, levels = c("Rather hurt", "Neither hurt\n nor help", "Rather help", "Don't know")))%>%
-  mutate(Period = "t=1")
-
-data_2.1.5 <- bind_rows(data_2.1.5.1, data_2.1.5.2)%>%
-  mutate(Period = factor(Period, levels = c("t=1", "t=0")))
-
-P_2.1.5 <- ggplot(data_2.1.5, aes(x = Q44_1N_label, y = Period))+
-  facet_grid(Country ~ .)+
-  theme_bw()+
-  geom_point(aes(fill = share_sum), shape = 22, size = 14)+
-  geom_text(aes(label = label_0), size = 4)+
-  scale_fill_distiller(limits = c(0,1))+
-  xlab("Will this policy help or hurt the most vulnerable households?")+
-  ggtitle("Vulnerable households (Q44_1 and Q44_2)")+
-  guides(fill = "none")+
-  theme(panel.grid  = element_blank(),
-        axis.text.x = element_text(size = 7),
-        axis.text.y = element_text(size = 8),
-        axis.title  = element_text(size = 7))
-
-jpeg("../5_Analysis/1_Descriptive/Figure_D5.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_2.1.5)
-dev.off()
+# data_2.1.5.1 <- data_2 %>%
+#   group_by(Q44_1N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   #filter(!is.na(Vulnerable_1N))%>%
+#   mutate(Q44_1N_label = case_when(Q44_1N == 1   ~ "Rather hurt",
+#                                   Q44_1N == 2   ~ "Neither hurt\n nor help",
+#                                   Q44_1N == 3   ~ "Rather help",
+#                                   is.na(Q44_1N) ~ "Don't know"))%>%
+#   mutate(Q44_1N_label = factor(Q44_1N_label, levels = c("Rather hurt", "Neither hurt\n nor help", "Rather help", "Don't know")))%>%
+#   mutate(Period = "t=0")
+# 
+# data_2.1.5.2 <- data_2 %>%
+#   group_by(Q44_2N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   # filter(!is.na(Vulnerable_2N))%>%
+#   mutate(Q44_1N_label = case_when(Q44_2N == 1 ~ "Rather hurt",
+#                                   Q44_2N == 2 ~ "Neither hurt\n nor help",
+#                                   Q44_2N == 3 ~ "Rather help",
+#                                   is.na(Q44_2N) ~ "Don't know"))%>%
+#   mutate(Q44_1N_label = factor(Q44_1N_label, levels = c("Rather hurt", "Neither hurt\n nor help", "Rather help", "Don't know")))%>%
+#   mutate(Period = "t=1")
+# 
+# data_2.1.5 <- bind_rows(data_2.1.5.1, data_2.1.5.2)%>%
+#   mutate(Period = factor(Period, levels = c("t=1", "t=0")))
+# 
+# P_2.1.5 <- ggplot(data_2.1.5, aes(x = Q44_1N_label, y = Period))+
+#   facet_grid(Country ~ .)+
+#   theme_bw()+
+#   geom_point(aes(fill = share_sum), shape = 22, size = 14)+
+#   geom_text(aes(label = label_0), size = 4)+
+#   scale_fill_distiller(limits = c(0,1))+
+#   xlab("Will this policy help or hurt the most vulnerable households?")+
+#   ggtitle("Vulnerable households (Q44_1 and Q44_2)")+
+#   guides(fill = "none")+
+#   theme(panel.grid  = element_blank(),
+#         axis.text.x = element_text(size = 7),
+#         axis.text.y = element_text(size = 8),
+#         axis.title  = element_text(size = 7))
+# 
+# jpeg("../5_Analysis/1_Descriptive/Figure_D5.jpg", width = 12, height = 12, unit = "cm", res = 600)
+# print(P_2.1.5)
+# dev.off()
 
 data_2.1.5.3 <- data_2 %>%
   filter(!is.na(Q44_1N))%>%
@@ -1629,68 +1631,68 @@ rm(data_2.1.5, data_2.1.5.1, data_2.1.5.2, P_2.1.5, P_2.1.5A, data_2.1.5.3, data
 
 # 2.1.6 Fairness ####
 
-data_2.1.6.1 <- data_2 %>%
-  group_by(Q45_1N, Country)%>%
-  summarise(number = n())%>%
-  ungroup()%>%
-  group_by(Country)%>%
-  mutate(sum = sum(number))%>%
-  ungroup()%>%
-  mutate(share = number/sum)%>%
-  group_by(Country)%>%
-  mutate(share_sum = cumsum(share))%>%
-  ungroup()%>%
-  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
-  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
-  #filter(!is.na(Fairness_1N))%>%
-  mutate(Q45_1N_label = case_when(Q45_1N == 1      ~ "Unfair",
-                                  Q45_1N == 2      ~ "Neither fair\n nor unfair",
-                                  Q45_1N == 3      ~ "Fair",
-                                  is.na(Q45_1N)    ~ "Don't know"))%>%
-  mutate(Q45_1N_label = factor(Q45_1N_label, levels = c("Unfair", "Neither fair\n nor unfair", "Fair", "Don't know")))%>%
-  mutate(Period = "t=0")
-
-data_2.1.6.2 <- data_2 %>%
- group_by(Q45_2N, Country)%>%
- summarise(number = n())%>%
- ungroup()%>%
- group_by(Country)%>%
- mutate(sum = sum(number))%>%
- ungroup()%>%
- mutate(share = number/sum)%>%
- group_by(Country)%>%
- mutate(share_sum = cumsum(share))%>%
- ungroup()%>%
- mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
- mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
- # filter(!is.na(Fairness_2N))%>%
- mutate(Q45_1N_label = case_when(Q45_2N == 1   ~ "Unfair",
-                                 Q45_2N == 2   ~ "Neither fair\n nor unfair",
-                                 Q45_2N == 3   ~ "Fair",
-                                 is.na(Q45_2N) ~ "Don't know"))%>%
- mutate(Q45_1N_label = factor(Q45_1N_label, levels = c("Unfair", "Neither fair\n nor unfair", "Fair", "Don't know")))%>%
- mutate(Period = "t=1")
-
-data_2.1.6 <- bind_rows(data_2.1.6.1, data_2.1.6.2)%>%
- mutate(Period = factor(Period, levels = c("t=1", "t=0")))
-
-P_2.1.6 <- ggplot(data_2.1.6, aes(x = Q45_1N_label, y = Period))+
- facet_grid(Country ~ .)+
- theme_bw()+
- geom_point(aes(fill = share_sum), shape = 22, size = 14)+
- geom_text(aes(label = label_0), size = 4)+
- scale_fill_distiller(limits = c(0,1))+
- xlab("Do you find this policy fair or unfair?")+
- ggtitle("Perception of fairness (Q45_1 and Q45_2)")+
- guides(fill = "none")+
- theme(panel.grid  = element_blank(),
-       axis.text.x = element_text(size = 7),
-       axis.text.y = element_text(size = 8),
-       axis.title  = element_text(size = 7))
-
-jpeg("../5_Analysis/1_Descriptive/Figure_D6.jpg", width = 12, height = 12, unit = "cm", res = 600)
-print(P_2.1.6)
-dev.off()
+# data_2.1.6.1 <- data_2 %>%
+#   group_by(Q45_1N, Country)%>%
+#   summarise(number = n())%>%
+#   ungroup()%>%
+#   group_by(Country)%>%
+#   mutate(sum = sum(number))%>%
+#   ungroup()%>%
+#   mutate(share = number/sum)%>%
+#   group_by(Country)%>%
+#   mutate(share_sum = cumsum(share))%>%
+#   ungroup()%>%
+#   mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#   mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#   #filter(!is.na(Fairness_1N))%>%
+#   mutate(Q45_1N_label = case_when(Q45_1N == 1      ~ "Unfair",
+#                                   Q45_1N == 2      ~ "Neither fair\n nor unfair",
+#                                   Q45_1N == 3      ~ "Fair",
+#                                   is.na(Q45_1N)    ~ "Don't know"))%>%
+#   mutate(Q45_1N_label = factor(Q45_1N_label, levels = c("Unfair", "Neither fair\n nor unfair", "Fair", "Don't know")))%>%
+#   mutate(Period = "t=0")
+# 
+# data_2.1.6.2 <- data_2 %>%
+#  group_by(Q45_2N, Country)%>%
+#  summarise(number = n())%>%
+#  ungroup()%>%
+#  group_by(Country)%>%
+#  mutate(sum = sum(number))%>%
+#  ungroup()%>%
+#  mutate(share = number/sum)%>%
+#  group_by(Country)%>%
+#  mutate(share_sum = cumsum(share))%>%
+#  ungroup()%>%
+#  mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+#  mutate(Country = factor(Country, levels = c("Romania", "Germany", "France", "Spain")))%>%
+#  # filter(!is.na(Fairness_2N))%>%
+#  mutate(Q45_1N_label = case_when(Q45_2N == 1   ~ "Unfair",
+#                                  Q45_2N == 2   ~ "Neither fair\n nor unfair",
+#                                  Q45_2N == 3   ~ "Fair",
+#                                  is.na(Q45_2N) ~ "Don't know"))%>%
+#  mutate(Q45_1N_label = factor(Q45_1N_label, levels = c("Unfair", "Neither fair\n nor unfair", "Fair", "Don't know")))%>%
+#  mutate(Period = "t=1")
+# 
+# data_2.1.6 <- bind_rows(data_2.1.6.1, data_2.1.6.2)%>%
+#  mutate(Period = factor(Period, levels = c("t=1", "t=0")))
+# 
+# P_2.1.6 <- ggplot(data_2.1.6, aes(x = Q45_1N_label, y = Period))+
+#  facet_grid(Country ~ .)+
+#  theme_bw()+
+#  geom_point(aes(fill = share_sum), shape = 22, size = 14)+
+#  geom_text(aes(label = label_0), size = 4)+
+#  scale_fill_distiller(limits = c(0,1))+
+#  xlab("Do you find this policy fair or unfair?")+
+#  ggtitle("Perception of fairness (Q45_1 and Q45_2)")+
+#  guides(fill = "none")+
+#  theme(panel.grid  = element_blank(),
+#        axis.text.x = element_text(size = 7),
+#        axis.text.y = element_text(size = 8),
+#        axis.title  = element_text(size = 7))
+# 
+# jpeg("../5_Analysis/1_Descriptive/Figure_D6.jpg", width = 12, height = 12, unit = "cm", res = 600)
+# print(P_2.1.6)
+# dev.off()
 
 data_2.1.6.3 <- data_2 %>%
   filter(!is.na(Q45_1N))%>%
@@ -1751,7 +1753,274 @@ dev.off()
 
 rm(data_2.1.6, data_2.1.6.1, data_2.1.6.2, P_2.1.6, data_2.1.6.3, data_2.1.6.4, P_2.1.6A)
 
-# 2.2   Baseline correlation between policy support and institutional trust ####
+# 2.2   Boosted regression trees - predicting support or opposition in t=0 ####
+
+data_2.2 <- data_2 %>%
+  # Excluding "I don't know" answers
+  filter(!is.na(Q46_1N))%>%
+  # Recode policy support
+  mutate(support_2 = ifelse(Q46_1N < 2,0,1),
+         support_3 = ifelse(Q46_1N < 3,0,1),
+         support_4 = ifelse(Q46_1N < 4,0,1),
+         support_5 = ifelse(Q46_1N < 5,0,1))%>%
+  mutate_at(vars(starts_with("support_")), ~ factor(.))%>%
+  select(Country, Q10:Q23,Q24,Q25:Q28,Q29A,Q29B,Q30_1:Q38,Q41_1:Q45_1, support_2:support_5)%>%
+  # TBD: Homogenize industry variable. Leave out for now.
+  select(-Q42_1, -Q14)
+
+track_tuning <- read.xlsx("../2_Data/1_Support_Datasets/1_SHAP_1/Tuning_SHAP_1.xlsx")
+
+track_performance <- read.xlsx("../2_Data/1_Support_Datasets/1_SHAP_1/Performance_SHAP_1.xlsx")
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  
+  data_2.2.1 <- data_2.2 %>%
+    filter(Country == i)
+  
+  if(i == "Spain"){
+    data_2.2.1 <- data_2.2.1 %>%
+      mutate(Q11 = ifelse(Q11 == "Otros", "Mujer", Q11))
+  }
+  
+  if(i == "France"){
+    data_2.2.1 <- data_2.2.1 %>%
+      mutate(Q11 = ifelse(Q11 == "Autre", "Féminin", Q11))
+  }
+  
+  if(i == "Romania"){
+    data_2.2.1 <- data_2.2.1 %>%
+      mutate(Q11 = ifelse(Q11 == "Altul", "Feminin", Q11))%>%
+      mutate_at(vars(Q31_Gov_nat:Q31_EU_Comm), ~ ifelse(is.na(.), "Nu știu / Nu pot să spun",.))
+  }
+  
+  for(j in c("support_2", "support_3", "support_4", "support_5")){
+    
+    track_0 <- data.frame(Country = i,
+                          Outcome = j,
+                          date    = date())
+    run_number <- 1
+    run_ID <- paste0(i,"_",j,"_",1)
+    # run_number <- if(i %in% track_tuning$Country & j %in% track_tuning$Outcome) max(track_tuning$number[track_tuning$Country == i & track_tuning$Outcome == j])+1 else 1
+    # run_ID     <- if(i %in% track_tuning$Country & j %in% track_tuning$Outcome) paste0(i,"_",j,"_",max(track_tuning$number[track_tuning$Country == i & track_tuning$Outcome == j])+1) else (paste0(i,"_",j,"_",1))
+    
+    print(paste0("Start ", i, ": ", run_ID, ": ", Sys.time()))
+    
+    data_2.2.2 <- data_2.2.1 %>%
+      # Remove all other support columns and only keep relevant outcome variable
+      rename(outcome = all_of(j))%>%
+      select(-Country, -starts_with("support"))%>%
+      # Removes unused factor levels
+      mutate(across(where(is.factor), ~ fct_drop(.)))%>%
+      # Convert to factor variable
+      mutate(across(where(~ is.character(.)), ~ as.factor(.)))%>%
+      # Replace NAs where not applicable or for "I don't know"
+      # mutate_at(vars(Q14),   ~ fct_na_value_to_level(., level = "Not applicable"))%>%
+      mutate_at(vars(Q30_1:Q30_3, Q41_1:Q45_1), ~ fct_na_value_to_level(., level = "I don't know"))%>%
+      # Remove columns with just NA
+      select(where(~ !all(is.na(.))))%>%
+      # Create noise parameter
+      mutate(noise = rnorm(nrow(.),0,1))
+    
+    if(i == "France"){
+      data_2.2.2 <- data_2.2.2 %>%
+        filter(!is.na(Q10) & !is.na(Q12) & !is.na(Q35_1))%>%
+        mutate_at(vars(Q11, Q13, Q15, Q16, Q35_2:Q35_4), ~ fct_na_value_to_level(., level = "I don't know"))
+    }
+    
+    if(i == "Germany"){
+      data_2.2.2 <- data_2.2.2 %>%
+        mutate_at(vars(Q36:Q37_c), ~ fct_na_value_to_level(., level = "I don't know"))
+    }
+    
+  if(i == "Romania"){
+    data_2.2.2 <- data_2.2.2 %>%
+      filter(!is.na(Q11) & !is.na(Q12) & !is.na(Q35_1))%>%
+      mutate_at(vars(Q15,Q16,Q35_2:Q35_4), ~ fct_na_value_to_level(., level = "I don't know"))
+  }
+    
+    # Training and testing dataset
+    
+    data_split_2.2.2 <- initial_split(data_2.2.2, prop = 0.8, strata = outcome)
+    
+    train_2.2.2 <- training(data_split_2.2.2) 
+    test_2.2.2  <- testing(data_split_2.2.2)
+    
+    # Recipe
+    
+    recipe_2.2.2 <- recipe(outcome ~ ., 
+                           data = data_2.2.2)%>%
+      # Delete columns with NA (should be redundant)
+      step_filter_missing(all_predictors(), threshold = 0)%>%
+      step_zv(all_predictors())%>%
+      step_other(Q12,Q13,Q26, threshold = 0.05)%>%
+      step_dummy(all_nominal_predictors(), sparse = "no")
+    
+    mtry_max <- recipe_2.2.2 %>%
+      prep(training = train_2.2.2)%>%
+      bake(new_data = NULL)%>%
+      select(-outcome)%>%
+      ncol()
+      
+    # Five-fold cross-validation
+    
+    folds_2.2.2 <- vfold_cv(train_2.2.2, v = 5)
+    
+    model_2.2.2 <- boost_tree(
+      trees      = 1000,
+      tree_depth = tune(),
+      learn_rate = tune(),
+      mtry       = tune(),
+      stop_iter  = 15)%>%
+      set_mode("classification")%>%
+      set_engine("xgboost")
+    
+    workflow_2.2.2 <- workflow()%>%
+      add_recipe(recipe_2.2.2)%>%
+      add_model(model_2.2.2)
+      
+    # Create tuning grid
+    
+    grid_2.2.2 <- grid_space_filling(
+      tree_depth(c(3,15)),
+      learn_rate(c(-3,-1)),
+      mtry(c(round((mtry_max/2),0),mtry_max)),
+      size = 99)%>%
+      # default parameters
+      bind_rows(data.frame(tree_depth = 6, learn_rate = 0.3, mtry = mtry_max))
+    
+    # Tune the model
+    
+    doParallel::registerDoParallel()
+    
+    time_1 <- Sys.time()
+    
+    model_2.2.2 <- tune_grid(workflow_2.2.2,
+                             resamples = folds_2.2.2,
+                             grid      = grid_2.2.2,
+                             metrics   = metric_set(accuracy, mn_log_loss, f_meas))
+    
+    time_2 <- Sys.time()
+    
+    doParallel::stopImplicitCluster()
+    
+    print("End computing")
+    
+    tuning_time <- as.integer(difftime(time_2, time_1, units = "min"))
+    
+    # Collect metrics of tuned model
+    
+    metrics_2.2.2 <- collect_metrics(model_2.2.2)
+    
+    model_2.2.2.1 <- select_best(model_2.2.2, metric = "f_meas")
+    
+    metrics_2.2.2.1 <- metrics_2.2.2 %>%
+      filter(.config == model_2.2.2.1$.config[1])
+    
+    track_1 <- track_0 %>%
+      mutate(number      = run_number,
+             run_ID      = run_ID,
+             tuning_time = tuning_time)%>%
+      bind_cols(model_2.2.2.1)%>%
+      rename(tree_depth_best = tree_depth, learn_rate_best = learn_rate, mtry_best = mtry)%>%
+      select(-.config)%>%
+      mutate(accuracy    = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "accuracy"],
+             f_meas      = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "f_meas"],
+             mn_log_loss = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "mn_log_loss"])
+    
+    # First outcome: Table with all tuning details.
+    track_tuning <- track_tuning %>%
+      bind_rows(track_1)
+    
+    parameters <- track_tuning %>%
+      filter(Country == i & Outcome == j)%>%
+      dplyr::slice(which.max(number))
+    
+    # Fit best model
+    
+    workflow_2.2.3 <- finalize_workflow(workflow_2.2.2, model_2.2.2.1)
+    
+    # Fit model
+    
+    model_2.2.3 <- fit(workflow_2.2.3, data = train_2.2.2)
+    
+    evaluation_2.2.3 <- predict(model_2.2.3, test_2.2.2, type = "class")%>%
+      bind_cols(predict(model_2.2.3, test_2.2.2, type = "prob"))%>%
+      bind_cols(test_2.2.2)
+    
+    metrics_2.2.3 <- metric_set(
+      accuracy,
+      kap,
+      sens,
+      yardstick::spec,
+      f_meas,
+      roc_auc
+    )
+    
+    metrics_2.2.3.1 <- metrics_2.2.3(evaluation_2.2.3,
+                             truth = outcome,
+                             estimate = .pred_class,
+                             .pred_1)%>%
+      select(-.estimator)%>%
+      pivot_wider(names_from = ".metric", values_from = ".estimate")
+    
+    track_2 <- track_0 %>%
+      mutate(number      = run_number,
+             run_ID      = run_ID)%>%
+      bind_cols(metrics_2.2.3.1)
+    
+    track_performance <- track_performance %>%
+      bind_rows(track_2)
+    
+    # Extract SHAP values (full dataset)
+    
+    model_2.2.4 <- fit(workflow_2.2.3, data = data_2.2.2)
+    engine_2.2.4 <- extract_fit_engine(model_2.2.4)
+    data_2.2.4 <- bake(prep(recipe_2.2.2, training = data_2.2.2), new_data = data_2.2.2)%>%
+      select(-outcome)%>%
+      as.matrix()
+
+    time_3 <- Sys.time()
+    
+    shap_2.2.4 <- predict(engine_2.2.4,
+                          data_2.2.4,
+                          predcontrib = TRUE,
+                          approxcontrib = FALSE)
+    
+    time_4 <- Sys.time()
+    
+    shaping_time <- as.integer(difftime(time_4, time_3, units = "min"))
+    
+    # shap_2.2.4.1 <- shap_2.2.4 %>%
+    #   as_tibble()%>%
+    #   summarise_all(~ mean(abs(.)))%>%
+    #   select(-"(Intercept)")%>%
+    #   pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+    #   arrange(desc(SHAP_contribution))%>%
+    #   mutate(tot_contribution = sum(SHAP_contribution))%>%
+    #   mutate(share_SHAP = SHAP_contribution/tot_contribution)%>%
+    #   select(-tot_contribution)
+    
+    shap_2.2.4.1 <- shap_2.2.4 %>%
+      as_tibble()
+    
+    write_parquet(shap_2.2.4.1, sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/SHAP_%s_%s.parquet", i, j))
+    write_parquet(data_2.2.2,   sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/Data_%s_%s.parquet", i, j))
+    
+    rm(data_2.2.2, data_2.2.4, data_split_2.2.2, engine_2.2.4, evaluation_2.2.3, folds_2.2.2, grid_2.2.2,
+       metrics_2.2.2, metrics_2.2.2.1, metrics_2.2.3.1, model_2.2.2, model_2.2.2.1, model_2.2.3, model_2.2.4,
+       parameters, recipe_2.2.2, shap_2.2.4, shap_2.2.4.1, test_2.2.2, train_2.2.2, workflow_2.2.2, workflow_2.2.3,
+       time_1, time_2, time_3, time_4)
+  }
+  
+}
+
+write.xlsx(track_tuning, "../2_Data/1_Support_Datasets/1_SHAP_1/Tuning_SHAP_1.xlsx")
+write.xlsx(track_performance, "../2_Data/1_Support_Datasets/1_SHAP_1/Performance_SHAP_1.xlsx")
+
+# 2.2.1 Analysing SHAP values for each combination ####
+
+
+# 2.3   Baseline correlation between policy support and institutional trust ####
 
 # data_3.2 <- data_3 %>%
 #   mutate(Trust = ifelse(Trust_National_N <= 2, "Low trust",
@@ -1801,7 +2070,7 @@ rm(data_2.1.6, data_2.1.6.1, data_2.1.6.2, P_2.1.6, data_2.1.6.3, data_2.1.6.4, 
 # rm(data_3.2, P_2)
 
 
-# 2.3   Treatment effects (A,B,C1 to C4) on overall policy support ####
+# 2.4   Treatment effects (A,B,C1 to C4) on overall policy support ####
 
 # tex.style <- style.tex(model.title = "", fixef.title = "\\midrule Fixed Effects",
 #                        stats.title = "\\midrule", model.format = "",
