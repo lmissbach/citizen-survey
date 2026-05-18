@@ -2019,6 +2019,140 @@ write.xlsx(track_performance, "../2_Data/1_Support_Datasets/1_SHAP_1/Performance
 
 # 2.2.1 Analysing SHAP values for each combination ####
 
+shap_a <- data.frame()
+shap_b <- data.frame()
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  for(j in c("support_2", "support_3", "support_4", "support_5")){
+    
+    shap_2.2.1.1 <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/SHAP_%s_%s.parquet", i, j))
+    data_2.2.1.1 <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/Data_%s_%s.parquet", i, j))
+    
+    shap_2.2.1.1.0 <- shap_2.2.1.1 %>%
+      summarise_all(~ mean(abs(.)))%>%
+      select(-"(Intercept)")%>%
+      pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+      arrange(desc(SHAP_contribution))%>%
+      mutate(tot_contribution = sum(SHAP_contribution))%>%
+      mutate(share_SHAP       = SHAP_contribution/tot_contribution)%>%
+      select(-tot_contribution)%>%
+      mutate(Country = i,
+             Outcome = j)
+    
+    shap_2.2.1.1.1 <- shap_2.2.1.1 %>%
+      summarise_all(~ mean(.))%>%
+      select(-"(Intercept)")%>%
+      pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+      mutate(Variable   = str_replace(variable, "_[^_]+$", ""))%>%
+      group_by(Variable)%>%
+      summarise(direction = sign(SHAP_contribution[which.max(abs(SHAP_contribution))]))%>%
+      ungroup()%>%
+      mutate(Country = i,
+             Outcome = j)
+                
+    shap_2.2.1.2.0 <- shap_2.2.1.1.0 %>%
+      mutate(Variable   = str_replace(variable, "_[^_]+$", ""))%>%
+      group_by(Variable)%>%
+      summarise(share_SHAP = sum(share_SHAP))%>%
+      ungroup()%>%
+      arrange(desc(share_SHAP))%>%
+      mutate(Country = i,
+             Outcome = j)%>%
+      left_join(shap_2.2.1.1.1)
+    
+    shap_a <- shap_a %>%
+      bind_rows(shap_2.2.1.1.0)
+    
+    shap_b <- shap_b %>%
+      bind_rows(shap_2.2.1.2.0)
+    
+  }
+}
+
+# What are the ten most important features (on average) for each level of support
+
+shap_b_1 <- shap_b %>%
+  group_by(Country, Variable)%>%
+  summarise(mean_SHAP = mean(share_SHAP))%>%
+  arrange(desc(mean_SHAP))%>%
+  mutate(rank = 1:n())%>%
+  ungroup()%>%
+  filter(rank < 7)
+
+# Dataset for each country
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  shap_b_1.1 <- shap_b_1 %>%
+    filter(Country == i)
+  
+  shap_b_2 <- shap_b %>%
+    filter(Country == i)%>%
+    left_join(shap_b_1.1)%>%
+    filter(!is.na(rank))%>%
+    # Data transformation
+    mutate(Outcome = case_when(Outcome == "support_2" ~ "> Rather oppose",
+                               Outcome == "support_3" ~ "> Neutral",
+                               Outcome == "support_4" ~ "> Rather support",
+                               Outcome == "support_5" ~ "> Strongly support"))%>%
+    mutate(Outcome = factor(Outcome, levels = c("> Rather oppose", "> Neutral", "> Rather support", "> Strongly support")))%>%
+    mutate(direction = factor(direction))%>%
+    mutate(Variable = case_when(Variable == "Q45_1"       ~ "Fairness perception (Q45)",
+                                Variable == "Q44_1"       ~ "Effects on vulnerable (Q44)",
+                                Variable == "Q43_1"       ~ "Relative costs (Q43)",
+                                Variable == "Q42_1_true"  ~ "Individual costs (Q42)",
+                                Variable == "Q41_1"       ~ "Effectiveness perception (Q41)",
+                                Variable == "Q38"         ~ "Political Party (Q38)",
+                                Variable == "Q37_c"       ~ "Impact on emissions (Q37)",
+                                Variable == "Q37_b"       ~ "Impact on life (Q37)",
+                                Variable == "Q37_a"       ~ "Impact on economy (Q37)",
+                                Variable == "Q36"         ~ "Climate change concern (Q36)",
+                                Variable == "Q35_1"       ~ "Communication: Public (Q35)",
+                                Variable == "Q35_4"       ~ "Communcation: Scientists (Q35)",
+                                Variable == "Q31_Gov_nat" ~ "Integrity national gov. (Q31)",
+                                Variable == "Q31_EU_Comm" ~ "Integrity EU commission (Q31)",
+                                Variable == "Q30_1"       ~ "Trust in local gov. (Q30)",
+                                Variable == "Q30_2"       ~ "Trust in national gov. (Q30)",
+                                Variable == "Q30_3"       ~ "Trust in EU (Q30)",
+                                Variable == "Q28"         ~ "Expenditures (Q28)",
+                                Variable == "noise"       ~ "Random term",
+                                Variable == "Q10"         ~ "Age (Q10)",
+                                TRUE ~ Variable))%>%
+    mutate(Variable = fct_reorder(Variable, rank, .desc = TRUE))%>%
+    mutate(label_0 = paste0(round(share_SHAP*100,0),"%"))
+    
+  P_2.2.1 <- ggplot(data = shap_b_2, aes(x = Outcome, y = Variable))+
+    # geom_point(shape = 22,fill = NA,colour = "black",stroke = 0.3,size = 9)+
+    geom_point(aes(alpha = share_SHAP), shape = 22, size = 9, fill = "#3C5488FF", colour = "black", stroke = 0.3)+
+    geom_text(aes(label = label_0), size = 2)+
+    scale_alpha_continuous(range = c(0,0.7))+
+    scale_x_discrete(position = "top")+
+    # geom_point(alpha = 0.85, shape = 21, fill = "#4DBBD5FF", colour = "black")+
+    # scale_size_continuous(range = c(2,8),
+    #                       breaks = c(0.01, 0.05, 0.1, 0.2, 0.5),
+    #                       name    = "Average SHAP Contribution", 
+    #                       labels = percent)+l
+    theme_bw()+
+    ylab("Feature")+
+    xlab("Average SHAP Contribution: Do you support or oppose the EU ETS2?")+
+    ggtitle(i)+
+    guides(alpha = "none")+
+    theme(legend.position = "bottom",
+          panel.grid.major = element_blank(),
+          axis.ticks = element_line(linewidth = 0.3),
+          axis.text  = element_text(size = 7),
+          axis.title = element_text(size = 8),
+          title = element_text(size = 8),
+          legend.text = element_text(size = 8),
+          legend.title = element_text(hjust = 0.5, size = 8))
+  
+  pdf(sprintf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_B_%s.pdf", i), width = 130/25.4, height = 70/25.4)
+  print(P_2.2.1)
+  dev.off()
+  
+}
+
+rm(shap_2.2.1.1, shap_2.2.1.1.0, shap_2.2.1.1.1, shap_2.2.1.2.0, shap_2.2.1.1,
+   shap_a, shap_b, shap_b_1, shap_b_1.1, shap_b_2, P_2.2.1, i, j)
 
 # 2.3   Baseline correlation between policy support and institutional trust ####
 
