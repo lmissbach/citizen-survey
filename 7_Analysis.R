@@ -130,7 +130,8 @@ data_1.3_ESP <- data_1.2_ESP %>%
          Q46_2 = factor(Q46_2, levels = c("Me opongo firmemente", "Me opongo en parte", "Ni la apoyo ni me opongo", "La apoyo en parte", "La apoyo firmemente")),
          Q30_1 = factor(Q30_1, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")),
          Q30_2 = factor(Q30_2, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")),
-         Q30_3 = factor(Q30_3, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")))%>%
+         Q30_3 = factor(Q30_3, levels = c("En absoluto", "Un poco", "Algo", "Bastante", "Completamente")),
+         Q36   = factor(Q36,   levels = c("No me preocupa", "Me preocupa un poco","Me preocupa algo","Me preocupa mucho","No tenga una opinión al respecto")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -286,7 +287,8 @@ data_1.3_FRA <- data_1.2_FRA %>%
          Q46_2 = factor(Q46_2, levels = c("Je suis tout à fait contre", "Je suis plutôt contre", "Je ne suis ni pour ni contre", "Je suis plutôt pour", "Je suis tout à fait pour")),
          Q30_1 = factor(Q30_1, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")),
          Q30_2 = factor(Q30_2, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")),
-         Q30_3 = factor(Q30_3, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")))%>%
+         Q30_3 = factor(Q30_3, levels = c("Pas du tout", "Un peu", "Assez", "Largement", "Totalement")),
+         Q36   = factor(Q36,   levels = c("Pas préoccupé(e)", "Un peu préoccupé(e)", "Assez préoccupé(e)", "Très préoccupé(e)", "Sans opinion")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -412,6 +414,7 @@ data_1.3_GER <- data_1.2_GER %>%
   # Remove some columns
   select(-(FairnessPerception:PolicySupport))%>%
   # mutate_at(vars(Effectiveness_1, Effectiveness_2, Expected_cost_1_true, Expected_cost_2_true), ~ ifelse(is.na(.), "No lo sé",.))%>%
+  mutate(Q36 = ifelse(is.na(Q36), "I don't know", Q36))%>%
   # Introducing factors
   mutate(Q41_1 = factor(Q41_1, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
          Q41_2 = factor(Q41_2, levels = c("Auf keinen Fall", "Vermutlich nicht", "Vermutlich", "Auf jeden Fall")),
@@ -427,7 +430,8 @@ data_1.3_GER <- data_1.2_GER %>%
          Q46_2 = factor(Q46_2, levels = c("Ich lehne sie entschieden ab", "Ich bin eher dagegen", "Ich bin weder dafür noch dagegen", "Ich befürworte sie in gewissem Maße", "Ich befürworte sie entschieden")),
          Q30_1 = factor(Q30_1, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")),
          Q30_2 = factor(Q30_2, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")),
-         Q30_3 = factor(Q30_3, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")))%>%
+         Q30_3 = factor(Q30_3, levels = c("Überhaupt nicht", "Ein wenig", "Einigermaßen", "Weitgehend", "Vollständig")),
+         Q36   = factor(Q36,   levels = c("Nicht besorgt", "Ein wenig besorgt", "Ziemlich besorgt", "Sehr besorgt", "I don't know")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -571,7 +575,8 @@ data_1.3_ROM <- data_1.2_ROM %>%
          Q46_2      = factor(Q46_2,      levels = c("Ma opun cu tarie", "Ma opun oarecum", "Nici nu o sustin, nici nu ma opun", "O sustin oarecum", "O sustin cu tarie")),
          Q30_1      = factor(Q30_1,      levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")),
          Q30_2      = factor(Q30_2,      levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")),
-         Q30_3      = factor(Q30_3,      levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")))%>%
+         Q30_3      = factor(Q30_3,      levels = c("Deloc", "Putin", "Oarecum", "Mult", "Complet")),
+         Q36        = factor(Q36,        levels = c("Nu sunt preocupat(ă)", "Puțin preocupat(ă)","Oarecum preocupat(ă)","Foarte preocupat(ă)", "Nu am nicio părere")))%>%
   mutate(PedTreatmentGrp = ifelse(PedTreatmentGrp == "Treat", "Treatment", PedTreatmentGrp))%>%
   mutate(Treatment_A = factor(policy, levels = c("EU", "nonEU")),
          Treatment_B = factor(PedTreatmentGrp,  levels = c("Control", "Treatment")),
@@ -1890,54 +1895,59 @@ for(i in c("Spain", "France", "Germany", "Romania")){
     
     # Tune the model
     
-    doParallel::registerDoParallel()
-    
-    time_1 <- Sys.time()
-    
-    model_2.2.2 <- tune_grid(workflow_2.2.2,
-                             resamples = folds_2.2.2,
-                             grid      = grid_2.2.2,
-                             metrics   = metric_set(accuracy, mn_log_loss, f_meas))
-    
-    time_2 <- Sys.time()
-    
-    doParallel::stopImplicitCluster()
+    # doParallel::registerDoParallel()
+    # 
+    # time_1 <- Sys.time()
+    # 
+    # model_2.2.2 <- tune_grid(workflow_2.2.2,
+    #                          resamples = folds_2.2.2,
+    #                          grid      = grid_2.2.2,
+    #                          metrics   = metric_set(accuracy, mn_log_loss, f_meas))
+    # 
+    # time_2 <- Sys.time()
+    # 
+    # doParallel::stopImplicitCluster()
     
     print("End computing")
     
-    tuning_time <- as.integer(difftime(time_2, time_1, units = "min"))
+    # tuning_time <- as.integer(difftime(time_2, time_1, units = "min"))
     
     # Collect metrics of tuned model
     
-    metrics_2.2.2 <- collect_metrics(model_2.2.2)
-    
-    model_2.2.2.1 <- select_best(model_2.2.2, metric = "f_meas")
-    
-    metrics_2.2.2.1 <- metrics_2.2.2 %>%
-      filter(.config == model_2.2.2.1$.config[1])
-    
-    track_1 <- track_0 %>%
-      mutate(number      = run_number,
-             run_ID      = run_ID,
-             tuning_time = tuning_time)%>%
-      bind_cols(model_2.2.2.1)%>%
-      rename(tree_depth_best = tree_depth, learn_rate_best = learn_rate, mtry_best = mtry)%>%
-      select(-.config)%>%
-      mutate(accuracy    = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "accuracy"],
-             f_meas      = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "f_meas"],
-             mn_log_loss = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "mn_log_loss"])
+    # metrics_2.2.2 <- collect_metrics(model_2.2.2)
+    # 
+    # model_2.2.2.1 <- select_best(model_2.2.2, metric = "f_meas")
+    # 
+    # metrics_2.2.2.1 <- metrics_2.2.2 %>%
+    #   filter(.config == model_2.2.2.1$.config[1])
+    # 
+    # track_1 <- track_0 %>%
+    #   mutate(number      = run_number,
+    #          run_ID      = run_ID,
+    #          tuning_time = tuning_time)%>%
+    #   bind_cols(model_2.2.2.1)%>%
+    #   rename(tree_depth_best = tree_depth, learn_rate_best = learn_rate, mtry_best = mtry)%>%
+    #   select(-.config)%>%
+    #   mutate(accuracy    = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "accuracy"],
+    #          f_meas      = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "f_meas"],
+    #          mn_log_loss = metrics_2.2.2.1$mean[metrics_2.2.2.1$.metric == "mn_log_loss"])
     
     # First outcome: Table with all tuning details.
-    track_tuning <- track_tuning %>%
-      bind_rows(track_1)
+    # track_tuning <- track_tuning %>%
+    #   bind_rows(track_1)
     
     parameters <- track_tuning %>%
       filter(Country == i & Outcome == j)%>%
-      dplyr::slice(which.max(number))
+      dplyr::slice(which.max(number))%>%
+      rename(tree_depth = tree_depth_best,
+             learn_rate = learn_rate_best,
+             mtry       = mtry_best)%>%
+      select(tree_depth, learn_rate, mtry)%>%
+      as.list()
     
     # Fit best model
     
-    workflow_2.2.3 <- finalize_workflow(workflow_2.2.2, model_2.2.2.1)
+    workflow_2.2.3 <- finalize_workflow(workflow_2.2.2, parameters)
     
     # Fit model
     
@@ -2153,6 +2163,123 @@ for(i in c("Spain", "France", "Germany", "Romania")){
 
 rm(shap_2.2.1.1, shap_2.2.1.1.0, shap_2.2.1.1.1, shap_2.2.1.2.0, shap_2.2.1.1,
    shap_a, shap_b, shap_b_1, shap_b_1.1, shap_b_2, P_2.2.1, i, j)
+
+# 2.2.2 Individual SHAP-values (Figure 2 and Appendix) ####
+
+data_2.2.2 <- data.frame()
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  shap_2.2.2   <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/SHAP_%s_support_3.parquet", i))
+  data_2.2.2.0 <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/Data_%s_support_3.parquet", i))
+
+  # Select relevant variables
+  shap_2.2.2.1 <- shap_2.2.2 %>%
+    mutate(id = 1:n())%>%
+    select(id, everything())%>%
+    pivot_longer(-id, names_to = "variable", values_to = "SHAP")%>%
+    mutate(VAR_0 = case_when(grepl("Q45_", variable) ~ "Fairness perception (Q45)",
+                             grepl("Q41_", variable) ~ "Effectiveness perception (Q41)",
+                             grepl("Q36_", variable) ~ "Climate change concern (Q36)",
+                             TRUE ~ NA))%>%
+    filter(!is.na(VAR_0))
+  
+  for(j in c("Q36", "Q41_1", "Q45_1")){
+    # Select relevant SHAP values
+    shap_2.2.2.2 <- shap_2.2.2.1 %>%
+      filter(grepl(j, variable))
+    
+    data_2.2.2.1 <- data_2.2.2.0 %>%
+      mutate(id = 1:n())%>%
+      select(id, all_of(j))%>%
+      left_join(shap_2.2.2.2, by = "id")%>%
+      rename(var_interest = j)%>%
+      mutate(var_interest = as.character(var_interest))%>%
+      mutate(variable = str_remove(variable, paste0(j,"_")))%>%
+      mutate(variable = str_replace_all(variable, "\\."," "))%>%
+      mutate(variable = ifelse(variable == "I don t know", "I don't know", variable))%>%
+      mutate(Yes = ifelse(var_interest == variable,1,0))%>%
+      group_by(id)%>%
+      mutate(Sum_Yes = sum(Yes))%>%
+      ungroup()%>%
+      filter(Yes == 1)%>%
+      select(id, SHAP)
+    
+    # Dataframe with relevant values and corresponding SHAP values
+    data_2.2.2.2 <- data_2.2.2.0 %>%
+      mutate(id = 1:n())%>%
+      select(id, all_of(j))%>%
+      left_join(data_2.2.2.1, by = "id")%>%
+      mutate(SHAP = ifelse(is.na(SHAP),0,SHAP))%>%
+      rename(level = j)%>%
+      mutate(VAR_0 = j)%>%
+      mutate(Country = i)
+    
+    data_2.2.2 <- data_2.2.2 %>%
+      bind_rows(data_2.2.2.2)
+  }
+}
+
+data_2.2.2.1 <- data_2.2.2 %>%
+  mutate(LEVEL = case_when(VAR_0 == "Q45_1" & level %in% c("Injusta", "Injuste", "Ich finde sie ungerecht", "Incorecta") ~ "Unfair",
+                           VAR_0 == "Q45_1" & level %in% c("Ni justa ni injusta","Ni juste ni injuste","Ich finde sie weder gerecht noch ungerecht", "Nici corecta nici incorecta") ~ "Neither fair nor unfair",
+                           VAR_0 == "Q45_1" & level %in% c("Justa", "Juste", "Ich finde sie gerecht", "Corecta") ~  "Fair",
+                           VAR_0 == "Q45_1" & level == "I don't know" ~ "I don't know",
+                           VAR_0 == "Q41_1" & level %in% c("Probablemente eficaz", "Probablement efficace", "Vermutlich", "Probabil va fi eficienta")                   ~ "Probably effective",
+                           VAR_0 == "Q41_1" & level %in% c("Sin duda eficaz", "Certainement efficace", "Auf jeden Fall", "In mod sigur va fi eficienta")                ~ "Definitely effective",
+                           VAR_0 == "Q41_1" & level %in% c("Probablemente no sea eficaz", "Probablement inefficace", "Vermutlich nicht", "Probabil nu va fi eficienta") ~ "Probably ineffective",
+                           VAR_0 == "Q41_1" & level %in% c("En absoluto eficaz", "Certainement inefficace", "Auf keinen Fall", "In mod sigur nu va fi eficienta")       ~ "Definitely ineffective",
+                           VAR_0 == "Q41_1" & level == "I don't know" ~ "I don't know",
+                           VAR_0 == "Q36" & level %in% c("No me preocupa", "Pas préoccupé(e)", "Nicht besorgt", "Nu sunt preocupat(ă)")           ~ "Not concerned",
+                           VAR_0 == "Q36" & level %in% c("Me preocupa un poco","Un peu préoccupé(e)", "Ein wenig besorgt", "Puțin preocupat(ă)")  ~ "Somewhat concerned",
+                           VAR_0 == "Q36" & level %in% c("Me preocupa algo", "Assez préoccupé(e)", "Ziemlich besorgt", "Oarecum preocupat(ă)")    ~ "Quite concerned",
+                           VAR_0 == "Q36" & level %in% c("Me preocupa mucho", "Très préoccupé(e)", "Sehr besorgt", "Foarte preocupat(ă)")         ~ "Very concerned",
+                           VAR_0 == "Q36" & level %in% c("No tenga una opinión al respecto","Sans opinion", "Nu am nicio părere", "I don't know") ~ "No opinion"))%>%
+  mutate(VAR_0 = factor(VAR_0, levels = c("Q45_1", "Q41_1","Q36")))%>%
+  mutate(VAR_1 = case_when(VAR_0 == "Q45_1" ~ "Fairness perception\n(Ref.: Unfair)",
+                           VAR_0 == "Q41_1" ~ "Effectiveness perception\n(Ref.: Definitely ineffective)",
+                           VAR_0 == "Q36"   ~ "Climate change concern\n(Ref.: Not concerned)"))%>%
+  mutate(VAR_1 = factor(VAR_1, levels = c("Fairness perception\n(Ref.: Unfair)",
+                                          "Effectiveness perception\n(Ref.: Definitely ineffective)",
+                                          "Climate change concern\n(Ref.: Not concerned)")))%>%
+  # Remove I donÄt know and no opinions
+  filter(!LEVEL %in% c("I don't know", "No opinion"))%>%
+  # Remove baselines
+  filter(!LEVEL %in% c("Unfair", "Definitely ineffective", "Not concerned"))%>% # TBD for Q38
+  mutate(LEVEL = factor(LEVEL, levels = c("Fair", "Neither fair nor unfair", 
+                                          "Definitely effective", "Probably effective","Probably ineffective",
+                                           "Very concerned", "Quite concerned", "Somewhat concerned")))%>%
+  mutate(Country = case_when(Country == "Spain"   ~ "Spain (ACC: 0.83)",
+                             Country == "France"  ~ "France (ACC: 0.85)",
+                             Country == "Germany" ~ "Germany (ACC: 0.82)",
+                             Country == "Romania" ~ "Romania (ACC: 0.88)"))%>%
+  mutate(Country = factor(Country, levels = c("Spain (ACC: 0.83)",
+                                              "France (ACC: 0.85)",
+                                              "Germany (ACC: 0.82)",
+                                              "Romania (ACC: 0.88)")))
+
+P_2.2.2 <- ggplot(data_2.2.2.1)+
+  geom_vline(aes(xintercept = 0))+
+  # geom_boxplot(aes(x = SHAP, y = LEVEL))+
+  geom_jitter(aes(x = SHAP, y = LEVEL), size = 0.4, height = 0.25, width = 0, shape = 21, fill = "#3C5488FF", alpha = 0.4, stroke = 0)+
+  facet_grid(VAR_1 ~ Country, scales = "free_y", switch = "y", space = "free")+
+  theme_bw()+
+  xlab("SHAP values")+
+  theme(strip.placement    = "outside",
+        axis.title.y       = element_blank(),
+        strip.background   = element_blank(),
+        axis.text.y        = element_text(size = 6), 
+        axis.text.x        = element_text(size = 6),
+        axis.title.x       = element_text(size = 7),
+        strip.text         = element_text(size = 7),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.ticks         = element_line(size = 0.2))
+
+jpeg("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_2.jpeg", width = 160/25.4, height = 120/25.4, unit = "in", res = 600)
+print(P_2.2.2)
+dev.off()
+
+rm(data_2.2.2, data_2.2.2.0, data_2.2.2.1, data_2.2.2.2, shap_2.2.2, shap_2.2.2.1, shap_2.2.2.2, P_2.2.2, i, j)
 
 # 2.3   Baseline correlation between policy support and institutional trust ####
 
