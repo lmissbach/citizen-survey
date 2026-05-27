@@ -2281,6 +2281,531 @@ dev.off()
 
 rm(data_2.2.2, data_2.2.2.0, data_2.2.2.1, data_2.2.2.2, shap_2.2.2, shap_2.2.2.1, shap_2.2.2.2, P_2.2.2, i, j)
 
+# 2.3   Boosted regression trees - predicting support or opposition in t=0 without policy variables ####
+
+data_2.3 <- data_2 %>%
+  # Excluding "I don't know" answers
+  filter(!is.na(Q46_1N))%>%
+  # Recode policy support
+  mutate(support_2 = ifelse(Q46_1N < 2,0,1),
+         support_3 = ifelse(Q46_1N < 3,0,1),
+         support_4 = ifelse(Q46_1N < 4,0,1),
+         support_5 = ifelse(Q46_1N < 5,0,1))%>%
+  mutate_at(vars(starts_with("support_")), ~ factor(.))%>%
+  select(Country, Q10:Q23,Q24,Q25:Q28,Q29A,Q29B,Q30_1:Q38, support_2:support_5)%>%
+  # TBD: Homogenize industry variable. Leave out for now.
+  select(-Q14)
+
+track_tuning <- data.frame()
+track_tuning <- read.xlsx("../2_Data/1_Support_Datasets/1_SHAP_1/Tuning_SHAP_1.xlsx")
+
+track_performance <- data.frame()
+track_performance <- read.xlsx("../2_Data/1_Support_Datasets/1_SHAP_1/Performance_SHAP_1.xlsx")
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  
+  data_2.3.1 <- data_2.3 %>%
+    filter(Country == i)
+  
+  if(i == "Spain"){
+    data_2.3.1 <- data_2.3.1 %>%
+      mutate(Q11 = ifelse(Q11 == "Otros", "Mujer", Q11))
+  }
+  
+  if(i == "France"){
+    data_2.3.1 <- data_2.3.1 %>%
+      mutate(Q11 = ifelse(Q11 == "Autre", "Féminin", Q11))
+  }
+  
+  if(i == "Romania"){
+    data_2.3.1 <- data_2.3.1 %>%
+      mutate(Q11 = ifelse(Q11 == "Altul", "Feminin", Q11))%>%
+      mutate_at(vars(Q31_Gov_nat:Q31_EU_Comm), ~ ifelse(is.na(.), "Nu știu / Nu pot să spun",.))
+  }
+  
+  for(j in c("support_2", "support_3", "support_4", "support_5")){
+    
+    track_0 <- data.frame(Country = i,
+                          Outcome = j,
+                          date    = date())
+    run_number <- 1
+    run_ID <- paste0(i,"_",j,"_",1)
+    # run_number <- if(i %in% track_tuning$Country & j %in% track_tuning$Outcome) max(track_tuning$number[track_tuning$Country == i & track_tuning$Outcome == j])+1 else 1
+    # run_ID     <- if(i %in% track_tuning$Country & j %in% track_tuning$Outcome) paste0(i,"_",j,"_",max(track_tuning$number[track_tuning$Country == i & track_tuning$Outcome == j])+1) else (paste0(i,"_",j,"_",1))
+    
+    print(paste0("Start ", i, ": ", run_ID, ": ", Sys.time()))
+    
+    data_2.3.2 <- data_2.3.1 %>%
+      # Remove all other support columns and only keep relevant outcome variable
+      rename(outcome = all_of(j))%>%
+      select(-Country, -starts_with("support"))%>%
+      # Removes unused factor levels
+      mutate(across(where(is.factor), ~ fct_drop(.)))%>%
+      # Convert to factor variable
+      mutate(across(where(~ is.character(.)), ~ as.factor(.)))%>%
+      # Replace NAs where not applicable or for "I don't know"
+      # mutate_at(vars(Q14),   ~ fct_na_value_to_level(., level = "Not applicable"))%>%
+      mutate_at(vars(Q30_1:Q30_3), ~ fct_na_value_to_level(., level = "I don't know"))%>%
+      # Remove columns with just NA
+      select(where(~ !all(is.na(.))))%>%
+      # Create noise parameter
+      mutate(noise = rnorm(nrow(.),0,1))
+    
+    if(i == "France"){
+      data_2.3.2 <- data_2.3.2 %>%
+        filter(!is.na(Q10) & !is.na(Q12) & !is.na(Q35_1))%>%
+        mutate_at(vars(Q11, Q13, Q15, Q16, Q35_2:Q35_4), ~ fct_na_value_to_level(., level = "I don't know"))
+    }
+    
+    if(i == "Germany"){
+      data_2.3.2 <- data_2.3.2 %>%
+        mutate_at(vars(Q36:Q37_c), ~ fct_na_value_to_level(., level = "I don't know"))
+    }
+    
+    if(i == "Romania"){
+      data_2.3.2 <- data_2.3.2 %>%
+        filter(!is.na(Q11) & !is.na(Q12) & !is.na(Q35_1))%>%
+        mutate_at(vars(Q15,Q16,Q35_2:Q35_4), ~ fct_na_value_to_level(., level = "I don't know"))
+    }
+    
+    # Training and testing dataset
+    
+    data_split_2.3.2 <- initial_split(data_2.3.2, prop = 0.8, strata = outcome)
+    
+    train_2.3.2 <- training(data_split_2.3.2) 
+    test_2.3.2  <- testing(data_split_2.3.2)
+    
+    # Recipe
+    
+    recipe_2.3.2 <- recipe(outcome ~ ., 
+                           data = data_2.3.2)%>%
+      # Delete columns with NA (should be redundant)
+      step_filter_missing(all_predictors(), threshold = 0)%>%
+      step_zv(all_predictors())%>%
+      step_other(Q12,Q13,Q26, threshold = 0.05)%>%
+      step_dummy(all_nominal_predictors(), sparse = "no")
+    
+    mtry_max <- recipe_2.3.2 %>%
+      prep(training = train_2.3.2)%>%
+      bake(new_data = NULL)%>%
+      select(-outcome)%>%
+      ncol()
+    
+    # Five-fold cross-validation
+    
+    folds_2.3.2 <- vfold_cv(train_2.3.2, v = 5)
+    
+    model_2.3.2 <- boost_tree(
+      trees      = 1000,
+      tree_depth = tune(),
+      learn_rate = tune(),
+      mtry       = tune(),
+      stop_iter  = 15)%>%
+      set_mode("classification")%>%
+      set_engine("xgboost")
+    
+    workflow_2.3.2 <- workflow()%>%
+      add_recipe(recipe_2.3.2)%>%
+      add_model(model_2.3.2)
+    
+    # Create tuning grid
+    
+    grid_2.3.2 <- grid_space_filling(
+      tree_depth(c(3,15)),
+      learn_rate(c(-3,-1)),
+      mtry(c(round((mtry_max/2),0),mtry_max)),
+      size = 99)%>%
+      # default parameters
+      bind_rows(data.frame(tree_depth = 6, learn_rate = 0.3, mtry = mtry_max))
+    
+    # Tune the model
+    
+    doParallel::registerDoParallel()
+    
+    time_1 <- Sys.time()
+    
+    model_2.3.2 <- tune_grid(workflow_2.3.2,
+                            resamples = folds_2.3.2,
+                            grid      = grid_2.3.2,
+                            metrics   = metric_set(accuracy, mn_log_loss, f_meas))
+    
+    time_2 <- Sys.time()
+    
+    doParallel::stopImplicitCluster()
+    
+    print("End computing")
+    
+    tuning_time <- as.integer(difftime(time_2, time_1, units = "min"))
+    
+    # Collect metrics of tuned model
+    
+    metrics_2.3.2 <- collect_metrics(model_2.3.2)
+    
+    model_2.3.2.1 <- select_best(model_2.3.2, metric = "f_meas")
+    
+    metrics_2.3.2.1 <- metrics_2.3.2 %>%
+     filter(.config == model_2.3.2.1$.config[1])
+    
+    track_1 <- track_0 %>%
+     mutate(number      = run_number,
+            run_ID      = run_ID,
+            tuning_time = tuning_time)%>%
+     bind_cols(model_2.3.2.1)%>%
+     rename(tree_depth_best = tree_depth, learn_rate_best = learn_rate, mtry_best = mtry)%>%
+     select(-.config)%>%
+     mutate(accuracy    = metrics_2.3.2.1$mean[metrics_2.3.2.1$.metric == "accuracy"],
+            f_meas      = metrics_2.3.2.1$mean[metrics_2.3.2.1$.metric == "f_meas"],
+            mn_log_loss = metrics_2.3.2.1$mean[metrics_2.3.2.1$.metric == "mn_log_loss"])
+    
+    # First outcome: Table with all tuning details.
+    track_tuning <- track_tuning %>%
+     bind_rows(track_1)
+    
+    parameters <- track_tuning %>%
+      filter(Country == i & Outcome == j)%>%
+      dplyr::slice(which.max(number))%>%
+      rename(tree_depth = tree_depth_best,
+             learn_rate = learn_rate_best,
+             mtry       = mtry_best)%>%
+      select(tree_depth, learn_rate, mtry)%>%
+      as.list()
+    
+    # Fit best model
+    
+    workflow_2.3.3 <- finalize_workflow(workflow_2.3.2, parameters)
+    
+    # Fit model
+    
+    model_2.3.3 <- fit(workflow_2.3.3, data = train_2.3.2)
+    
+    evaluation_2.3.3 <- predict(model_2.3.3, test_2.3.2, type = "class")%>%
+      bind_cols(predict(model_2.3.3, test_2.3.2, type = "prob"))%>%
+      bind_cols(test_2.3.2)
+    
+    metrics_2.3.3 <- metric_set(
+      accuracy,
+      kap,
+      sens,
+      yardstick::spec,
+      f_meas,
+      roc_auc
+    )
+    
+    metrics_2.3.3.1 <- metrics_2.3.3(evaluation_2.3.3,
+                                     truth = outcome,
+                                     estimate = .pred_class,
+                                     .pred_1)%>%
+      select(-.estimator)%>%
+      pivot_wider(names_from = ".metric", values_from = ".estimate")
+    
+    track_2 <- track_0 %>%
+      mutate(number      = run_number,
+             run_ID      = run_ID)%>%
+      bind_cols(metrics_2.3.3.1)
+    
+    track_performance <- track_performance %>%
+      bind_rows(track_2)
+    
+    # Extract SHAP values (full dataset)
+    
+    model_2.3.4 <- fit(workflow_2.3.3, data = data_2.3.2)
+    engine_2.3.4 <- extract_fit_engine(model_2.3.4)
+    data_2.3.4 <- bake(prep(recipe_2.3.2, training = data_2.3.2), new_data = data_2.3.2)%>%
+      select(-outcome)%>%
+      as.matrix()
+    
+    time_3 <- Sys.time()
+    
+    shap_2.3.4 <- predict(engine_2.3.4,
+                          data_2.3.4,
+                          predcontrib = TRUE,
+                          approxcontrib = FALSE)
+    
+    time_4 <- Sys.time()
+    
+    shaping_time <- as.integer(difftime(time_4, time_3, units = "min"))
+    
+    # shap_2.2.4.1 <- shap_2.2.4 %>%
+    #   as_tibble()%>%
+    #   summarise_all(~ mean(abs(.)))%>%
+    #   select(-"(Intercept)")%>%
+    #   pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+    #   arrange(desc(SHAP_contribution))%>%
+    #   mutate(tot_contribution = sum(SHAP_contribution))%>%
+    #   mutate(share_SHAP = SHAP_contribution/tot_contribution)%>%
+    #   select(-tot_contribution)
+    
+    shap_2.3.4.1 <- shap_2.3.4 %>%
+      as_tibble()
+    
+    write_parquet(shap_2.3.4.1, sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/SHAP_wo_%s_%s.parquet", i, j))
+    write_parquet(data_2.3.2,   sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/Data_wo_%s_%s.parquet", i, j))
+    
+    rm(data_2.3.2, data_2.3.4, data_split_2.3.2, engine_2.3.4, evaluation_2.3.3, folds_2.3.2, grid_2.3.2,
+       metrics_2.3.2, metrics_2.3.2.1, metrics_2.3.3.1, model_2.3.2, model_2.3.2.1, model_2.3.3, model_2.3.4,
+       parameters, recipe_2.3.2, shap_2.3.4, shap_2.3.4.1, test_2.3.2, train_2.3.2, workflow_2.3.2, workflow_2.3.3,
+       time_1, time_2, time_3, time_4)
+  }
+  
+}
+
+write.xlsx(track_tuning, "../2_Data/1_Support_Datasets/1_SHAP_1/Tuning_SHAP_wo_1.xlsx")
+write.xlsx(track_performance, "../2_Data/1_Support_Datasets/1_SHAP_1/Performance_SHAP_wo_1.xlsx")
+
+# 2.3.1 Analysing SHAP values for each combination ####
+
+shap_a <- data.frame()
+shap_b <- data.frame()
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  for(j in c("support_2", "support_3", "support_4", "support_5")){
+    
+    shap_2.3.1.1 <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/SHAP_wo_%s_%s.parquet", i, j))
+    data_2.3.1.1 <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/Data_wo_%s_%s.parquet", i, j))
+    
+    shap_2.3.1.1.0 <- shap_2.3.1.1 %>%
+      summarise_all(~ mean(abs(.)))%>%
+      select(-"(Intercept)")%>%
+      pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+      arrange(desc(SHAP_contribution))%>%
+      mutate(tot_contribution = sum(SHAP_contribution))%>%
+      mutate(share_SHAP       = SHAP_contribution/tot_contribution)%>%
+      select(-tot_contribution)%>%
+      mutate(Country = i,
+             Outcome = j)
+    
+    shap_2.3.1.1.1 <- shap_2.3.1.1 %>%
+      summarise_all(~ mean(.))%>%
+      select(-"(Intercept)")%>%
+      pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+      mutate(Variable   = str_replace(variable, "_[^_]+$", ""))%>%
+      group_by(Variable)%>%
+      summarise(direction = sign(SHAP_contribution[which.max(abs(SHAP_contribution))]))%>%
+      ungroup()%>%
+      mutate(Country = i,
+             Outcome = j)
+    
+    shap_2.3.1.2.0 <- shap_2.3.1.1.0 %>%
+      mutate(Variable   = str_replace(variable, "_[^_]+$", ""))%>%
+      group_by(Variable)%>%
+      summarise(share_SHAP = sum(share_SHAP))%>%
+      ungroup()%>%
+      arrange(desc(share_SHAP))%>%
+      mutate(Country = i,
+             Outcome = j)%>%
+      left_join(shap_2.3.1.1.1)
+    
+    shap_a <- shap_a %>%
+      bind_rows(shap_2.3.1.1.0)
+    
+    shap_b <- shap_b %>%
+      bind_rows(shap_2.3.1.2.0)
+    
+  }
+}
+
+# What are the ten most important features (on average) for each level of support
+
+shap_b_1 <- shap_b %>%
+  group_by(Country, Variable)%>%
+  summarise(mean_SHAP = mean(share_SHAP))%>%
+  arrange(desc(mean_SHAP))%>%
+  mutate(rank = 1:n())%>%
+  ungroup()%>%
+  filter(rank < 7)
+
+# Dataset for each country
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  shap_b_1.1 <- shap_b_1 %>%
+    filter(Country == i)
+  
+  shap_b_2 <- shap_b %>%
+    filter(Country == i)%>%
+    left_join(shap_b_1.1)%>%
+    filter(!is.na(rank))%>%
+    # Data transformation
+    mutate(Outcome = case_when(Outcome == "support_2" ~ "> Rather oppose",
+                               Outcome == "support_3" ~ "> Neutral",
+                               Outcome == "support_4" ~ "> Rather support",
+                               Outcome == "support_5" ~ "> Strongly support"))%>%
+    mutate(Outcome = factor(Outcome, levels = c("> Rather oppose", "> Neutral", "> Rather support", "> Strongly support")))%>%
+    mutate(direction = factor(direction))%>%
+    mutate(Variable = case_when(Variable == "Q45_1"       ~ "Fairness perception (Q45)",
+                                Variable == "Q44_1"       ~ "Effects on vulnerable (Q44)",
+                                Variable == "Q43_1"       ~ "Relative costs (Q43)",
+                                Variable == "Q42_1_true"  ~ "Individual costs (Q42)",
+                                Variable == "Q41_1"       ~ "Effectiveness perception (Q41)",
+                                Variable == "Q38"         ~ "Political Party (Q38)",
+                                Variable == "Q37_c"       ~ "Impact on emissions (Q37)",
+                                Variable == "Q37_b"       ~ "Impact on life (Q37)",
+                                Variable == "Q37_a"       ~ "Impact on economy (Q37)",
+                                Variable == "Q36"         ~ "Climate change concern (Q36)",
+                                Variable == "Q35_1"       ~ "Communication: Public (Q35)",
+                                Variable == "Q35_4"       ~ "Communcation: Scientists (Q35)",
+                                Variable == "Q31_Gov_nat" ~ "Integrity national gov. (Q31)",
+                                Variable == "Q31_EU_Comm" ~ "Integrity EU commission (Q31)",
+                                Variable == "Q30_1"       ~ "Trust in local gov. (Q30)",
+                                Variable == "Q30_2"       ~ "Trust in national gov. (Q30)",
+                                Variable == "Q30_3"       ~ "Trust in EU (Q30)",
+                                Variable == "Q28"         ~ "Expenditures (Q28)",
+                                Variable == "noise"       ~ "Random term",
+                                Variable == "Q10"         ~ "Age (Q10)",
+                                TRUE ~ Variable))%>%
+    mutate(Variable = fct_reorder(Variable, rank, .desc = TRUE))%>%
+    mutate(label_0 = paste0(round(share_SHAP*100,0),"%"))
+  
+  P_2.3.1 <- ggplot(data = shap_b_2, aes(x = Outcome, y = Variable))+
+    # geom_point(shape = 22,fill = NA,colour = "black",stroke = 0.3,size = 9)+
+    geom_point(aes(alpha = share_SHAP), shape = 22, size = 9, fill = "#3C5488FF", colour = "black", stroke = 0.3)+
+    geom_text(aes(label = label_0), size = 2)+
+    scale_alpha_continuous(range = c(0,0.7))+
+    scale_x_discrete(position = "top")+
+    # geom_point(alpha = 0.85, shape = 21, fill = "#4DBBD5FF", colour = "black")+
+    # scale_size_continuous(range = c(2,8),
+    #                       breaks = c(0.01, 0.05, 0.1, 0.2, 0.5),
+    #                       name    = "Average SHAP Contribution", 
+    #                       labels = percent)+l
+    theme_bw()+
+    ylab("Feature")+
+    xlab("Average SHAP Contribution: Do you support or oppose the EU ETS2?")+
+    ggtitle(i)+
+    guides(alpha = "none")+
+    theme(legend.position = "bottom",
+          panel.grid.major = element_blank(),
+          axis.ticks = element_line(linewidth = 0.3),
+          axis.text  = element_text(size = 7),
+          axis.title = element_text(size = 8),
+          title = element_text(size = 8),
+          legend.text = element_text(size = 8),
+          legend.title = element_text(hjust = 0.5, size = 8))
+  
+  pdf(sprintf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_B_wo_%s.pdf", i), width = 130/25.4, height = 70/25.4)
+  print(P_2.3.1)
+  dev.off()
+  
+}
+
+rm(shap_2.3.1.1, shap_2.3.1.1.0, shap_2.3.1.1.1, shap_2.3.1.2.0, shap_2.3.1.1,
+   shap_a, shap_b, shap_b_1, shap_b_1.1, shap_b_2, P_2.3.1, i, j)
+
+# 2.3.2 Individual SHAP-values (Figure 2 and Appendix) ####
+
+data_2.3.2 <- data.frame()
+
+for(i in c("Spain", "France", "Germany", "Romania")){
+  shap_2.3.2   <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/SHAP_wo_%s_support_3.parquet", i))
+  data_2.3.2.0 <- read_parquet(sprintf("../2_Data/1_Support_Datasets/1_SHAP_1/Data_wo_%s_support_3.parquet", i))
+  
+  # Select relevant variables
+  shap_2.3.2.1 <- shap_2.3.2 %>%
+    mutate(id = 1:n())%>%
+    select(id, everything())%>%
+    pivot_longer(-id, names_to = "variable", values_to = "SHAP")%>%
+    mutate(VAR_0 = case_when(grepl("Q45_", variable) ~ "Fairness perception (Q45)",
+                             grepl("Q41_", variable) ~ "Effectiveness perception (Q41)",
+                             grepl("Q36_", variable) ~ "Climate change concern (Q36)",
+                             TRUE ~ NA))%>%
+    filter(!is.na(VAR_0))
+  
+  for(j in c("Q36", "Q41_1", "Q45_1")){
+    # Select relevant SHAP values
+    shap_2.3.2.2 <- shap_2.3.2.1 %>%
+      filter(grepl(j, variable))
+    
+    data_2.3.2.1 <- data_2.3.2.0 %>%
+      mutate(id = 1:n())%>%
+      select(id, all_of(j))%>%
+      left_join(shap_2.3.2.2, by = "id")%>%
+      rename(var_interest = j)%>%
+      mutate(var_interest = as.character(var_interest))%>%
+      mutate(variable = str_remove(variable, paste0(j,"_")))%>%
+      mutate(variable = str_replace_all(variable, "\\."," "))%>%
+      mutate(variable = ifelse(variable == "I don t know", "I don't know", variable))%>%
+      mutate(Yes = ifelse(var_interest == variable,1,0))%>%
+      group_by(id)%>%
+      mutate(Sum_Yes = sum(Yes))%>%
+      ungroup()%>%
+      filter(Yes == 1)%>%
+      select(id, SHAP)
+    
+    # Dataframe with relevant values and corresponding SHAP values
+    data_2.3.2.2 <- data_2.3.2.0 %>%
+      mutate(id = 1:n())%>%
+      select(id, all_of(j))%>%
+      left_join(data_2.3.2.1, by = "id")%>%
+      mutate(SHAP = ifelse(is.na(SHAP),0,SHAP))%>%
+      rename(level = j)%>%
+      mutate(VAR_0 = j)%>%
+      mutate(Country = i)
+    
+    data_2.3.2 <- data_2.3.2 %>%
+      bind_rows(data_2.3.2.2)
+  }
+}
+
+data_2.3.2.1 <- data_2.3.2 %>%
+  mutate(LEVEL = case_when(VAR_0 == "Q45_1" & level %in% c("Injusta", "Injuste", "Ich finde sie ungerecht", "Incorecta") ~ "Unfair",
+                           VAR_0 == "Q45_1" & level %in% c("Ni justa ni injusta","Ni juste ni injuste","Ich finde sie weder gerecht noch ungerecht", "Nici corecta nici incorecta") ~ "Neither fair nor unfair",
+                           VAR_0 == "Q45_1" & level %in% c("Justa", "Juste", "Ich finde sie gerecht", "Corecta") ~  "Fair",
+                           VAR_0 == "Q45_1" & level == "I don't know" ~ "I don't know",
+                           VAR_0 == "Q41_1" & level %in% c("Probablemente eficaz", "Probablement efficace", "Vermutlich", "Probabil va fi eficienta")                   ~ "Probably effective",
+                           VAR_0 == "Q41_1" & level %in% c("Sin duda eficaz", "Certainement efficace", "Auf jeden Fall", "In mod sigur va fi eficienta")                ~ "Definitely effective",
+                           VAR_0 == "Q41_1" & level %in% c("Probablemente no sea eficaz", "Probablement inefficace", "Vermutlich nicht", "Probabil nu va fi eficienta") ~ "Probably ineffective",
+                           VAR_0 == "Q41_1" & level %in% c("En absoluto eficaz", "Certainement inefficace", "Auf keinen Fall", "In mod sigur nu va fi eficienta")       ~ "Definitely ineffective",
+                           VAR_0 == "Q41_1" & level == "I don't know" ~ "I don't know",
+                           VAR_0 == "Q36" & level %in% c("No me preocupa", "Pas préoccupé(e)", "Nicht besorgt", "Nu sunt preocupat(ă)")           ~ "Not concerned",
+                           VAR_0 == "Q36" & level %in% c("Me preocupa un poco","Un peu préoccupé(e)", "Ein wenig besorgt", "Puțin preocupat(ă)")  ~ "Somewhat concerned",
+                           VAR_0 == "Q36" & level %in% c("Me preocupa algo", "Assez préoccupé(e)", "Ziemlich besorgt", "Oarecum preocupat(ă)")    ~ "Quite concerned",
+                           VAR_0 == "Q36" & level %in% c("Me preocupa mucho", "Très préoccupé(e)", "Sehr besorgt", "Foarte preocupat(ă)")         ~ "Very concerned",
+                           VAR_0 == "Q36" & level %in% c("No tenga una opinión al respecto","Sans opinion", "Nu am nicio părere", "I don't know") ~ "No opinion"))%>%
+  mutate(VAR_0 = factor(VAR_0, levels = c("Q45_1", "Q41_1","Q36")))%>%
+  mutate(VAR_1 = case_when(VAR_0 == "Q45_1" ~ "Fairness perception\n(Ref.: Unfair)",
+                           VAR_0 == "Q41_1" ~ "Effectiveness perception\n(Ref.: Definitely ineffective)",
+                           VAR_0 == "Q36"   ~ "Climate change concern\n(Ref.: Not concerned)"))%>%
+  mutate(VAR_1 = factor(VAR_1, levels = c("Fairness perception\n(Ref.: Unfair)",
+                                          "Effectiveness perception\n(Ref.: Definitely ineffective)",
+                                          "Climate change concern\n(Ref.: Not concerned)")))%>%
+  # Remove I donÄt know and no opinions
+  filter(!LEVEL %in% c("I don't know", "No opinion"))%>%
+  # Remove baselines
+  filter(!LEVEL %in% c("Unfair", "Definitely ineffective", "Not concerned"))%>% # TBD for Q38
+  mutate(LEVEL = factor(LEVEL, levels = c("Fair", "Neither fair nor unfair", 
+                                          "Definitely effective", "Probably effective","Probably ineffective",
+                                          "Very concerned", "Quite concerned", "Somewhat concerned")))%>%
+  mutate(Country = case_when(Country == "Spain"   ~ "Spain (ACC: 0.83)",
+                             Country == "France"  ~ "France (ACC: 0.85)",
+                             Country == "Germany" ~ "Germany (ACC: 0.82)",
+                             Country == "Romania" ~ "Romania (ACC: 0.88)"))%>%
+  mutate(Country = factor(Country, levels = c("Spain (ACC: 0.83)",
+                                              "France (ACC: 0.85)",
+                                              "Germany (ACC: 0.82)",
+                                              "Romania (ACC: 0.88)")))
+
+P_2.3.2 <- ggplot(data_2.3.2.1)+
+  geom_vline(aes(xintercept = 0))+
+  # geom_boxplot(aes(x = SHAP, y = LEVEL))+
+  geom_jitter(aes(x = SHAP, y = LEVEL), size = 0.4, height = 0.25, width = 0, shape = 21, fill = "#3C5488FF", alpha = 0.4, stroke = 0)+
+  facet_grid(VAR_1 ~ Country, scales = "free_y", switch = "y", space = "free")+
+  theme_bw()+
+  xlab("SHAP values")+
+  theme(strip.placement    = "outside",
+        axis.title.y       = element_blank(),
+        strip.background   = element_blank(),
+        axis.text.y        = element_text(size = 6), 
+        axis.text.x        = element_text(size = 6),
+        axis.title.x       = element_text(size = 7),
+        strip.text         = element_text(size = 7),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.ticks         = element_line(size = 0.2))
+
+jpeg("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_B2.jpeg", width = 160/25.4, height = 120/25.4, unit = "in", res = 600)
+print(P_2.3.2)
+dev.off()
+
+rm(data_2.3.2, data_2.3.2.0, data_2.3.2.1, data_2.3.2.2, shap_2.3.2, shap_2.3.2.1, shap_2.3.2.2, P_2.3.2, i, j)
+
 # 2.3   Baseline correlation between policy support and institutional trust ####
 
 # data_3.2 <- data_3 %>%
@@ -2387,8 +2912,6 @@ rm(data_2.2.2, data_2.2.2.0, data_2.2.2.1, data_2.2.2.2, shap_2.2.2, shap_2.2.2.
 #                  Treatments C\\textsubscript{1} to C\\textsubscript{4} provide respondent-level information about the resulting additional costs. The dependent variable expresses support on a five-point Lickert-scale."))
 # )
 
-
-
 rm(data_2)
 
 # 3     Hypothesis tests ####
@@ -2398,6 +2921,20 @@ data_3_FRA <- data_1.6_FRA
 data_3_GER <- data_1.6_GER
 data_3_ROM <- data_1.6_ROM %>%
   rename(Pricelevel = Priceleveleuro)
+
+tex.style <- style.tex(model.title = "", fixef.title = "\\midrule \\textit{Fixed Effects:}",
+                       depvar.title = "",
+                       stats.title = "\\midrule", model.format = "",
+                       fontsize = "small", yesNo = c("Yes","No"),
+                       tablefoot.value	= "",
+                       tablefoot = FALSE)
+
+dict_latex <- c("Post_B" = "Information Treatment B * Post",
+                "Post_C" = "Information Treatment C * Post",
+                "Post"                           = "Period",
+                "ID"                             = "Respondent-ID"
+                )
+
 
 # 3.1   Hypotheses 1 to 6 ####
 
@@ -2523,30 +3060,97 @@ rm(adjust_hypothesis_7b, correct_p_values_7, correct_p_values_7b,
 
 adjust_hypothesis_89 <- function(data_3_0, filter_1){
   data_3_3 <- data_3_0 %>%
-    select(ID, Treatment_B, Treatment_C, Q30_2N, Q41_1N, Q41_2N, Q45_1N, Q45_2N)%>%
-    pivot_longer(Q41_1N:Q45_2N, names_to = "Variable", values_to = "value")%>%
-    mutate(Period  = ifelse(Variable %in% c("Q41_1N", "Q45_1N"),1,2),
-           Outcome = ifelse(Variable %in% c("Q41_1N", "Q41_2N"), "Effectiveness", "Fairness"))%>%
+    select(ID, Treatment_B, Treatment_C, Q30_2N, Q41_1N, Q41_2N, Q45_1N, Q45_2N, Q46_1N, Q46_2N)%>%
+    pivot_longer(Q41_1N:Q46_2N, names_to = "Variable", values_to = "value")%>%
+    mutate(Period  = ifelse(Variable %in% c("Q41_1N", "Q45_1N", "Q46_1N"),1,2),
+           Outcome = ifelse(Variable %in% c("Q41_1N", "Q41_2N"), "Effectiveness", 
+                            ifelse(Variable %in% c("Q45_1N", "Q45_2N"), "Fairness", "Support")))%>%
     mutate(Post_B = ifelse(Period == 2 & Treatment_B == "Treatment",1,0),
            Post_C = ifelse(Period == 1, "Baseline", as.character(Treatment_C)))%>%
     filter(Outcome == filter_1)%>%
     mutate(tau = ifelse(Q30_2N < 3,1,0))%>%
-    mutate(tau_Post_B = ifelse(tau == 1 & Post_B == 1,1,0))
+    mutate(tau_Post_B = ifelse(tau == 1 & Post_B == 1,1,0))%>%
+    group_by(ID, Outcome)%>%
+    mutate(NAS = sum(is.na(value)))%>%
+    ungroup()
   
   return(data_3_3)
 }
 
-model_3.3.1_ESP <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Effectiveness"))
-model_3.3.1_FRA <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_FRA, "Effectiveness"))
-model_3.3.1_GER <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Effectiveness"))
-model_3.3.1_ROM <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Effectiveness")) 
+# Main estimation: Drop respondents with "I don't know" 
+model_3.3.0_ESP <- feols(Support ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_ESP, "Support"), NAS == 0), Support = value), cluster = ~ ID)
+model_3.3.0_FRA <- feols(Support ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_FRA, "Support"), NAS == 0), Support = value), cluster = ~ ID)
+model_3.3.0_GER <- feols(Support ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_GER, "Support"), NAS == 0), Support = value), cluster = ~ ID)
+model_3.3.0_ROM <- feols(Support ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_ROM, "Support"), NAS == 0), Support = value), cluster = ~ ID) 
 
-model_3.3.2_ESP <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ESP, "Fairness"))
-model_3.3.2_FRA <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_FRA, "Fairness"))
-model_3.3.2_GER <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_GER, "Fairness"))
-model_3.3.2_ROM <- feols(value ~ Post_B | ID + Period + Post_C, data = adjust_hypothesis_89(data_3_ROM, "Fairness"))
+model_3.3.1_ESP <- feols(Effectiveness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_ESP, "Effectiveness"), NAS == 0), Effectiveness = value), cluster = ~ ID)
+model_3.3.1_FRA <- feols(Effectiveness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_FRA, "Effectiveness"), NAS == 0), Effectiveness = value), cluster = ~ ID)
+model_3.3.1_GER <- feols(Effectiveness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_GER, "Effectiveness"), NAS == 0), Effectiveness = value), cluster = ~ ID)
+model_3.3.1_ROM <- feols(Effectiveness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_ROM, "Effectiveness"), NAS == 0), Effectiveness = value), cluster = ~ ID) 
+
+model_3.3.2_ESP <- feols(Fairness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_ESP, "Fairness"), NAS == 0), Fairness = value), cluster = ~ ID)
+model_3.3.2_FRA <- feols(Fairness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_FRA, "Fairness"), NAS == 0), Fairness = value), cluster = ~ ID)
+model_3.3.2_GER <- feols(Fairness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_GER, "Fairness"), NAS == 0), Fairness = value), cluster = ~ ID)
+model_3.3.2_ROM <- feols(Fairness ~ Post_B | ID + Period + Post_C, data = rename(filter(adjust_hypothesis_89(data_3_ROM, "Fairness"), NAS == 0), Fairness = value), cluster = ~ ID)
 
 # Export tables
+
+etable(model_3.3.1_ESP, 
+       model_3.3.2_ESP,
+       model_3.3.0_ESP,
+       se.below = TRUE, ci = 0.95, fitstat = ~ n + r2 + ar2, signif.code = NA, digits = 3, digits.stats = 2,
+       replace = TRUE, style.tex = tex.style, tpt = TRUE,
+       title = "Effects of information treatment B on policy perception in Spain",
+       label = "tab_A_1_ESP",
+       placement = "htbp!",
+       dict = dict_latex,
+       tex = TRUE,
+       file = c("../6_EUETS2_Citizens_Survey/2_Tables/Table_A_Treament_B_ESP.tex"),
+       notes = c("\\medskip \\textit{Note:}",
+                 paste0("This table TBD. Standard errors clustered at the level of respondents in parentheses.")))
+
+etable(model_3.3.1_FRA, 
+       model_3.3.2_FRA,
+       model_3.3.0_FRA,
+       se.below = TRUE, ci = 0.95, fitstat = ~ n + r2 + ar2, signif.code = NA, digits = 3, digits.stats = 2,
+       replace = TRUE, style.tex = tex.style, tpt = TRUE,
+       title = "Effects of information treatment B on policy perception in France",
+       label = "tab_A_1_FRA",
+       placement = "htbp!",
+       dict = dict_latex,
+       tex = TRUE,
+       file = c("../6_EUETS2_Citizens_Survey/2_Tables/Table_A_Treament_B_FRA.tex"),
+       notes = c("\\medskip \\textit{Note:}",
+                 paste0("This table TBD. Standard errors clustered at the level of respondents in parentheses.")))
+
+etable(model_3.3.1_GER, 
+       model_3.3.2_GER,
+       model_3.3.0_GER,
+       se.below = TRUE, ci = 0.95, fitstat = ~ n + r2 + ar2, signif.code = NA, digits = 3, digits.stats = 2,
+       replace = TRUE, style.tex = tex.style, tpt = TRUE,
+       title = "Effects of information treatment B on policy perception in Germany",
+       label = "tab_A_1_GER",
+       placement = "htbp!",
+       dict = dict_latex,
+       tex = TRUE,
+       file = c("../6_EUETS2_Citizens_Survey/2_Tables/Table_A_Treament_B_GER.tex"),
+       notes = c("\\medskip \\textit{Note:}",
+                 paste0("This table TBD. Standard errors clustered at the level of respondents in parentheses.")))
+
+etable(model_3.3.1_ROM, 
+       model_3.3.2_ROM,
+       model_3.3.0_ROM,
+       se.below = TRUE, ci = 0.95, fitstat = ~ n + r2 + ar2, signif.code = NA, digits = 3, digits.stats = 2,
+       replace = TRUE, style.tex = tex.style, tpt = TRUE,
+       title = "Effects of information treatment B on policy perception in Romania",
+       label = "tab_A_1_ROM",
+       placement = "htbp!",
+       dict = dict_latex,
+       tex = TRUE,
+       file = c("../6_EUETS2_Citizens_Survey/2_Tables/Table_A_Treament_B_ROM.tex"),
+       notes = c("\\medskip \\textit{Note:}",
+                 paste0("This table TBD. Standard errors clustered at the level of respondents in parentheses.")))
+
 
 # TBA
 
@@ -2566,8 +3170,76 @@ model_3.3.4_ROM <- feols(value ~ tau_Post_B | tau + Post_B + ID + Period + Post_
 
 # TBA
 
+# Treatment effects on knowing/not knowing
+adjust_hypothesis_89_a <- function(data_3_0){
+  data_3_3 <- data_3_0 %>%
+    mutate(know_t_0_E = ifelse(is.na(Q41_1N),0,1),
+           know_t_1_E = ifelse(is.na(Q41_2N),0,1),
+           know_t_0_F = ifelse(is.na(Q45_1N),0,1),
+           know_t_1_F = ifelse(is.na(Q45_2N),0,1),
+           Treatment  = ifelse(Treatment_B == "Treatment",1,0))
+}
+
+model_3.3.5_ESP <- feglm(know_t_1_E ~ Treatment + know_t_0_E, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_ESP))
+model_3.3.6_ESP <- feglm(know_t_1_F ~ Treatment + know_t_0_F, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_ESP))
+model_3.3.5_FRA <- feglm(know_t_1_E ~ Treatment + know_t_0_E, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_FRA))
+model_3.3.6_FRA <- feglm(know_t_1_F ~ Treatment + know_t_0_F, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_FRA))
+model_3.3.5_GER <- feglm(know_t_1_E ~ Treatment + know_t_0_E, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_GER))
+model_3.3.6_GER <- feglm(know_t_1_F ~ Treatment + know_t_0_F, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_GER))
+model_3.3.5_ROM <- feglm(know_t_1_E ~ Treatment + know_t_0_E, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_ROM))
+model_3.3.6_ROM <- feglm(know_t_1_F ~ Treatment + know_t_0_F, family = binomial(link="logit"), data = adjust_hypothesis_89_a(data_3_ROM))
+
+# Tidy and figure
+tidy_3.3.0_ESP <- tidy(model_3.3.0_ESP)%>%mutate(Country = "Spain", Outcome = "Support")
+tidy_3.3.1_ESP <- tidy(model_3.3.1_ESP)%>%mutate(Country = "Spain", Outcome = "Effectiveness")
+tidy_3.3.2_ESP <- tidy(model_3.3.2_ESP)%>%mutate(Country = "Spain", Outcome = "Fairness")
+tidy_3.3.0_FRA <- tidy(model_3.3.0_FRA)%>%mutate(Country = "France", Outcome = "Support")
+tidy_3.3.1_FRA <- tidy(model_3.3.1_FRA)%>%mutate(Country = "France", Outcome = "Effectiveness")
+tidy_3.3.2_FRA <- tidy(model_3.3.2_FRA)%>%mutate(Country = "France", Outcome = "Fairness")
+tidy_3.3.0_GER <- tidy(model_3.3.0_GER)%>%mutate(Country = "Germany", Outcome = "Support")
+tidy_3.3.1_GER <- tidy(model_3.3.1_GER)%>%mutate(Country = "Germany", Outcome = "Effectiveness")
+tidy_3.3.2_GER <- tidy(model_3.3.2_GER)%>%mutate(Country = "Germany", Outcome = "Fairness")
+tidy_3.3.0_ROM <- tidy(model_3.3.0_ROM)%>%mutate(Country = "Romania", Outcome = "Support")
+tidy_3.3.1_ROM <- tidy(model_3.3.1_ROM)%>%mutate(Country = "Romania", Outcome = "Effectiveness")
+tidy_3.3.2_ROM <- tidy(model_3.3.2_ROM)%>%mutate(Country = "Romania", Outcome = "Fairness")
+
+tidy_3.3 <- bind_rows(tidy_3.3.0_ESP, tidy_3.3.1_ESP, tidy_3.3.2_ESP,
+                      tidy_3.3.0_FRA, tidy_3.3.1_FRA, tidy_3.3.2_FRA,
+                      tidy_3.3.0_GER, tidy_3.3.1_GER, tidy_3.3.2_GER,
+                      tidy_3.3.0_ROM, tidy_3.3.1_ROM, tidy_3.3.2_ROM)%>%
+  mutate(ci_high = estimate + 1.96*std.error,
+         ci_low  = estimate - 1.96*std.error)%>%
+  mutate(VAR = case_when(Outcome == "Support" ~ "Policy support (Q46)",
+                         Outcome == "Fairness" ~ "Fairness perception (Q45)",
+                         Outcome == "Effectiveness" ~ "Effectiveness perception (Q41)"))
+
+P_3.3 <- ggplot(tidy_3.3, aes(x = estimate, y = Country))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  facet_wrap(. ~ VAR, scales = "free_x")+
+  geom_errorbar(aes(xmin = ci_low, xmax = ci_high), linewidth = 0.3, width = 0.4)+
+  geom_point(shape = 22, stroke = 0.5, size = 4, fill = "#3C5488FF")+
+  expand_limits(x = c(-0.05,0.25))+
+  theme_bw()+
+  xlab("Information treatment effect B")+
+  theme(panel.grid.minor = element_blank(),
+        strip.placement = "outside",
+        strip.text = element_text(size = 8),
+        panel.border = element_rect(color = "black", fill = NA),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_3.pdf", width = 160/25.4, height = 60/25.4)
+print(P_3.3)
+dev.off()
+  
 rm(model_3.3.1_ESP, model_3.3.1_FRA, model_3.3.1_GER, model_3.3.1_ROM, model_3.3.2_ESP, model_3.3.2_FRA, model_3.3.2_GER, model_3.3.2_ROM,
-   model_3.3.3_ESP, model_3.3.3_FRA, model_3.3.3_GER, model_3.3.3_ROM, model_3.3.4_ESP, model_3.3.4_FRA, model_3.3.4_GER, model_3.3.4_ROM)
+   model_3.3.3_ESP, model_3.3.3_FRA, model_3.3.3_GER, model_3.3.3_ROM, model_3.3.4_ESP, model_3.3.4_FRA, model_3.3.4_GER, model_3.3.4_ROM,
+   tidy_3.3.0_ESP, tidy_3.3.1_ESP, tidy_3.3.2_ESP, tidy_3.3.0_FRA, tidy_3.3.1_FRA, tidy_3.3.2_FRA,
+   tidy_3.3.0_GER, tidy_3.3.1_GER, tidy_3.3.2_GER, tidy_3.3.0_ROM, tidy_3.3.1_ROM, tidy_3.3.2_ROM)
 
 # 3.4   Hypotheses 10 to 20 ####
 
