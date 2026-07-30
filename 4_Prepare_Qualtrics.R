@@ -30,10 +30,10 @@ combinations_ROM <- read_parquet("../2_Data/Output/Output data/Combinations_Roma
   mutate(.pred    = ifelse(.pred < 0,0,.pred),
          absolute = ifelse(absolute < 0,0,absolute))
 
-data_ESP_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Spain.rds")
-data_GER_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Germany.rds")
-data_FRA_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_France.rds")
-data_ROM_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Romania.rds")
+data_ESP_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_Spain.rds")
+data_GER_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_Germany.rds")
+data_FRA_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_France.rds")
+data_ROM_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_Romania.rds")
 
 # 1     Data transformation ####
 
@@ -388,7 +388,7 @@ data_GER_1.5 <- data_GER_0 %>%
 
 data_GER_1.6 <- data_GER_0 %>%
   mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
-         abs_interest_45 = CO2_interest*45*inflation_ESP)%>%
+         abs_interest_45 = CO2_interest*45*inflation_GER)%>%
   summarise(median_45 = round(wtd.quantile(abs_interest_45, hh_weights, probs = 0.5),-1))%>%
   mutate(median_85 = round(median_45*85/45,-1),
          median_125 = round(median_45*125/45,-1))%>%
@@ -413,7 +413,7 @@ data_ROM_1.5 <- data_ROM_0 %>%
 
 data_ROM_1.6 <- data_ROM_0 %>%
   mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
-         abs_interest_45 = CO2_interest*202*inflation_ESP)%>%
+         abs_interest_45 = CO2_interest*202*inflation_ROM)%>%
   summarise(median_45 = round(wtd.quantile(abs_interest_45, hh_weights, probs = 0.5),-1))%>%
   mutate(median_85 = round(median_45*85/45,-1),
          median_125 = round(median_45*125/45,-1))%>%
@@ -438,7 +438,7 @@ data_FRA_1.5 <- data_FRA_0 %>%
 
 data_FRA_1.6 <- data_FRA_0 %>%
   mutate(CO2_interest = CO2_t_gas_direct_P + CO2_t_transport_P,
-         abs_interest_45 = CO2_interest*45*inflation_ESP)%>%
+         abs_interest_45 = CO2_interest*45*inflation_FRA)%>%
   summarise(median_45 = round(wtd.quantile(abs_interest_45, hh_weights, probs = 0.5),-1))%>%
   mutate(median_85 = round(median_45*85/45,-1),
          median_125 = round(median_45*125/45,-1))%>%
