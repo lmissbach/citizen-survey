@@ -256,28 +256,28 @@ PREP_COUNTRY_COLOURS <- c(
 
 COUNTRY_SURVEY <- list(
   Spain = list(
-    file         = "data/Spanish_5.+Mai+2026_15.02.csv",
+    file         = "../2_Data/0_Qualtrics_Output/20260309_Final/Spanish/Spanish_5.+Mai+2026_15.02.csv",
     consent_no   = "No",
     q38a         = "De acuerdo",
     q60a         = "Energía",
     q10_exclude  = NULL
   ),
   France = list(
-    file         = "data/French_9.+März+2026_09.31.csv",
+    file         = "../2_Data/0_Qualtrics_Output/20260309_Final/French/French_9.+März+2026_09.31.csv",
     consent_no   = "Non",
     q38a         = "D’accord",
     q60a         = "Énergie",
     q10_exclude  = NULL
   ),
   Germany = list(
-    file         = "data/German_9.+März+2026_09.31.csv",
+    file         = "../2_Data/0_Qualtrics_Output/20260309_Final/German/German_9.+März+2026_09.31.csv",
     consent_no   = "Nein",
     q38a         = "Stimme zu",
     q60a         = "Energie",
     q10_exclude  = "Unter 18"
   ),
   Romania = list(
-    file         = "data/Romanian_5.+Mai+2026_15.02.csv",
+    file         = "../2_Data/0_Qualtrics_Output/20260309_Final/Romanian/Romanian_5.+Mai+2026_15.02.csv",
     consent_no   = "Nu",
     q38a         = "De acord",
     q60a         = "Energie",
@@ -461,7 +461,7 @@ resolve_survey_path <- function(path) {
     return(path)
   }
   token <- sub("_.*", "", basename(path))
-  hits <- list.files("data", pattern = paste0("^", token, "_"), full.names = TRUE)
+  hits <- list.files(dirname(path), pattern = paste0("^", token, "_"), full.names = TRUE)
   csv <- hits[grepl("\\.csv$", hits) & !grepl("open_ended", hits)]
   if (length(csv) == 1L) {
     return(csv)

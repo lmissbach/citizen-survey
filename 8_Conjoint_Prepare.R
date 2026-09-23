@@ -23,8 +23,8 @@ for (pkg in required_pkgs) {
   suppressPackageStartupMessages(library(pkg, character.only = TRUE))
 }
 
-source("conjoint_prepare_helpers.R")
-source("subgroup_covariates_helpers.R")
+source("8_Conjoint_Prepare_Helpers.R")
+source("8_Subgroup_Covariates_Helpers.R")
 
 dir.create("output/acp", recursive = TRUE, showWarnings = FALSE)
 set.seed(2026)

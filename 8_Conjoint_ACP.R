@@ -33,7 +33,7 @@ for (pkg in required_pkgs) {
   suppressPackageStartupMessages(library(pkg, character.only = TRUE))
 }
 
-source("conjoint_acp_helpers.R")
+source("8_Conjoint_ACP_Helpers.R")
 ensure_conjacp_loaded()   # Ganter functions: conjacp.estimation(), etc.
 
 dir.create("output/acp", recursive = TRUE, showWarnings = FALSE)
@@ -57,7 +57,7 @@ if (USE_SAVED_INTERMEDIATES &&
   conjoint_level_lookup <- readRDS(PATH_LEVEL_LOOKUP)
 } else {
   message("Sourcing conjoint_prepare.R (writes output/acp/*.rds)")
-  source("conjoint_prepare.R")
+  source("8_Conjoint_Prepare.R")
   data_conjoint_all     <- readRDS(PATH_CONJOINT_ALL)
   conjoint_level_lookup <- readRDS(PATH_LEVEL_LOOKUP)
 }

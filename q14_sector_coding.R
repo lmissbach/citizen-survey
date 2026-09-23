@@ -24,17 +24,17 @@ suppressPackageStartupMessages({
 })
 
 COUNTRY_FILES <- c(
-  Spain   = "data/Spanish_5.+Mai+2026_15.02.csv",
-  France  = "data/French_9.+März+2026_09.31.csv",
-  Germany = "data/German_9.+März+2026_09.31.csv",
-  Romania = "data/Romanian_5.+Mai+2026_15.02.csv"
+  Spain   = "../2_Data/0_Qualtrics_Output/20260309_Final/Spanish/Spanish_5.+Mai+2026_15.02.csv",
+  France  = "../2_Data/0_Qualtrics_Output/20260309_Final/French/French_9.+März+2026_09.31.csv",
+  Germany = "../2_Data/0_Qualtrics_Output/20260309_Final/German/German_9.+März+2026_09.31.csv",
+  Romania = "../2_Data/0_Qualtrics_Output/20260309_Final/Romanian/Romanian_5.+Mai+2026_15.02.csv"
 )
 STATUS_IP <- c("IP-Adresse", "IP Address")
 
 # ---- Layer 1: string normalisation (typography only) -------------------------
-# normalize_key() is defined in R/subgroup_covariates_helpers.R so the coding
+# normalize_key() is defined in 8_Subgroup_Covariates_Helpers.R so the coding
 # side and the respondent-merge side use the identical function.
-source("R/subgroup_covariates_helpers.R")
+source("8_Subgroup_Covariates_Helpers.R")
 
 # Noise / non-sector tokens (agreed: route to Unclassifiable, flagged; not deleted).
 NOISE_PATTERNS <- paste(

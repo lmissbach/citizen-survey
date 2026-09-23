@@ -320,6 +320,7 @@ summarise_v_tables <- function(v_tables) {
 #' Path to Ganter's conjacp.R (relative to project root).
 find_conjacp_r_path <- function() {
   candidates <- c(
+    "conjacp.R",
     "replication/Functions/conjacp.R",
     "../replication/Functions/conjacp.R"
   )
