@@ -217,6 +217,10 @@ p_timing <- plot_conjoint_timing_cdf(
 PATH_TIMING_CDF <- "figures/acp/conjoint_page_time_cdf.pdf"
 ggplot2::ggsave(PATH_TIMING_CDF, p_timing, width = 170 / 25.4, height = 220 / 25.4)
 
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_SI_conjoint_page_time_cdf.pdf", width = 150/25.4, height = 200/25.4)
+print(p_timing)
+dev.off()
+
 order_check <- summarise_display_order(data_conjoint_all)
 cat("\n--- Step-1 display order (C*_1_DO → display_order_step1) ---\n")
 cat(

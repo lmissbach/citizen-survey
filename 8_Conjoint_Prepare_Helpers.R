@@ -1067,7 +1067,7 @@ plot_conjoint_timing_cdf <- function(timing, p_cap = 0.99, sample_note = NULL) {
     ) %>%
     dplyr::ungroup()
   cap <- paste0(
-    "Each panel x-axis truncated at the ", 100 * p_cap, "th percentile."
+    "Each panel x-axis truncated at the ", 100 * p_cap, "th percentile.\n"
   )
   if (!is.null(sample_note) && nzchar(sample_note)) {
     cap <- paste(cap, sample_note)
@@ -1086,16 +1086,15 @@ plot_conjoint_timing_cdf <- function(timing, p_cap = 0.99, sample_note = NULL) {
       caption = cap
     ) +
     ggplot2::theme_bw() +
-    ggplot2::theme(
-      panel.grid.minor   = ggplot2::element_blank(),
-      strip.background   = ggplot2::element_rect(fill = "grey95"),
-      strip.text         = ggplot2::element_text(size = 8, face = "bold"),
-      legend.position    = "bottom",
-      axis.text          = ggplot2::element_text(size = 7),
-      axis.title         = ggplot2::element_text(size = 8),
-      plot.caption       = ggplot2::element_text(size = 7, hjust = 0)
-    )
-}
+    theme(legend.position = "bottom",
+          panel.grid.major = element_blank(),
+          axis.ticks = element_line(linewidth = 0.2),
+          axis.text  = element_text(size = 8),
+          axis.title = element_text(size = 8),
+          title = element_text(size = 7),
+          legend.text = element_text(size = 8),
+          legend.title = element_text(hjust = 0.5, size = 8))
+  }
 
 # Respondents who ranked B first on every completed first-rank task.
 # always_pick_b is defined only for four complete tasks (B is always the
