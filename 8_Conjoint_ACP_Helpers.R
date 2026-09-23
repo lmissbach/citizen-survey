@@ -2730,6 +2730,14 @@ save_acp_reform_reform_figures <- function(acp_results,
       ),
     file.path(out_dir, paste0("panel_a_acp_pooled_", flag_suffix, ".csv"))
   )
+  readr::write_csv(
+    plot_data_countries %>%
+      dplyr::mutate(
+        attribute_rank = match(as.character(.data$attribute), as.character(attr_order)),
+        attribute_lab  = unname(PAPER_ATTR_LABELS[as.character(.data$attribute)])
+      ),
+    file.path(out_dir, paste0("panel_a_acp_countries_", flag_suffix, ".csv"))
+  )
 
   importance_pooled <- tidy_acp_variability_by_attribute(acp_pooled, group = "Pooled")
   readr::write_csv(

@@ -79,7 +79,7 @@ p <- ggplot(d, aes(x = p_reform_beats_repeal, y = y_pos)) +
     plot.margin        = margin(6, 10, 4, 6, "pt")
   )
 
-pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_4_new.pdf", width = 160/25.4, height = 80/25.4)
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_5_new.pdf", width = 160/25.4, height = 80/25.4)
 print(p)
 dev.off()
 
@@ -91,44 +91,15 @@ dev.off()
 # 8_Conjoint_ACP.R writes (panel_a_acp_pooled_*.csv, panel_a_acp_importance_pooled_*.csv).
 # =============================================================================
 
-# ---- Data --------------------------------------------------------------------
-acp_suffix <- "inclrepealfst_inclrepeallst"   # full sample; "..._opposers_q46_2" for opposers
-
+# ---- Shared data and styling for all ACP figures -------------------------------
 # Level order within each attribute (1 = lowest level, drawn at the bottom)
 level_order_lookup <- readRDS("output/acp/conjoint_level_lookup.rds") |>
   distinct(attribute, level = level_short, level_order)
 
-importance <- read_csv(paste0("figures/acp/panel_a_acp_importance_pooled_", acp_suffix, ".csv"),
-                       show_col_types = FALSE)
-
-d_acp <- read_csv(paste0("figures/acp/panel_a_acp_pooled_", acp_suffix, ".csv"),
-                  show_col_types = FALSE) |>
-  dplyr::select(attribute, attribute_lab, attribute_rank, level, estimate, ci_lo, ci_hi) |>
-  left_join(level_order_lookup, by = c("attribute", "level")) |>
-  left_join(importance |> dplyr::select(attribute, range, range_ci_lo, range_ci_hi),
-            by = "attribute") |>
-  mutate(
-    # Panel title: attribute name + ACP range in brackets (highest minus lowest
-    # level, in pp, 95% simulation CI from conjacp.var()). Panels ordered by range.
-    facet_lab = sprintf("%s (range: %.1f pp, 95%% CI: %.1f-%.1f)",
-                        attribute_lab, 100 * range, 100 * range_ci_lo, 100 * range_ci_hi),
-    facet_lab = fct_reorder(facet_lab, -range),
-    level     = fct_reorder(level, level_order)
-  )
-
-# ---- Styling -----------------------------------------------------------------
 acp_fill <- "#3C5488FF"   # NPG dark blue, as in the main figure
 
-# ---- Plot --------------------------------------------------------------------
-p_acp <- ggplot(d_acp, aes(x = estimate, y = level)) +
-  geom_vline(xintercept = 0, linewidth = 0.25) +
-  geom_errorbar(aes(xmin = ci_lo, xmax = ci_hi), orientation = "y",
-                width = 0.2, linewidth = 0.25, colour = acp_fill) +
-  geom_point(shape = 22, fill = acp_fill, stroke = 0.3, size = 2.5) +
-  facet_wrap(~ facet_lab, ncol = 1, scales = "free_y") +
-  scale_x_continuous(labels = scales::label_number(scale = 100)) +   # ACP in pp
-  labs(x = "Average component preference (pp, 0 = indifference)", y = NULL) +
-  theme_bw() +
+# Theme shared by the ACP figures (theme_bw defaults; sizes as in Figure 4/5)
+theme_acp <- theme_bw() +
   theme(
     panel.grid.minor   = element_blank(),
     panel.border       = element_rect(colour = "black", fill = NA),
@@ -142,6 +113,113 @@ p_acp <- ggplot(d_acp, aes(x = estimate, y = level)) +
     plot.margin        = margin(6, 10, 4, 6, "pt")
   )
 
-pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_5_new.pdf", width = 160/25.4, height = 190/25.4)
+acp_xlab <- "Average component preference (pp, 0 = indifference)"
+
+# ---- Pooled ACP figure (one sample) --------------------------------------------
+# acp_suffix: "inclrepealfst_inclrepeallst" (full sample) or
+#             "inclrepealfst_inclrepeallst_opposers_q46_2" (Q46_2 opposers)
+plot_acp_pooled <- function(acp_suffix) {
+  importance <- read_csv(paste0("figures/acp/panel_a_acp_importance_pooled_", acp_suffix, ".csv"),
+                         show_col_types = FALSE)
+
+  d_acp <- read_csv(paste0("figures/acp/panel_a_acp_pooled_", acp_suffix, ".csv"),
+                    show_col_types = FALSE) |>
+    dplyr::select(attribute, attribute_lab, level, estimate, ci_lo, ci_hi) |>
+    left_join(level_order_lookup, by = c("attribute", "level")) |>
+    left_join(importance |> dplyr::select(attribute, range, range_ci_lo, range_ci_hi),
+              by = "attribute") |>
+    mutate(
+      # Panel title: attribute name + ACP range in brackets (highest minus lowest
+      # level, in pp, 95% simulation CI from conjacp.var()). Panels ordered by range.
+      facet_lab = sprintf("%s (range: %.1f pp, 95%% CI: %.1f-%.1f)",
+                          attribute_lab, 100 * range, 100 * range_ci_lo, 100 * range_ci_hi),
+      facet_lab = fct_reorder(facet_lab, -range),
+      level     = fct_reorder(level, level_order)
+    )
+
+  ggplot(d_acp, aes(x = estimate, y = level)) +
+    geom_vline(xintercept = 0, linewidth = 0.25) +
+    geom_errorbar(aes(xmin = ci_lo, xmax = ci_hi), orientation = "y",
+                  width = 0.2, linewidth = 0.25, colour = acp_fill) +
+    geom_point(shape = 22, fill = acp_fill, stroke = 0.3, size = 2.5) +
+    facet_wrap(~ facet_lab, ncol = 1, scales = "free_y") +
+    scale_x_continuous(labels = scales::label_number(scale = 100)) +   # ACP in pp
+    labs(x = acp_xlab, y = NULL) +
+    theme_acp
+}
+
+# Full sample (replaces panel_a_acp_pooled_inclrepealfst_inclrepeallst.pdf)
+p_acp <- plot_acp_pooled("inclrepealfst_inclrepeallst")
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_4_new.pdf", width = 160/25.4, height = 190/25.4)
 print(p_acp)
+dev.off()
+
+# Q46_2 opposers (replaces panel_a_acp_pooled_inclrepealfst_inclrepeallst_opposers_q46_2.pdf).
+# Panels are ordered by the opposers' own ranges, as in Marion's version.
+p_acp_opp <- plot_acp_pooled("inclrepealfst_inclrepeallst_opposers_q46_2")
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_SI_panel_a_acp_pooled_inclrepealfst_inclrepeallst_opposers_q46_2.pdf", width = 160/25.4, height = 190/25.4)
+print(p_acp)
+dev.off()
+
+
+# =============================================================================
+# Figure: ACP by country (attributes x countries)
+# Standalone reproduction of figures/acp/panel_a_acp_countries_inclrepealfst_inclrepeallst.pdf
+# (full sample), restyled like the figures above.
+# =============================================================================
+
+# ---- Data --------------------------------------------------------------------
+acp_countries <- c("France", "Germany", "Romania", "Spain")   # Marion's order (left to right)
+
+# Short row labels (as in Marion's version)
+acp_attr_short <- c(
+  budget_and_funding         = "Budget &\nfunding",
+  budget_control             = "Budget\ncontrol",
+  household_support          = "Household\nsupport",
+  information                = "Information",
+  infrastructure_ownership   = "Infrastructure",
+  worker_support             = "Worker\nsupport",
+  community_mobility_support = "Community\nmobility"
+)
+
+# Row order = order of the pooled full-sample figure (largest range on top)
+attr_order <- read_csv("figures/acp/panel_a_acp_importance_pooled_inclrepealfst_inclrepeallst.csv",
+                       show_col_types = FALSE) |>
+  arrange(desc(range)) |>
+  pull(attribute)
+
+d_acp_co <- read_csv("figures/acp/panel_a_acp_countries_inclrepealfst_inclrepeallst.csv",
+                     show_col_types = FALSE) |>
+  dplyr::select(Country, attribute, level, level_order, estimate, ci_lo, ci_hi) |>
+  mutate(
+    Country   = factor(Country, levels = acp_countries),
+    attribute = factor(attribute, levels = attr_order),
+    attr_lab  = factor(acp_attr_short[as.character(attribute)],
+                       levels = acp_attr_short[attr_order]),
+    # Level names are unique across attributes, so one factor orders all rows
+    level     = fct_reorder(level, as.integer(attribute) * 10 + level_order)
+  )
+
+# ---- Plot --------------------------------------------------------------------
+p_acp_co <- ggplot(d_acp_co, aes(x = estimate, y = level)) +
+  geom_vline(xintercept = 0, linewidth = 0.25) +
+  geom_errorbar(aes(xmin = ci_lo, xmax = ci_hi), orientation = "y",
+                width = 0.3, linewidth = 0.25, colour = acp_fill) +
+  geom_point(shape = 22, fill = acp_fill, stroke = 0.3, size = 1.8) +
+  facet_grid(attr_lab ~ Country, scales = "free_y", space = "free_y", switch = "y") +
+  scale_x_continuous(labels = scales::label_number(scale = 100)) +   # ACP in pp
+  labs(x = acp_xlab, y = NULL) +
+  theme_acp +
+  theme(
+    # Row labels on the left, horizontal (needed for readability)
+    strip.placement   = "outside",
+    strip.text.y.left = element_text(size = 7, angle = 0),
+    panel.spacing.y   = unit(0.15, "lines")
+  )
+
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_SI_panel_a_acp_countries_inclrepealfst_inclrepeallst.pdf", width = 160/25.4, height = 175/25.4)
+print(p_acp_co)
 dev.off()
