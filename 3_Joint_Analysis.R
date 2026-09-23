@@ -16,10 +16,10 @@ options(scipen=999)
 
 # 0.2   Load data ####
 
-data_GER_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Germany.rds")
-data_ROM_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Romania.rds")
-data_ESP_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_Spain.rds")
-data_FRA_0 <- read_rds("H:/6_Citizen_Survey/2_Data/Microdata/Microdata_Transformed_France.rds")
+data_GER_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_Germany.rds")
+data_ROM_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_Romania.rds")
+data_ESP_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_Spain.rds")
+data_FRA_0 <- read_rds("../2_Data/Microdata/Microdata_Transformed_France.rds")
 
 # 1.    Identifying important variables ####
 
