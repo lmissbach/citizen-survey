@@ -36,6 +36,10 @@ for (pkg in required_pkgs) {
 source("8_Conjoint_ACP_Helpers.R")
 ensure_conjacp_loaded()   # Ganter functions: conjacp.estimation(), etc.
 
+# conjacp.var() simulates importance CIs (1,000 draws); fix the seed so the
+# numbers are reproducible across runs (also when cached RDS are loaded).
+set.seed(2026)
+
 dir.create("output/acp", recursive = TRUE, showWarnings = FALSE)
 dir.create("figures/acp", recursive = TRUE, showWarnings = FALSE)
 

@@ -82,3 +82,66 @@ p <- ggplot(d, aes(x = p_reform_beats_repeal, y = y_pos)) +
 pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_4_new.pdf", width = 160/25.4, height = 80/25.4)
 print(p)
 dev.off()
+
+
+# =============================================================================
+# Figure: pooled ACP by attribute level
+# Standalone reproduction of figures/acp/panel_a_acp_pooled_inclrepealfst_inclrepeallst.pdf
+# (full sample), restyled like the figure above. Built from the CSVs that
+# 8_Conjoint_ACP.R writes (panel_a_acp_pooled_*.csv, panel_a_acp_importance_pooled_*.csv).
+# =============================================================================
+
+# ---- Data --------------------------------------------------------------------
+acp_suffix <- "inclrepealfst_inclrepeallst"   # full sample; "..._opposers_q46_2" for opposers
+
+# Level order within each attribute (1 = lowest level, drawn at the bottom)
+level_order_lookup <- readRDS("output/acp/conjoint_level_lookup.rds") |>
+  distinct(attribute, level = level_short, level_order)
+
+importance <- read_csv(paste0("figures/acp/panel_a_acp_importance_pooled_", acp_suffix, ".csv"),
+                       show_col_types = FALSE)
+
+d_acp <- read_csv(paste0("figures/acp/panel_a_acp_pooled_", acp_suffix, ".csv"),
+                  show_col_types = FALSE) |>
+  dplyr::select(attribute, attribute_lab, attribute_rank, level, estimate, ci_lo, ci_hi) |>
+  left_join(level_order_lookup, by = c("attribute", "level")) |>
+  left_join(importance |> dplyr::select(attribute, range, range_ci_lo, range_ci_hi),
+            by = "attribute") |>
+  mutate(
+    # Panel title: attribute name + ACP range in brackets (highest minus lowest
+    # level, in pp, 95% simulation CI from conjacp.var()). Panels ordered by range.
+    facet_lab = sprintf("%s (range: %.1f pp, 95%% CI: %.1f-%.1f)",
+                        attribute_lab, 100 * range, 100 * range_ci_lo, 100 * range_ci_hi),
+    facet_lab = fct_reorder(facet_lab, -range),
+    level     = fct_reorder(level, level_order)
+  )
+
+# ---- Styling -----------------------------------------------------------------
+acp_fill <- "#3C5488FF"   # NPG dark blue, as in the main figure
+
+# ---- Plot --------------------------------------------------------------------
+p_acp <- ggplot(d_acp, aes(x = estimate, y = level)) +
+  geom_vline(xintercept = 0, linewidth = 0.25) +
+  geom_errorbar(aes(xmin = ci_lo, xmax = ci_hi), orientation = "y",
+                width = 0.2, linewidth = 0.25, colour = acp_fill) +
+  geom_point(shape = 22, fill = acp_fill, stroke = 0.3, size = 2.5) +
+  facet_wrap(~ facet_lab, ncol = 1, scales = "free_y") +
+  scale_x_continuous(labels = scales::label_number(scale = 100)) +   # ACP in pp
+  labs(x = "Average component preference (pp, 0 = indifference)", y = NULL) +
+  theme_bw() +
+  theme(
+    panel.grid.minor   = element_blank(),
+    panel.border       = element_rect(colour = "black", fill = NA),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(linewidth = 0.2),
+    axis.ticks         = element_line(linewidth = 0.2),
+    axis.text.x        = element_text(size = 6),
+    axis.text.y        = element_text(size = 6),
+    axis.title         = element_text(size = 7),
+    strip.text         = element_text(size = 7),
+    plot.margin        = margin(6, 10, 4, 6, "pt")
+  )
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_5_new.pdf", width = 160/25.4, height = 190/25.4)
+print(p_acp)
+dev.off()

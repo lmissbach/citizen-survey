@@ -2721,6 +2721,16 @@ save_acp_reform_reform_figures <- function(acp_results,
   )
   attr_order <- rank_attributes_by_acp_spread(plot_data_pooled)$attribute
 
+  # Level-by-level ACP data behind the pooled panel (for restyling outside R pipeline).
+  readr::write_csv(
+    plot_data_pooled %>%
+      dplyr::mutate(
+        attribute_rank = match(as.character(.data$attribute), as.character(attr_order)),
+        attribute_lab  = unname(PAPER_ATTR_LABELS[as.character(.data$attribute)])
+      ),
+    file.path(out_dir, paste0("panel_a_acp_pooled_", flag_suffix, ".csv"))
+  )
+
   importance_pooled <- tidy_acp_variability_by_attribute(acp_pooled, group = "Pooled")
   readr::write_csv(
     importance_pooled %>%
