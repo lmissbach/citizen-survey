@@ -319,6 +319,111 @@ save_acp_reform_reform_figures(
 cat("\nSaved DPP SI tables:\n")
 for (p in dpp_tex_paths) cat("  ", p, "\n")
 
+# ---- 8a. Attribute importance table (Ganter conjacp.var) ----------------------
+# Importance = mean absolute ACP across an attribute's levels (Ganter's
+# "variability"); range = highest minus lowest level ACP. Both are means of
+# 1,000 simulation draws, with 2.5%/97.5% quantiles as the 95% CI.
+# Pooled rows are read from the CSVs behind Figure 4 so the table matches the
+# panel headers exactly; country rows are simulated here under a fixed seed
+# (with_seed restores the RNG state, so later results are unaffected).
+PATH_ACP_IMPORTANCE <- "output/acp/acp_importance.csv"
+
+importance_samples <- list(
+  "Full sample" = list(bundle = sample_full,
+                       suffix = "inclrepealfst_inclrepeallst"),
+  "Opposers"    = list(bundle = sample_opposers_q46_2,
+                       suffix = "inclrepealfst_inclrepeallst_opposers_q46_2")
+)
+
+tab_importance <- purrr::imap_dfr(importance_samples, function(s, sample_name) {
+  pooled <- readr::read_csv(
+    paste0("figures/acp/panel_a_acp_importance_pooled_", s$suffix, ".csv"),
+    show_col_types = FALSE
+  ) %>%
+    dplyr::mutate(Country = "Pooled")
+  by_country <- withr::with_seed(2026, purrr::map_dfr(acp_countries, function(co) {
+    tidy_acp_variability_by_attribute(s$bundle$acp_results_reform_reform[[co]]) %>%
+      dplyr::mutate(Country = co)
+  }))
+  dplyr::bind_rows(pooled, by_country) %>%
+    dplyr::mutate(sample = sample_name)
+}) %>%
+  dplyr::mutate(attribute_lab = unname(PAPER_ATTR_LABELS[attribute])) %>%
+  dplyr::group_by(sample, Country) %>%
+  dplyr::mutate(rank = dplyr::min_rank(dplyr::desc(variability))) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(sample, Country, rank, attribute, attribute_lab,
+                importance = variability, importance_ci_lo = var_ci_lo,
+                importance_ci_hi = var_ci_hi, range, range_ci_lo, range_ci_hi) %>%
+  dplyr::arrange(sample, factor(Country, levels = c("Pooled", acp_countries)), rank)
+
+readr::write_csv(tab_importance, PATH_ACP_IMPORTANCE)
+
+cat("\n--- Attribute importance (pp; Ganter mean |ACP|, and range) ---\n")
+print(
+  tab_importance %>%
+    dplyr::transmute(
+      sample, Country, rank, attribute_lab,
+      importance = sprintf("%.1f [%.1f, %.1f]", 100 * importance,
+                           100 * importance_ci_lo, 100 * importance_ci_hi),
+      range      = sprintf("%.1f [%.1f, %.1f]", 100 * range,
+                           100 * range_ci_lo, 100 * range_ci_hi)
+    ),
+  n = 100
+)
+
+# LaTeX: (1) pooled, full sample vs opposers; (2) by country, full sample.
+fmt_est_ci <- function(est, lo, hi) sprintf("%.1f & [%.1f, %.1f]", 100 * est, 100 * lo, 100 * hi)
+
+imp_pooled <- tab_importance %>% dplyr::filter(Country == "Pooled")
+imp_full   <- imp_pooled %>% dplyr::filter(sample == "Full sample")
+imp_opp    <- imp_pooled %>% dplyr::filter(sample == "Opposers") %>%
+  dplyr::slice(match(imp_full$attribute, attribute))   # rows in full-sample order
+
+tex_importance_pooled <- c(
+  "\\begin{tabular}{lrrrrrrrr}",
+  "  \\toprule",
+  "  & \\multicolumn{4}{c}{Full sample} & \\multicolumn{4}{c}{Opposers} \\\\",
+  "  \\cmidrule(lr){2-5} \\cmidrule(lr){6-9}",
+  "  Attribute & Rank & Importance & 95\\% CI & Range & Rank & Importance & 95\\% CI & Range \\\\",
+  "  \\midrule",
+  sprintf("  %s & %d & %s & %.1f & %d & %s & %.1f \\\\",
+          latex_escape(imp_full$attribute_lab),
+          imp_full$rank, fmt_est_ci(imp_full$importance, imp_full$importance_ci_lo, imp_full$importance_ci_hi),
+          100 * imp_full$range,
+          imp_opp$rank,  fmt_est_ci(imp_opp$importance, imp_opp$importance_ci_lo, imp_opp$importance_ci_hi),
+          100 * imp_opp$range),
+  "  \\bottomrule",
+  "\\end{tabular}"
+)
+
+imp_co <- tab_importance %>%
+  dplyr::filter(sample == "Full sample", Country != "Pooled") %>%
+  dplyr::mutate(cell = sprintf("%.1f [%.1f, %.1f] (%d)", 100 * importance,
+                               100 * importance_ci_lo, 100 * importance_ci_hi, rank)) %>%
+  dplyr::select(attribute, attribute_lab, Country, cell) %>%
+  tidyr::pivot_wider(names_from = Country, values_from = cell) %>%
+  dplyr::slice(match(imp_full$attribute, attribute))
+
+tex_importance_countries <- c(
+  paste0("\\begin{tabular}{l", strrep("r", length(acp_countries)), "}"),
+  "  \\toprule",
+  paste0("  Attribute & ", paste(acp_countries, collapse = " & "), " \\\\"),
+  "  \\midrule",
+  paste0("  ", latex_escape(imp_co$attribute_lab), " & ",
+         do.call(paste, c(unname(as.list(imp_co[acp_countries])), sep = " & ")), " \\\\"),
+  "  \\bottomrule",
+  "\\end{tabular}"
+)
+
+PATH_TEX_IMPORTANCE_POOLED    <- "../6_EUETS2_Citizens_Survey/2_Tables/acp_importance_pooled.tex"
+PATH_TEX_IMPORTANCE_COUNTRIES <- "../6_EUETS2_Citizens_Survey/2_Tables/acp_importance_countries.tex"
+writeLines(tex_importance_pooled,    PATH_TEX_IMPORTANCE_POOLED)
+writeLines(tex_importance_countries, PATH_TEX_IMPORTANCE_COUNTRIES)
+
+cat("\nSaved:\n  ", PATH_ACP_IMPORTANCE, "\n  ", PATH_TEX_IMPORTANCE_POOLED,
+    "\n  ", PATH_TEX_IMPORTANCE_COUNTRIES, "\n")
+
 save_aux_p_reform_beats_repeal_figures(
   pairs_reform_repeal         = sample_full$pairs_reform_repeal,
   level_lookup                = conjoint_level_lookup,
@@ -461,14 +566,43 @@ cat("\nSaved:\n  ", PATH_P_REFORM_DIFF, "\n  ", p_reform_diff_tex, "\n")
 library(tidyverse)
 
 # ---- Data --------------------------------------------------------------------
-countries <- c("Spain", "France", "Germany", "Romania")          # top to bottom
+countries <- c("Spain", "France", "Germany", "Romania", "All countries")  # top to bottom
 samples   <- c("Non-committed sample", "Opposers to carbon pricing")  # top to bottom within a country
 packages  <- c("Minimal package", "Maximal package")
 sample_gap  <- 0.16   # vertical offset between the two samples (Marion: 0.1375)
 package_gap <- 0.04   # vertical offset between minimal and maximal package (0 = same line)
 
-d <- read_csv("figures/acp/main_p_reform_beats_repeal_all_samples.csv",
-              show_col_types = FALSE) |>
+# "All countries": pairs from the four countries pooled, same estimator as the
+# country rows (compute_p_reform_beats_repeal), SE clustered by Country:ID as in
+# the pooled ACP. Countries are thus weighted by their number of pairs.
+# Needs the pair objects from sections 3 and 7 above; the result is cached
+# to CSV so the figure can be redrawn without rerunning the analysis.
+PATH_P_REFORM_ALL_COUNTRIES <- "figures/acp/main_p_reform_beats_repeal_all_countries.csv"
+
+pool_bundled_package_contrast <- function(pairs, sample_label) {
+  p <- prepare_full_package_pairs(pairs, conjoint_level_lookup) |>
+    dplyr::filter(Country %in% acp_countries,
+                  !is.na(bf), !is.na(bc), !is.na(hh), !is.na(trans)) |>
+    dplyr::mutate(clust = paste(Country, ID, sep = ":"))
+  purrr::map_dfr(BUNDLED_PACKAGE_DEFS, function(def) {
+    compute_p_reform_beats_repeal(def$filter(p)) |>
+      dplyr::mutate(Country = "All countries", package_label = def$short_label,
+                    sample_label = sample_label)
+  })
+}
+
+if (exists("pairs_reform_repeal") && exists("pairs_reform_repeal_opp_q46_2")) {
+  bind_rows(
+    pool_bundled_package_contrast(pairs_reform_repeal,           samples[1]),
+    pool_bundled_package_contrast(pairs_reform_repeal_opp_q46_2, samples[2])
+  ) |>
+    write_csv(PATH_P_REFORM_ALL_COUNTRIES)
+}
+
+d <- bind_rows(
+  read_csv("figures/acp/main_p_reform_beats_repeal_all_samples.csv", show_col_types = FALSE),
+  read_csv(PATH_P_REFORM_ALL_COUNTRIES, show_col_types = FALSE)
+) |>
   mutate(
     Country       = factor(Country, levels = countries),
     sample_label  = factor(sample_label, levels = samples),
@@ -498,6 +632,7 @@ x_limits <- c(0.20, 0.78)
 # ---- Plot --------------------------------------------------------------------
 p <- ggplot(d, aes(x = p_reform_beats_repeal, y = y_pos)) +
   geom_vline(xintercept = 0.5, linewidth = 0.25) +
+  # geom_hline(yintercept = 1.5, linewidth = 0.2, linetype = "dashed") +   # separates "All countries"
   geom_errorbar(aes(xmin = ci_lo, xmax = ci_hi, colour = package_label),
                 orientation = "y", width = 0.12, linewidth = 0.25) +
   geom_point(aes(fill = package_label, shape = sample_label),
@@ -535,9 +670,91 @@ p <- ggplot(d, aes(x = p_reform_beats_repeal, y = y_pos)) +
     plot.margin        = margin(6, 10, 4, 6, "pt")
   )
 
-pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_5_new.pdf", width = 160/25.4, height = 80/25.4)
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_5_new.pdf", width = 160/25.4, height = 95/25.4)
 print(p)
 dev.off()
+
+# ---- Variant: adds the entire sample (all respondents, no exclusions) --------
+# Same estimator as above, on pairs_reform_repeal_raw (no repeal-ranker
+# exclusions, no opposer filter). Cached to CSV like the pooled rows.
+PATH_P_REFORM_ENTIRE <- "figures/acp/main_p_reform_beats_repeal_entire_sample.csv"
+sample_entire <- "Entire sample"
+
+if (exists("pairs_reform_repeal_raw")) {
+  bind_rows(
+    summarise_bundled_package_contrast(pairs_reform_repeal_raw, conjoint_level_lookup,
+                                       sample_label = sample_entire,
+                                       countries = acp_countries),
+    pool_bundled_package_contrast(pairs_reform_repeal_raw, sample_entire)
+  ) |>
+    write_csv(PATH_P_REFORM_ENTIRE)
+}
+
+samples_3     <- c(sample_entire, samples)   # top to bottom within a country
+sample_gap_3  <- 0.22                        # offset between neighbouring samples
+
+d_entire <- bind_rows(
+  read_csv("figures/acp/main_p_reform_beats_repeal_all_samples.csv", show_col_types = FALSE),
+  read_csv(PATH_P_REFORM_ALL_COUNTRIES, show_col_types = FALSE),
+  read_csv(PATH_P_REFORM_ENTIRE, show_col_types = FALSE)
+) |>
+  mutate(
+    Country       = factor(Country, levels = countries),
+    sample_label  = factor(sample_label, levels = samples_3),
+    package_label = factor(package_label, levels = packages),
+    # Entire sample on top, non-committed in the middle, opposers at the bottom
+    y_row = length(countries) + 1 - as.integer(Country),
+    y_pos = y_row +
+      c(sample_gap_3, 0, -sample_gap_3)[as.integer(sample_label)] +
+      ifelse(package_label == packages[1], package_gap, -package_gap)
+  )
+
+# Reuse the plot above; only the data and the shape scale change
+p_entire <- p + d_entire +   # "+ data" swaps the data (ggplot2 >= 4.0)
+  scale_shape_manual(values = setNames(c(24, sample_shapes[samples]), samples_3),
+                     name = NULL) +
+  theme(legend.spacing.y = unit(4, "pt"))   # keeps the wrapped package text off the shape row
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_5_new_Entire.pdf",
+    width = 160/25.4, height = 115/25.4)
+print(p_entire)
+dev.off()
+
+# ---- Variant: one figure per sample --------------------------------------------
+# Same plot, one sample at a time. With a single sample there is no sample
+# offset, so the minimal/maximal packages get a wider gap instead. In the
+# non-committed sample the CIs of the two packages never overlap, so both sit
+# on the country line. The x-axis is fitted to each sample's CIs (to the
+# nearest 5%) and always includes the 50% reference line.
+package_gap_single <- c("Entire sample"              = 0.12,
+                        "Non-committed sample"       = 0,
+                        "Opposers to carbon pricing" = 0.12)
+sample_files <- c("Entire sample"              = "Entire",
+                  "Non-committed sample"       = "Noncommitted",
+                  "Opposers to carbon pricing" = "Opposers")
+
+for (s in samples_3) {
+  d_single <- d_entire |>
+    filter(sample_label == s) |>
+    mutate(y_pos = y_row +
+             ifelse(package_label == packages[1], package_gap_single[[s]], -package_gap_single[[s]]))
+
+  x_limits_single <- c(floor(min(d_single$ci_lo, 0.5) * 20) / 20,
+                       ceiling(max(d_single$ci_hi, 0.5) * 20) / 20)
+
+  p_single <- p + d_single +
+    scale_shape_manual(values = setNames(rep(22, length(samples_3)), samples_3),
+                       guide = "none") +   # squares for every sample
+    guides(shape = "none") +   # one sample per figure; overrides guides() in p
+    scale_x_continuous(labels = scales::percent_format(accuracy = 1),
+                       limits = x_limits_single, breaks = seq(0, 1, by = 0.1),
+                       expand = expansion(mult = c(0.02, 0.02)))
+
+  pdf(paste0("../6_EUETS2_Citizens_Survey/1_Figures/Figure_5_new_only_", sample_files[[s]], ".pdf"),
+      width = 160/25.4, height = 65/25.4)
+  print(p_single)
+  dev.off()
+}
 
 
 # =============================================================================
@@ -582,14 +799,15 @@ plot_acp_pooled <- function(acp_suffix) {
                     show_col_types = FALSE) |>
     dplyr::select(attribute, attribute_lab, level, estimate, ci_lo, ci_hi) |>
     left_join(level_order_lookup, by = c("attribute", "level")) |>
-    left_join(importance |> dplyr::select(attribute, range, range_ci_lo, range_ci_hi),
+    left_join(importance |> dplyr::select(attribute, variability, var_ci_lo, var_ci_hi),
               by = "attribute") |>
     mutate(
-      # Panel title: attribute name + ACP range in brackets (highest minus lowest
-      # level, in pp, 95% simulation CI from conjacp.var()). Panels ordered by range.
-      facet_lab = sprintf("%s (range: %.1f pp, 95%% CI: %.1f-%.1f)",
-                          attribute_lab, 100 * range, 100 * range_ci_lo, 100 * range_ci_hi),
-      facet_lab = fct_reorder(facet_lab, -range),
+      # Panel title: attribute name + Ganter importance (mean absolute ACP across
+      # the attribute's levels, in pp, 95% simulation CI from conjacp.var()).
+      # Panels ordered by importance (most important on top).
+      facet_lab = sprintf("%s (importance: %.1f pp., 95%% CI: %.1f-%.1f)",
+                          attribute_lab, 100 * variability, 100 * var_ci_lo, 100 * var_ci_hi),
+      facet_lab = fct_reorder(facet_lab, -variability),
       level     = fct_reorder(level, level_order)
     )
   
@@ -612,11 +830,11 @@ print(p_acp)
 dev.off()
 
 # Q46_2 opposers (replaces panel_a_acp_pooled_inclrepealfst_inclrepeallst_opposers_q46_2.pdf).
-# Panels are ordered by the opposers' own ranges, as in Marion's version.
+# Panels are ordered by the opposers' own importance.
 p_acp_opp <- plot_acp_pooled("inclrepealfst_inclrepeallst_opposers_q46_2")
 
 pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_SI_panel_a_acp_pooled_inclrepealfst_inclrepeallst_opposers_q46_2.pdf", width = 160/25.4, height = 190/25.4)
-print(p_acp)
+print(p_acp_opp)
 dev.off()
 
 
@@ -640,10 +858,10 @@ acp_attr_short <- c(
   community_mobility_support = "Community\nmobility"
 )
 
-# Row order = order of the pooled full-sample figure (largest range on top)
+# Row order = order of the pooled full-sample figure (most important on top)
 attr_order <- read_csv("figures/acp/panel_a_acp_importance_pooled_inclrepealfst_inclrepeallst.csv",
                        show_col_types = FALSE) |>
-  arrange(desc(range)) |>
+  arrange(desc(variability)) |>
   pull(attribute)
 
 d_acp_co <- read_csv("figures/acp/panel_a_acp_countries_inclrepealfst_inclrepeallst.csv",
