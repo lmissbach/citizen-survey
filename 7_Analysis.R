@@ -1877,7 +1877,7 @@ colnames(data_2.1.3.table) <- c("Country",
                                 "I don't know", 
                                 "Sample")
 
-kbl(data_2.1.3.table, format = "latex", linesep = "", booktabs = T, caption = "Distribution of responses: Perception of additional costs (Q42\\_1)",
+kbl(data_2.1.3.table, format = "latex", linesep = "", booktabs = T, caption = "Distribution of responses: Perception of additional costs (Q42_1)",
     format.args = list(big.mark = ",", scientific = FALSE), align = "lccccccr", label = "Sum_Q42_1", digits = 2, na = "")%>%
   kable_styling(position = "center", latex_options = c("HOLD_position", "scale_down"), font_size = 9)%>%
   column_spec(1:8, width = "2cm")%>%
@@ -2664,16 +2664,16 @@ data_2.1.10 <- data_2.1.10.1 %>%
   left_join(data_2.1.10.4)%>%
   left_join(data_2.1.10.5)%>%
   mutate(Country = factor(Country, levels = c("Spain (Control)",   "Spain (Treatment)",   "France (Control)",  "France (Treatment)",
-                                              "Germany (Control)", "Germany (Treatment)", "Romania (Control)", "Romania (Treatment)")))%>%
-  kbl(digits = 2)
+                                              "Germany (Control)", "Germany (Treatment)", "Romania (Control)", "Romania (Treatment)")))
 
 options(knitr.kable.NA = "")
 
-kbl(data_2.1.10, format = "latex", linesep = "", booktabs = T, caption = "Perception of information treatments",
-    format.args = list(big.mark = ",", scientific = FALSE), align = "lccccc", label = "tab:A1", digits = 2, na = "")%>%
+tab_2.1.10 <- kbl(data_2.1.10, format = "latex", linesep = "", booktabs = T, caption = "Perception of information treatments",
+    format.args = list(big.mark = ",", scientific = FALSE), align = "lccccc", label = "credibility", digits = 2, na = "")%>%
   kable_styling(position = "center", latex_options = c("HOLD_position"), font_size = 9)%>%
-  footnote(general = "This table shows TBD.", threeparttable = T)%>%
-  save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_A_Treatment_Perception.tex")
+  footnote(general = "This table shows TBD.", threeparttable = T)
+
+writeLines(tab_2.1.10, "../6_EUETS2_Citizens_Survey/2_Tables/Table_A_Treatment_Perception.tex")
 
 rm(data_2.1.10, data_2.1.10.1, data_2.1.10.2, data_2.1.10.3, data_2.1.10.4, data_2.1.10.5)
 
@@ -2739,6 +2739,94 @@ jpeg("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_A9_%d.jpeg", width = 140/25
 print(P_2.1.11)
 print(P_2.1.11.1)
 dev.off()
+
+# 2.1.12 Concern about climate change ####
+
+# Figure 1
+
+data_2.1.1.12 <- data_2 %>%
+  filter(!is.na(Q36))%>%
+  group_by(Q36, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  group_by(Country)%>%
+  mutate(share_sum = cumsum(share))%>%
+  ungroup()%>%
+  # mutate(label_0 = paste0(round(share,2)*100, "%"))%>%
+  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+  mutate(Q36_1N = as.numeric(Q36))%>%
+  mutate(Q36_label = case_when(Q36_1N %in% c(1,6,11,16) ~ "Not\nconcerned",
+                               Q36_1N %in% c(2,7,12,17) ~ "Somewhat\nconcerned",
+                               Q36_1N %in% c(3,8,13,18) ~ "Quite\nconcerned",
+                               Q36_1N %in% c(4,9,14,19) ~ "Very\nconcerned",
+                               Q36_1N %in% c(5,10,15,20) ~ "I don't know"))%>%
+  mutate(Q36_label = factor(Q36_label, levels = c("Very\nconcerned", "Quite\nconcerned", "Somewhat\nconcerned", "Not\nconcerned", "I don't know")))
+
+P_2.1.12 <- ggplot(data_2.1.1.12, aes(x = share, y = fct_rev(Country), fill = Q36_label))+
+  geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+  geom_col(position = "stack", colour = "black", width = 0.75, linewidth = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(0,1))+
+  scale_fill_manual(guide = guide_legend(title.position = "top"),
+                    values = c("#B09C85FF", "#00A087FF", "#91D1C2FF", "#E64B35FF", "#DC0000FF"),
+                    breaks = c("I don't know", "Not\nconcerned", "Somewhat\nconcerned", "Quite\nconcerned", "Very\nconcerned"))+
+  labs(fill = "How concerned are you about climate change?")+
+  scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                     breaks = c(0,0.25,0.5,0.75,1),
+                     expand = c(0,0.025))+
+  xlab("Share of respondents")+
+  ylab("Country")+
+  # ggtitle("Overall policy support (Q46_1 and Q46_2)")+
+  theme(panel.grid.minor  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.3),
+        axis.ticks = element_line(linewidth = 0.3),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title  = element_text(size = 9),
+        legend.position = "bottom",
+        legend.text = element_text(size = 8),
+        legend.title = element_text(hjust = 0.5, size = 8))
+
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/A_Figure_A9.pdf", width = 140/25.4, height = 90/25.4)
+print(P_2.1.12)
+dev.off()
+
+data_2.1.12.table <- data_2 %>%
+  mutate(Q36_1N = as.numeric(Q36))%>%
+  mutate(Q36_label = case_when(Q36_1N %in% c(1,6,11,16) ~ "Not concerned",
+                               Q36_1N %in% c(2,7,12,17) ~ "Somewhat concerned",
+                               Q36_1N %in% c(3,8,13,18) ~ "Quite concerned",
+                               Q36_1N %in% c(4,9,14,19) ~ "Very concerned",
+                               Q36_1N %in% c(5,10,15,20) ~ "I don't know"))%>%
+  mutate(Q36_label = factor(Q36_label, levels = c("I don't know", "Not concerned", "Somewhat concerned", "Quite concerned", "Very concerned")))%>%
+  group_by(Q36_label, Country)%>%
+  summarise(number = n())%>%
+  ungroup()%>%
+  group_by(Country)%>%
+  mutate(sum = sum(number))%>%
+  ungroup()%>%
+  mutate(share = number/sum)%>%
+  select(-number)%>%
+  pivot_wider(names_from = "Q36_label", values_from = "share")%>%
+  mutate(Country = factor(Country, levels = c("Spain", "France", "Germany" ,"Romania")))%>%
+  arrange(Country)%>%
+  mutate_at(vars(-c(Country, sum)), ~ paste(round(.*100,0), "%"))%>%
+  rename(Sample = sum)%>%
+  select(Country, everything(),-Sample, Sample)
+
+kbl(data_2.1.12.table, format = "latex", linesep = "", booktabs = T, caption = "Distribution of responses: Concern about climate change (Q36)",
+    format.args = list(big.mark = ",", scientific = FALSE), align = "lccccccr", label = "Sum_Q36", digits = 2, na = "")%>%
+  kable_styling(position = "center", latex_options = c("HOLD_position", "scale_down"), font_size = 8)%>%
+  footnote(general = "This table shows responses to question Q36 (How concerned are you about climate change?) per country as percentage shares. Total number of valid answers in column Sample.", threeparttable = T)%>%
+  save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_B_1_Q36_1.tex")
+
+rm(data_2.1.1, data_2.1.1.1, data_2.1.1.2, P_2.1.1, P_2.1.2, data_2.1.1.3, data_2.1.1.4, P_2.1.4, data_2.1.1.table)
+
 
 # 2.2    Boosted regression trees - predicting support or opposition in t=0 ####
 
@@ -7265,7 +7353,8 @@ tidy_3.8.6_ROM <- tidy(model_3.8.5_1_ROM_z)%>% mutate(Country = "Romania", Outco
 tidy_3.8 <- bind_rows(tidy_3.8.0_ESP, tidy_3.8.1_ESP, tidy_3.8.2_ESP, tidy_3.8.5_ESP, tidy_3.8.6_ESP, 
                       tidy_3.8.0_FRA, tidy_3.8.1_FRA, tidy_3.8.2_FRA, tidy_3.8.5_FRA, tidy_3.8.6_FRA,
                       tidy_3.8.0_GER, tidy_3.8.1_GER, tidy_3.8.2_GER, tidy_3.8.5_GER, tidy_3.8.6_GER,
-                      tidy_3.8.0_ROM, tidy_3.8.1_ROM, tidy_3.8.2_ROM, tidy_3.8.5_ROM, tidy_3.8.6_ROM)%>%
+                      tidy_3.8.0_ROM, tidy_3.8.1_ROM, tidy_3.8.2_ROM, tidy_3.8.5_ROM, tidy_3.8.6_ROM,
+                      tidy_3.8.0_ALL, tidy_3.8.1_ALL, tidy_3.8.2_ALL, tidy_3.8.5_ALL, tidy_3.8.6_ALL)%>%
   mutate(ci_high = estimate + 1.96*std.error,
          ci_low  = estimate - 1.96*std.error)%>%
   mutate(VAR = case_when(Outcome == "Support" ~ "Policy support",
@@ -7273,7 +7362,7 @@ tidy_3.8 <- bind_rows(tidy_3.8.0_ESP, tidy_3.8.1_ESP, tidy_3.8.2_ESP, tidy_3.8.5
                          Outcome == "Effectiveness" ~ "Perception of effectiveness",
                          Outcome == "Cost perception" ~ "Perception of costs",
                          Outcome == "Cost perception (error)" ~ "Perception of costs (error)"))%>%
-  mutate(Country = factor(Country, levels = c("Romania","Germany", "France", "Spain")))
+  mutate(Country = factor(Country, levels = c("All countries","Romania","Germany", "France", "Spain")))
 
 P_3.8.1 <- ggplot(filter(tidy_3.8, term == "Post_B_ONLY" & Outcome != "Perception of costs (error)" & Outcome != "Perception of costs"), aes(x = estimate, y = Country))+
   geom_vline(aes(xintercept = 0), linewidth = 0.25)+
@@ -7332,15 +7421,15 @@ P_3.8.3 <- ggplot(filter(tidy_3.8, term == "Post_B_C" & Outcome != "Cost percept
         axis.text.y = element_text(size = 6),
         axis.title  = element_text(size = 7))
 
-pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_2_1.pdf", width = 160/25.4, height = 50/25.4)
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_2_1.pdf", width = 160/25.4, height = 60/25.4)
 print(P_3.8.1)
 dev.off()
 
-pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_2_2.pdf", width = 160/25.4, height = 50/25.4)
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_2_2.pdf", width = 160/25.4, height = 60/25.4)
 print(P_3.8.2)
 dev.off()
 
-pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_2_3.pdf", width = 190/25.4, height = 50/25.4)
+pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_2_3.pdf", width = 190/25.4, height = 60/25.4)
 print(P_3.8.3)
 dev.off()
 
@@ -7511,6 +7600,58 @@ etable(model_3.8.1_F_o, model_3.8.1_E_o,
        #extralines = list("Including disbelieving" = rep(c("Yes", "No"),3)),
        file = c("../6_EUETS2_Citizens_Survey/2_Tables/Table_BC_ALL_O.tex"))
 
+ESP_0 <- rename(adjust_3.8.1(data_3_ESP, "Support"), Support = value_z)
+FRA_0 <- rename(adjust_3.8.1(data_3_FRA, "Support"), Support = value_z)
+GER_0 <- rename(adjust_3.8.1(data_3_GER, "Support"), Support = value_z)
+ROM_0 <- rename(adjust_3.8.1(data_3_ROM, "Support"), Support = value_z)
+
+JOINT_Support <- bind_rows(ESP_0, FRA_0, GER_0, ROM_0)%>%
+  mutate(Country_ID = paste0(Country, "_", ID))
+
+ESP_1 <- rename(adjust_3.8.1(data_3_ESP, "Fairness"), Fairness = value_z)
+FRA_1 <- rename(adjust_3.8.1(data_3_FRA, "Fairness"), Fairness = value_z)
+GER_1 <- rename(adjust_3.8.1(data_3_GER, "Fairness"), Fairness = value_z)
+ROM_1 <- rename(adjust_3.8.1(data_3_ROM, "Fairness"), Fairness = value_z)
+
+JOINT_Fairness <- bind_rows(ESP_1, FRA_1, GER_1, ROM_1)%>%
+  mutate(Country_ID = paste0(Country, "_", ID))
+
+ESP_2 <- rename(adjust_3.8.1(data_3_ESP, "Effectiveness"), Effectiveness = value_z)
+FRA_2 <- rename(adjust_3.8.1(data_3_FRA, "Effectiveness"), Effectiveness = value_z)
+GER_2 <- rename(adjust_3.8.1(data_3_GER, "Effectiveness"), Effectiveness = value_z)
+ROM_2 <- rename(adjust_3.8.1(data_3_ROM, "Effectiveness"), Effectiveness = value_z)
+
+JOINT_Effectiveness <- bind_rows(ESP_2, FRA_2, GER_2, ROM_2)%>%
+  mutate(Country_ID = paste0(Country, "_", ID))
+
+ESP_3 <- rename(adjust_3.8.5(data_3_ESP, "Dif_cost_ABS"), Dif_cost_ABS = value_z)
+FRA_3 <- rename(adjust_3.8.5(data_3_FRA, "Dif_cost_ABS"), Dif_cost_ABS = value_z)
+GER_3 <- rename(adjust_3.8.5(data_3_GER, "Dif_cost_ABS"), Dif_cost_ABS = value_z)
+ROM_3 <- rename(adjust_3.8.5(data_3_ROM, "Dif_cost_ABS"), Dif_cost_ABS = value_z)
+
+JOINT_Dif_cost_ABS <- bind_rows(ESP_3, FRA_3, GER_3, ROM_3)%>%
+  mutate(Country_ID = paste0(Country, "_", ID))
+
+ESP_4 <- rename(adjust_3.8.5(data_3_ESP, "Q42"), Q42 = value_z)
+FRA_4 <- rename(adjust_3.8.5(data_3_FRA, "Q42"), Q42 = value_z)
+GER_4 <- rename(adjust_3.8.5(data_3_GER, "Q42"), Q42 = value_z)
+ROM_4 <- rename(adjust_3.8.5(data_3_ROM, "Q42"), Q42 = value_z)
+
+JOINT_Q42 <- bind_rows(ESP_4, FRA_4, GER_4, ROM_4)%>%
+  mutate(Country_ID = paste0(Country, "_", ID))
+
+model_3.8.1.7_ALL_z <- feols(Support ~       Post_B_ONLY + Post_C_ONLY + Post_B_C | Country_ID, data = JOINT_Support,       cluster = ~ Country_ID)
+model_3.8.1.8_ALL_z <- feols(Fairness ~      Post_B_ONLY + Post_C_ONLY + Post_B_C | Country_ID, data = JOINT_Fairness,      cluster = ~ Country_ID)
+model_3.8.1.9_ALL_z <- feols(Effectiveness ~ Post_B_ONLY + Post_C_ONLY + Post_B_C | Country_ID, data = JOINT_Effectiveness, cluster = ~ Country_ID)
+model_3.8.5_ALL_z   <- feols(Dif_cost_ABS  ~ Post_C_ONLY + Post_B_C |               Country_ID, data = JOINT_Dif_cost_ABS,  cluster = ~ Country_ID)
+model_3.8.5_1_ALL_z <- feols(Q42           ~ Post_C_ONLY + Post_B_C |               Country_ID, data = JOINT_Q42,           cluster = ~ Country_ID)
+
+tidy_3.8.0_ALL <- tidy(model_3.8.1.7_ALL_z)%>% mutate(Country = "All countries", Outcome = "Support")
+tidy_3.8.1_ALL <- tidy(model_3.8.1.8_ALL_z)%>% mutate(Country = "All countries", Outcome = "Fairness")
+tidy_3.8.2_ALL <- tidy(model_3.8.1.9_ALL_z)%>% mutate(Country = "All countries", Outcome = "Effectiveness")
+tidy_3.8.5_ALL <- tidy(model_3.8.5_ALL_z)%>%   mutate(Country = "All countries", Outcome = "Cost perception (error)")
+tidy_3.8.6_ALL <- tidy(model_3.8.5_1_ALL_z)%>% mutate(Country = "All countries", Outcome = "Cost perception")
+
 # 3.8.2  Interaction with finding treatment credible ####
 
 model_3.8.2.1_ESP <- feols(Support ~ Post_B_Credible + Post_C1_Credible + Post_C2_Credible + Post_C3_Credible + Post_C4_Credible + Post_C1 + Post_C2 + Post_C3 + Post_C4 + Post_B | ID + Period, data = rename(adjust_3.8.1(data_3_ESP, "Support"), Support = value), cluster = ~ ID)
@@ -7630,7 +7771,7 @@ etable(model_3.8.4.2_ESP, model_3.8.4.2_FRA, model_3.8.4.2_GER, model_3.8.4.2_RO
 adjust_3.8.5 <- function(data_3_0, filter_1){
   data_3_8.5 <- data_3_0 %>%
     select(ID, Treatment_B, Treatment_C, Q30_2N, Dif_cost_1, Dif_cost_2, Dif_cost_1_ABS, Dif_cost_2_ABS, Q42_1N, Q42_2N, 
-           Dif_Percentile_1, Pricelevel, Q52B, Q58, Q46_1N)%>%
+           Dif_Percentile_1, Pricelevel, Q52B, Q58, Q46_1N, Country)%>%
     mutate(Opposer = ifelse(Q46_1N < 3,1,0))%>%
     mutate(Overestimated_Absolute = ifelse(Dif_cost_1 > 0, "Overestimated",
                                            ifelse(Dif_cost_1 < 0, "Underestimated", NA)))%>%
