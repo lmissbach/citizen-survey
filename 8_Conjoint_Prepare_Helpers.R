@@ -4,6 +4,21 @@
 # LaTeX tables for the SI/Appendix are written straight into the paper folder
 PATH_SI_TABLES <- "../6_EUETS2_Citizens_Survey/2_Tables"
 
+# Wraps a tabular in a threeparttable with notes below it, in the same layout
+# kableExtra's footnote(general = ..., threeparttable = T) writes (7_Analysis.R):
+# short caption on top, all definitions and details in the note.
+tex_tabular_with_note <- function(tabular, note) {
+  c(
+    "  \\begin{threeparttable}",
+    paste0("  ", tabular),
+    "  \\begin{tablenotes}",
+    "  \\item \\textit{Note: }",
+    paste0("  \\item ", note),
+    "  \\end{tablenotes}",
+    "  \\end{threeparttable}"
+  )
+}
+
 # ---- Qualtrics cleaning and inclusion ---------------------------------------
 QUALTRICS_STATUS_IP <- c("IP-Adresse", "IP Address")
 QUALTRICS_FINISHED  <- c("Wahr", "TRUE", "True")
@@ -986,23 +1001,23 @@ write_q62_q68_tex_tables <- function(tab, out_dir = PATH_SI_TABLES) {
   for (q in qs) {
     d <- dplyr::filter(tab, as.character(.data$question) == .env$q)
     title <- unique(d$question_title)[1]
-    caption <- paste0(
-      "Direct single-component preferences (", q, "). ",
-      title, " ",
-      format_q62_q68_answers_caption(q),
-      "Shares (\\%) among respondents assigned to the question."
+    caption <- paste0("Direct preferences (", q, "): ", title)
+    note <- paste0(
+      "This table shows responses to the direct question ", q, ", asked before ",
+      "the conjoint tasks, as shares (\\%) of respondents assigned to the question. ",
+      format_q62_q68_answers_caption(q)
     )
     if (q %in% names(Q62_Q68_SPLIT_NOTE)) {
-      caption <- paste0(caption, " ", Q62_Q68_SPLIT_NOTE[[q]])
+      note <- paste0(note, Q62_Q68_SPLIT_NOTE[[q]])
     }
     lines <- c(
-      "% Requires \\usepackage{booktabs}",
+      "% Requires \\usepackage{booktabs, threeparttable}",
       "\\begin{table}[htbp]",
       "  \\centering",
       "  \\footnotesize",
       paste0("  \\caption{", caption, "}"),
       paste0("  \\label{tab:", tolower(q), "-shares}"),
-      paste0("  ", format_q62_q68_tabular(d)),
+      tex_tabular_with_note(format_q62_q68_tabular(d), trimws(note)),
       "\\end{table}"
     )
     path <- file.path(out_dir, paste0(tolower(q), "_shares.tex"))
@@ -1298,9 +1313,10 @@ write_first_position_tex <- function(tab, drop_info, out_dir = PATH_SI_TABLES) {
   by_task <- tab$by_task %>% dplyr::arrange(.data$Task)
   ba1 <- sprintf("%.1f", 100 * by_task$b_minus_a[by_task$Task == "0"])
   ba4 <- sprintf("%.1f", 100 * by_task$b_minus_a[by_task$Task == "3"])
-  caption <- paste0(
-    "First ranks by conjoint task, after dropping respondents who ranked B first ",
-    "on all four tasks ($N$ dropped = ",
+  caption <- "First-ranked option by conjoint task"
+  note <- paste0(
+    "This table shows first ranks by conjoint task, after dropping respondents ",
+    "who ranked B first on all four tasks ($N$ dropped = ",
     prettyNum(n_drop, big.mark = ",", scientific = FALSE),
     " of ",
     prettyNum(n_four, big.mark = ",", scientific = FALSE),
@@ -1314,13 +1330,13 @@ write_first_position_tex <- function(tab, drop_info, out_dir = PATH_SI_TABLES) {
     ba4, " pp on task 4."
   )
   lines <- c(
-    "% Requires \\usepackage{booktabs}",
+    "% Requires \\usepackage{booktabs, threeparttable}",
     "\\begin{table}[htbp]",
     "  \\centering",
     "  \\small",
     paste0("  \\caption{", caption, "}"),
     "  \\label{tab:conjoint-first-position}",
-    paste0("  ", format_first_position_tabular(tab$by_task)),
+    tex_tabular_with_note(format_first_position_tabular(tab$by_task), note),
     "\\end{table}"
   )
   path <- file.path(out_dir, "conjoint_first_position.tex")
@@ -1468,8 +1484,11 @@ write_repeal_opposition_tex <- function(tab, out_dir = PATH_SI_TABLES) {
     dplyr::mutate(
       attitude = unname(Q61A_LABELS[as.character(.data$attitude)])
     )
-  caption <- paste0(
-    "Coherence of conjoint repeal ranks with stated opposition. ",
+  caption <- "Ranking of repeal in the conjoint by stated opposition"
+  note <- paste0(
+    "This table shows how often respondents rank the repeal scenario (C) first ",
+    "or last in the conjoint, by their stated attitude to carbon pricing (upper ",
+    "panel) and their direct vote on abolishing it (lower panel). ",
     "C 1st / C last are the share of tasks in which repeal is ranked first or last. ",
     "Always is the share of respondents who rank repeal first (last) on all four tasks. ",
     "Sample excludes respondents who ranked B first on all four tasks ",
@@ -1478,8 +1497,10 @@ write_repeal_opposition_tex <- function(tab, out_dir = PATH_SI_TABLES) {
     prettyNum(tab$n_q46_missing, big.mark = ",", scientific = FALSE),
     " respondents (omitted from the upper panel)."
   )
+  # Two panels: the note is attached to the lower one (threeparttable takes
+  # a single tabular); both panels have the same columns and width.
   lines <- c(
-    "% Requires \\usepackage{booktabs}",
+    "% Requires \\usepackage{booktabs, threeparttable}",
     "\\begin{table}[htbp]",
     "  \\centering",
     "  \\small",
@@ -1487,9 +1508,10 @@ write_repeal_opposition_tex <- function(tab, out_dir = PATH_SI_TABLES) {
     "  \\label{tab:repeal-opposition}",
     "  \\textit{Post-info carbon-pricing attitude (Q46\\_2)}\\\\[0.4em]",
     paste0("  ", format_repeal_opposition_tabular(tab$q46, "Attitude")),
-    "  \\vspace{0.9em}",
+    "  \\\\",               # line break: keeps the panels stacked, not side by side
+    "  \\vspace{2em}",
     "  \\textit{Direct vote to abolish carbon pricing (Q61A)}\\\\[0.4em]",
-    paste0("  ", format_repeal_opposition_tabular(q61, "Vote")),
+    tex_tabular_with_note(format_repeal_opposition_tabular(q61, "Vote"), note),
     "\\end{table}"
   )
   path <- file.path(out_dir, "repeal_opposition.tex")

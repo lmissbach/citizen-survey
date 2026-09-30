@@ -3,6 +3,21 @@
 # LaTeX tables for the SI/Appendix are written straight into the paper folder
 PATH_SI_TABLES <- "../6_EUETS2_Citizens_Survey/2_Tables"
 
+# Wraps a tabular in a threeparttable with notes below it, in the same layout
+# kableExtra's footnote(general = ..., threeparttable = T) writes (7_Analysis.R):
+# short caption on top, all definitions and details in the note.
+tex_tabular_with_note <- function(tabular, note) {
+  c(
+    "  \\begin{threeparttable}",
+    paste0("  ", tabular),
+    "  \\begin{tablenotes}",
+    "  \\item \\textit{Note: }",
+    paste0("  \\item ", note),
+    "  \\end{tablenotes}",
+    "  \\end{threeparttable}"
+  )
+}
+
 CONJOINT_ATTR_COLS <- c(
   "budget_and_funding",
   "budget_control",
@@ -2096,22 +2111,23 @@ write_dpp_si_tex_tables <- function(tab, out_dir = PATH_SI_TABLES) {
     d <- dplyr::filter(tab, as.character(.data$Country) == .env$co)
     slug <- acp_si_tex_slug(co)
     who <- if (identical(co, "Pooled")) "pooled sample" else co
-    caption <- paste0(
-      "Direct pairwise preferences (Ganter DPP) from reform--reform comparisons, ",
-      who,
-      " (full sample; no repeal-ranker exclusions, matching the main-text ACP). ",
-      "Each entry is P(prefer Level A over Level B) minus $1/2$. ",
-      "Cluster-robust standard errors (respondent). ",
-      "A positive DPP means Level A is preferred to Level B."
+    caption <- paste0("Pairwise preferences between attribute levels (", who, ")")
+    note <- paste0(
+      "This table shows direct pairwise preferences (DPP) from comparisons of ",
+      "two reform packages, full sample (no repeal-ranker exclusions, as for ",
+      "the average component preferences in Figure 4). ",
+      "Each entry is P(prefer level A over level B) minus $1/2$; a positive DPP ",
+      "means level A is preferred to level B. ",
+      "Standard errors are clustered by respondent."
     )
     lines <- c(
-      "% Requires \\usepackage{booktabs}",
+      "% Requires \\usepackage{booktabs, threeparttable}",
       "\\begin{table}[htbp]",
       "  \\centering",
       "  \\small",
       paste0("  \\caption{", caption, "}"),
       paste0("  \\label{tab:dpp-", slug, "}"),
-      paste0("  ", format_dpp_si_tabular(d)),
+      tex_tabular_with_note(format_dpp_si_tabular(d), note),
       "\\end{table}"
     )
     path <- file.path(out_dir, paste0("dpp_reform_reform_", slug, ".tex"))
@@ -2145,28 +2161,32 @@ write_dpp_subgroup_diff_tex <- function(tab, out_dir = PATH_SI_TABLES) {
       dc$est_rest, dc$est_sub, dc$est_diff, dc$se_diff, dc$ci_diff_lo, dc$ci_diff_hi
     ))
   }
-  caption <- paste0(
-    "Subgroup heterogeneity in direct pairwise preferences (Ganter DPP), ",
-    "pooled sample. For each subgroup vs the rest, `Rest' and `Subgroup' are the ",
-    "within-group DPP contrasts (P(prefer A over B) minus $1/2$) and `Diff' is ",
-    "subgroup minus rest, the interaction term of ",
-    "lm(outcome $\\sim$ V $\\times$ subgroup) on reform--reform pairs. ",
-    "Full sample; cluster-robust SEs (respondent). ",
+  caption <- "Pairwise preferences between attribute levels by subgroup (pooled sample)"
+  note <- paste0(
+    "This table shows, for each subgroup and the rest of the sample, direct ",
+    "pairwise preferences (DPP) from comparisons of two reform packages, full ",
+    "sample. `Rest' and `Subgroup' are the within-group DPP (P(prefer level A ",
+    "over level B) minus $1/2$); `Diff' is subgroup minus rest, the interaction ",
+    "term of lm(outcome $\\sim$ V $\\times$ subgroup). ",
+    "Standard errors are clustered by respondent. ",
     "$n$ = respondents (subgroup vs rest)."
   )
+  tabular <- c(
+    "\\begin{tabular}{@{}p{0.40\\textwidth}rrrrr@{}}",
+    "  \\toprule",
+    "  Comparison & Rest & Subgroup & Diff & SE & 95\\% CI \\\\",
+    "  \\midrule",
+    sub("^  ", "", body),
+    "  \\bottomrule",
+    "\\end{tabular}"
+  )
   lines <- c(
-    "% Requires \\usepackage{booktabs}",
+    "% Requires \\usepackage{booktabs, threeparttable}",
     "\\begin{table}[htbp]", "  \\centering", "  \\small",
     paste0("  \\caption{", caption, "}"),
     "  \\label{tab:dpp-subgroup-pooled}",
     "  \\setlength{\\tabcolsep}{4pt}",
-    "  \\begin{tabular}{@{}p{0.40\\textwidth}rrrrr@{}}",
-    "    \\toprule",
-    "    Comparison & Rest & Subgroup & Diff & SE & 95\\% CI \\\\",
-    "    \\midrule",
-    body,
-    "    \\bottomrule",
-    "  \\end{tabular}",
+    tex_tabular_with_note(tabular, note),
     "\\end{table}"
   )
   path <- file.path(out_dir, "dpp_subgroup_pooled.tex")
@@ -2185,27 +2205,32 @@ write_p_reform_diff_tex <- function(tab, out_dir = PATH_SI_TABLES) {
     latex_escape(sprintf("%s (n=%d vs %d)", d$subgroup, d$n_sub, d$n_rest)),
     d$p_rest, d$p_sub, d$diff, d$se_diff, d$ci_lo, d$ci_hi
   )
-  caption <- paste0(
-    "Subgroup heterogeneity in overall reform support, ",
-    "P(reform $\\succ$ repeal), pooled sample. For each subgroup vs the rest, ",
-    "`P(rest)' and `P(sub)' are group means and `Diff' is subgroup minus rest ",
-    "from lm(outcome $\\sim$ subgroup) on all reform--repeal pairs (full sample; ",
-    "not attribute-restricted). Cluster-robust SEs (respondent). ",
+  caption <- "Preference for reform over repeal by subgroup (pooled sample)"
+  note <- paste0(
+    "This table shows the probability of ranking a reform package above ",
+    "repealing EU ETS2, P(reform $\\succ$ repeal), for each subgroup and the rest ",
+    "of the sample, using all reform--repeal pairs (full sample; not restricted ",
+    "to particular attribute levels). `P(rest)' and `P(sub)' are group means; ",
+    "`Diff' is subgroup minus rest from lm(outcome $\\sim$ subgroup). ",
+    "Standard errors are clustered by respondent. ",
     "$n$ = respondents (subgroup vs rest)."
   )
+  tabular <- c(
+    "\\begin{tabular}{@{}p{0.40\\textwidth}rrrrr@{}}",
+    "  \\toprule",
+    "  Subgroup & P(rest) & P(sub) & Diff & SE & 95\\% CI \\\\",
+    "  \\midrule",
+    sub("^  ", "", body),
+    "  \\bottomrule",
+    "\\end{tabular}"
+  )
   lines <- c(
-    "% Requires \\usepackage{booktabs}",
+    "% Requires \\usepackage{booktabs, threeparttable}",
     "\\begin{table}[htbp]", "  \\centering", "  \\small",
     paste0("  \\caption{", caption, "}"),
     "  \\label{tab:p-reform-subgroup}",
     "  \\setlength{\\tabcolsep}{4pt}",
-    "  \\begin{tabular}{@{}p{0.40\\textwidth}rrrrr@{}}",
-    "    \\toprule",
-    "    Subgroup & P(rest) & P(sub) & Diff & SE & 95\\% CI \\\\",
-    "    \\midrule",
-    body,
-    "    \\bottomrule",
-    "  \\end{tabular}",
+    tex_tabular_with_note(tabular, note),
     "\\end{table}"
   )
   path <- file.path(out_dir, "p_reform_diff_subgroup.tex")
