@@ -1,6 +1,9 @@
 # Helpers for conjoint_prepare.R.
 # Qualtrics cleaning, inclusion, country specs, long extract, level lookup.
 
+# LaTeX tables for the SI/Appendix are written straight into the paper folder
+PATH_SI_TABLES <- "../6_EUETS2_Citizens_Survey/2_Tables"
+
 # ---- Qualtrics cleaning and inclusion ---------------------------------------
 QUALTRICS_STATUS_IP <- c("IP-Adresse", "IP Address")
 QUALTRICS_FINISHED  <- c("Wahr", "TRUE", "True")
@@ -820,7 +823,11 @@ tidy_q62_q68 <- function(data_wide, label_map) {
       attribute = unname(CONJOINT_QUESTION_TO_ATTR[.data$question]),
       question_title = unname(Q62_Q68_TITLES[.data$question]),
       asked = q62_q68_asked(.data$question, .data$d1, .data$d2),
+      # Q62–Q68 were forced-response. The Spanish, French and German Qualtrics
+      # exports leave "Don't know" blank (only Romania exports the text), so a
+      # blank answer from a respondent shown the question is "Don't know".
       response_label = dplyr::case_when(
+        is.na(.data$response) & .data$asked ~ "Don't know",
         is.na(.data$response) ~ "No answer",
         is.na(.data$response_label) ~ "Unmapped",
         TRUE ~ stringr::str_replace_all(
@@ -830,6 +837,7 @@ tidy_q62_q68 <- function(data_wide, label_map) {
         )
       ),
       level_order = dplyr::case_when(
+        .data$response_label == "Don't know" ~ 9,   # as in the Romanian label map
         .data$response_label == "No answer" ~ 99,
         .data$response_label == "Unmapped" ~ 98,
         TRUE ~ as.numeric(.data$level_order)
@@ -970,7 +978,7 @@ format_q62_q68_answers_caption <- function(q) {
   paste0("Possible answers: ", paste(numbered, collapse = "; "), ". ")
 }
 
-write_q62_q68_tex_tables <- function(tab, out_dir = "output/acp") {
+write_q62_q68_tex_tables <- function(tab, out_dir = PATH_SI_TABLES) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   qs <- names(Q62_Q68_TITLES)
   qs <- qs[qs %in% as.character(tab$question)]
@@ -1280,7 +1288,7 @@ format_first_position_tabular <- function(by_task) {
   )
 }
 
-write_first_position_tex <- function(tab, drop_info, out_dir = "output/acp") {
+write_first_position_tex <- function(tab, drop_info, out_dir = PATH_SI_TABLES) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   pooled <- drop_info %>%
     dplyr::filter(as.character(.data$Country) == "Pooled")
@@ -1454,7 +1462,7 @@ format_repeal_opposition_tabular <- function(d, stub_header) {
   )
 }
 
-write_repeal_opposition_tex <- function(tab, out_dir = "output/acp") {
+write_repeal_opposition_tex <- function(tab, out_dir = PATH_SI_TABLES) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   q61 <- tab$q61a %>%
     dplyr::mutate(

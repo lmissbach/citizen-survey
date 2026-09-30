@@ -416,8 +416,8 @@ tex_importance_countries <- c(
   "\\end{tabular}"
 )
 
-PATH_TEX_IMPORTANCE_POOLED    <- "../6_EUETS2_Citizens_Survey/2_Tables/acp_importance_pooled.tex"
-PATH_TEX_IMPORTANCE_COUNTRIES <- "../6_EUETS2_Citizens_Survey/2_Tables/acp_importance_countries.tex"
+PATH_TEX_IMPORTANCE_POOLED    <- file.path(PATH_SI_TABLES, "acp_importance_pooled.tex")
+PATH_TEX_IMPORTANCE_COUNTRIES <- file.path(PATH_SI_TABLES, "acp_importance_countries.tex")
 writeLines(tex_importance_pooled,    PATH_TEX_IMPORTANCE_POOLED)
 writeLines(tex_importance_countries, PATH_TEX_IMPORTANCE_COUNTRIES)
 
@@ -777,7 +777,7 @@ kbl(table_p_reform, format = "latex", linesep = "", booktabs = T,
   add_header_above(c(" " = 1, setNames(rep(2, length(samples_3)), samples_3)))%>%
   row_spec(length(countries) - 1, hline_after = T)%>%   # separates "All countries"
   footnote(general = "This table shows the values displayed in Figure 5 (one figure per sample). Cells show the probability (in %) that respondents rank the reform package above repealing EU ETS2, with 95% confidence intervals in brackets. Minimal package: carbon revenue only, government-managed, lower investment. Maximal package: expanded budget with wealth tax, protected fund with citizen oversight, higher investment. All countries: pairs from the four countries pooled, standard errors clustered by respondent.", threeparttable = T)%>%
-  save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_P_reform_beats_repeal.tex")
+  save_kable(., file.path(PATH_SI_TABLES, "Table_P_reform_beats_repeal.tex"))
 
 
 # =============================================================================
@@ -878,7 +878,7 @@ kbl(table_acp_pooled |> dplyr::select(-facet_lab), format = "latex", linesep = "
   kable_styling(position = "center", latex_options = c("HOLD_position"), font_size = 8)%>%
   pack_rows(index = table(forcats::fct_inorder(table_acp_pooled$facet_lab)), escape = T)%>%
   footnote(general = "This table shows the values displayed in Figure 4. ACP = average component preference in percentage points (0 = indifference); 95% confidence intervals in brackets. Block headers show the range of each attribute (highest minus lowest level ACP) with its 95% simulation confidence interval (1,000 draws). Attributes are ordered by range.", threeparttable = T)%>%
-  save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_ACP_pooled.tex")
+  save_kable(., file.path(PATH_SI_TABLES, "Table_ACP_pooled.tex"))
 
 # Q46_2 opposers (replaces panel_a_acp_pooled_inclrepealfst_inclrepeallst_opposers_q46_2.pdf).
 # Panels are ordered by, and titled with, the opposers' own range.

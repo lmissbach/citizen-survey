@@ -1,5 +1,8 @@
 # Helpers for conjoint ACP analysis (Ganter framework).
 
+# LaTeX tables for the SI/Appendix are written straight into the paper folder
+PATH_SI_TABLES <- "../6_EUETS2_Citizens_Survey/2_Tables"
+
 CONJOINT_ATTR_COLS <- c(
   "budget_and_funding",
   "budget_control",
@@ -1698,7 +1701,7 @@ format_acp_si_tabular <- function(d) {
 }
 
 #' One booktabs table per sample (pooled, then each country).
-write_acp_si_tex_tables <- function(tab, out_dir = "output/acp") {
+write_acp_si_tex_tables <- function(tab, out_dir = PATH_SI_TABLES) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   groups <- if (is.factor(tab$Country)) {
     intersect(levels(tab$Country), unique(as.character(tab$Country)))
@@ -2081,7 +2084,7 @@ format_dpp_si_tabular <- function(d) {
 }
 
 #' One booktabs DPP table per sample (pooled, then each country).
-write_dpp_si_tex_tables <- function(tab, out_dir = "output/acp") {
+write_dpp_si_tex_tables <- function(tab, out_dir = PATH_SI_TABLES) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   groups <- if (is.factor(tab$Country)) {
     intersect(levels(tab$Country), unique(as.character(tab$Country)))
@@ -2124,7 +2127,7 @@ write_dpp_si_tex_tables <- function(tab, out_dir = "output/acp") {
 #' Single booktabs table (pooled sample) grouping all subgroups: DPP contrasts
 #' for the rest, the subgroup, and the difference (subgroup - rest). One section
 #' per subgroup; country-level results are omitted (see the CSV for those).
-write_dpp_subgroup_diff_tex <- function(tab, out_dir = "output/acp") {
+write_dpp_subgroup_diff_tex <- function(tab, out_dir = PATH_SI_TABLES) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   d <- dplyr::filter(tab, as.character(.data$Country) == "Pooled")
   body <- character()
@@ -2174,7 +2177,7 @@ write_dpp_subgroup_diff_tex <- function(tab, out_dir = "output/acp") {
 
 #' Single booktabs table (pooled sample): subgroup-vs-rest difference in
 #' P(reform > repeal), one row per subgroup. Country results are omitted.
-write_p_reform_diff_tex <- function(tab, out_dir = "output/acp") {
+write_p_reform_diff_tex <- function(tab, out_dir = PATH_SI_TABLES) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   d <- dplyr::filter(tab, as.character(.data$Country) == "Pooled")
   body <- sprintf(
