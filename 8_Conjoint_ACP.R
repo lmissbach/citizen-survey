@@ -25,7 +25,7 @@ USE_SAVED_INTERMEDIATES <- TRUE   # TRUE: load RDS only (skip source("conjoint_p
 EXCLUDE_REPEAL_ALWAYS_FIRST <- TRUE
 EXCLUDE_REPEAL_ALWAYS_LAST  <- TRUE
 
-required_pkgs <- c("tidyverse", "sandwich", "stringr")
+required_pkgs <- c("tidyverse", "sandwich", "stringr", "kableExtra")
 for (pkg in required_pkgs) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     install.packages(pkg, dependencies = TRUE)
@@ -756,6 +756,29 @@ for (s in samples_3) {
   dev.off()
 }
 
+# ---- Appendix table: all values shown in the three Figure_5_new_only_* figures ----
+# Countries in rows (order as in the figures); per sample one column for the
+# minimal and one for the maximal package, each "estimate [95% CI]" in %.
+pct_1 <- function(x) round(100 * x, 1) + 0   # %, 1 decimal; "+ 0" turns -0.0 into 0.0
+
+table_p_reform <- d_entire |>
+  arrange(sample_label, package_label) |>
+  mutate(value = sprintf("%.1f [%.1f, %.1f]", pct_1(p_reform_beats_repeal), pct_1(ci_lo), pct_1(ci_hi)),
+         col   = paste(sample_label, package_label)) |>
+  dplyr::select(Country, col, value) |>
+  pivot_wider(names_from = col, values_from = value) |>
+  arrange(Country)
+
+kbl(table_p_reform, format = "latex", linesep = "", booktabs = T,
+    caption = "Probability to prefer the reform package over repealing EU ETS2, by sample",
+    col.names = c("Country", rep(c("Minimal", "Maximal"), length(samples_3))),
+    align = paste0("l", strrep("r", 2 * length(samples_3))), label = "P_reform_beats_repeal")%>%
+  kable_styling(position = "center", latex_options = c("HOLD_position", "scale_down"), font_size = 8)%>%
+  add_header_above(c(" " = 1, setNames(rep(2, length(samples_3)), samples_3)))%>%
+  row_spec(length(countries) - 1, hline_after = T)%>%   # separates "All countries"
+  footnote(general = "This table shows the values displayed in Figure 5 (one figure per sample). Cells show the probability (in %) that respondents rank the reform package above repealing EU ETS2, with 95% confidence intervals in brackets. Minimal package: carbon revenue only, government-managed, lower investment. Maximal package: expanded budget with wealth tax, protected fund with citizen oversight, higher investment. All countries: pairs from the four countries pooled, standard errors clustered by respondent.", threeparttable = T)%>%
+  save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_P_reform_beats_repeal.tex")
+
 
 # =============================================================================
 # Figure: pooled ACP by attribute level
@@ -791,23 +814,29 @@ acp_xlab <- "Average component preference (pp, 0 = indifference)"
 # ---- Pooled ACP figure (one sample) --------------------------------------------
 # acp_suffix: "inclrepealfst_inclrepeallst" (full sample) or
 #             "inclrepealfst_inclrepeallst_opposers_q46_2" (Q46_2 opposers)
-plot_acp_pooled <- function(acp_suffix) {
+# measure:    "importance" (Ganter mean absolute ACP) or "range" (highest minus
+#             lowest level ACP) -- shown in the panel titles and used to order panels
+plot_acp_pooled <- function(acp_suffix, measure = c("importance", "range")) {
+  measure <- match.arg(measure)
   importance <- read_csv(paste0("figures/acp/panel_a_acp_importance_pooled_", acp_suffix, ".csv"),
                          show_col_types = FALSE)
-  
+
   d_acp <- read_csv(paste0("figures/acp/panel_a_acp_pooled_", acp_suffix, ".csv"),
                     show_col_types = FALSE) |>
     dplyr::select(attribute, attribute_lab, level, estimate, ci_lo, ci_hi) |>
     left_join(level_order_lookup, by = c("attribute", "level")) |>
-    left_join(importance |> dplyr::select(attribute, variability, var_ci_lo, var_ci_hi),
+    left_join(importance |> dplyr::select(attribute, variability, var_ci_lo, var_ci_hi,
+                                          range, range_ci_lo, range_ci_hi),
               by = "attribute") |>
     mutate(
-      # Panel title: attribute name + Ganter importance (mean absolute ACP across
-      # the attribute's levels, in pp, 95% simulation CI from conjacp.var()).
-      # Panels ordered by importance (most important on top).
-      facet_lab = sprintf("%s (importance: %.1f pp., 95%% CI: %.1f-%.1f)",
-                          attribute_lab, 100 * variability, 100 * var_ci_lo, 100 * var_ci_hi),
-      facet_lab = fct_reorder(facet_lab, -variability),
+      # Panel title: attribute name + the chosen measure (in pp, 95% simulation
+      # CI from conjacp.var()). Panels ordered by that measure (largest on top).
+      m_est     = if (measure == "importance") variability else range,
+      m_lo      = if (measure == "importance") var_ci_lo   else range_ci_lo,
+      m_hi      = if (measure == "importance") var_ci_hi   else range_ci_hi,
+      facet_lab = sprintf("%s (%s: %.1f pp., 95%% CI: %.1f-%.1f)",
+                          attribute_lab, measure, 100 * m_est, 100 * m_lo, 100 * m_hi),
+      facet_lab = fct_reorder(facet_lab, -m_est),
       level     = fct_reorder(level, level_order)
     )
   
@@ -822,16 +851,38 @@ plot_acp_pooled <- function(acp_suffix) {
     theme_acp
 }
 
-# Full sample (replaces panel_a_acp_pooled_inclrepealfst_inclrepeallst.pdf)
-p_acp <- plot_acp_pooled("inclrepealfst_inclrepeallst")
+# Full sample (replaces panel_a_acp_pooled_inclrepealfst_inclrepeallst.pdf);
+# panels ordered by, and titled with, the maximum range of level ACPs
+p_acp <- plot_acp_pooled("inclrepealfst_inclrepeallst", measure = "range")
 
 pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_4_new.pdf", width = 160/25.4, height = 190/25.4)
 print(p_acp)
 dev.off()
 
+# ---- Appendix table: all values shown in Figure 4 -------------------------------
+# One block per attribute (ordered by range, as in the figure) with the range and
+# its CI in the block header; levels listed top to bottom as in the figure.
+pp_1 <- function(x) round(100 * x, 1) + 0   # pp, 1 decimal; "+ 0" turns -0.0 into 0.0
+
+table_acp_pooled <- p_acp$data |>
+  arrange(facet_lab, desc(level_order)) |>
+  transmute(facet_lab = as.character(facet_lab),
+            level     = as.character(level),
+            estimate  = sprintf("%.1f", pp_1(estimate)),
+            ci        = sprintf("[%.1f, %.1f]", pp_1(ci_lo), pp_1(ci_hi)))
+
+kbl(table_acp_pooled |> dplyr::select(-facet_lab), format = "latex", linesep = "", booktabs = T,
+    caption = "Average component preferences by attribute level (full sample, pooled)",
+    col.names = c("Attribute level", "ACP (pp.)", "95% CI"),
+    align = "lrr", label = "ACP_pooled")%>%
+  kable_styling(position = "center", latex_options = c("HOLD_position"), font_size = 8)%>%
+  pack_rows(index = table(forcats::fct_inorder(table_acp_pooled$facet_lab)), escape = T)%>%
+  footnote(general = "This table shows the values displayed in Figure 4. ACP = average component preference in percentage points (0 = indifference); 95% confidence intervals in brackets. Block headers show the range of each attribute (highest minus lowest level ACP) with its 95% simulation confidence interval (1,000 draws). Attributes are ordered by range.", threeparttable = T)%>%
+  save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_ACP_pooled.tex")
+
 # Q46_2 opposers (replaces panel_a_acp_pooled_inclrepealfst_inclrepeallst_opposers_q46_2.pdf).
-# Panels are ordered by the opposers' own importance.
-p_acp_opp <- plot_acp_pooled("inclrepealfst_inclrepeallst_opposers_q46_2")
+# Panels are ordered by, and titled with, the opposers' own range.
+p_acp_opp <- plot_acp_pooled("inclrepealfst_inclrepeallst_opposers_q46_2", measure = "range")
 
 pdf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_SI_panel_a_acp_pooled_inclrepealfst_inclrepeallst_opposers_q46_2.pdf", width = 160/25.4, height = 190/25.4)
 print(p_acp_opp)
@@ -858,10 +909,10 @@ acp_attr_short <- c(
   community_mobility_support = "Community\nmobility"
 )
 
-# Row order = order of the pooled full-sample figure (most important on top)
+# Row order = order of Figure 4 (pooled full sample, largest range on top)
 attr_order <- read_csv("figures/acp/panel_a_acp_importance_pooled_inclrepealfst_inclrepeallst.csv",
                        show_col_types = FALSE) |>
-  arrange(desc(variability)) |>
+  arrange(desc(range)) |>
   pull(attribute)
 
 d_acp_co <- read_csv("figures/acp/panel_a_acp_countries_inclrepealfst_inclrepeallst.csv",

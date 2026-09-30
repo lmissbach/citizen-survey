@@ -1059,14 +1059,15 @@ kbl(data_1.8, format = "latex", linesep = "", booktabs = T, caption = "Sample si
     format.args = list(big.mark = ",", scientific = FALSE), align = "lrrrrrr", label = "Summary_1", digits = 2, na = "")%>%
     kable_styling(position = "center", latex_options = c("HOLD_position", "scale_down"), font_size = 8)%>%
     column_spec(1, border_right = TRUE)%>%
-    footnote(general = "This table shows our sample size for four countries.
+    # str_squish(): line breaks in the note make kableExtra 1.4.1 write a broken "makecell[l]{"
+    footnote(general = str_squish("This table shows our sample size for four countries.
              Column (1) shows the number of all respondents. 
              Column (2) shows the number of all respondents that have completed the survey.
              Column (3) shows the number of all respondents that have answered correctly to the first attention check.
              Column (4) shows the number of all respondents that have answered correctly to the second attention check.
              Column (5) shows the number of all respondents after removing respondents that were too fast (5%) or too slow (2%).
              Column (6) shows the number of all respondents after removing respondents indicating 'I don't know' for all policy perception variables.
-             Column (6) shows the final sample size used in this analysis.", threeparttable = T)%>%
+             Column (6) shows the final sample size used in this analysis."), threeparttable = T)%>%
     save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_Summary_1.tex")
 
 data_1.8.1_ESP <- data_1.6_ESP %>%
@@ -8954,3 +8955,79 @@ kbl(data_5_combined, format = "latex", linesep = "", booktabs = T, caption = "Pe
            area under the curve (AUC) and 95% bootstrap CI, sensitivity and specificity.
            Sensitivity and specificity calculated at a classification threshold of 0.5. Evaluation of all model on test data that was not used for training or hyperparameter tuning.", threeparttable = T)%>%
   save_kable(., "../6_EUETS2_Citizens_Survey/2_Tables/Table_C_Performance.tex")
+
+# 6.     Robustness: survey weights ####
+# Weights from 10_Survey_Weights.R (raking to age x gender, education and, for
+# w_income / w_income_pop, Q28 expenditure terciles). Respondents without a
+# weight (Q28 "don't know", missing demographics) are excluded in all versions.
+
+weights_6 <- read_csv("../2_Data/1_Support_Datasets/Survey_Weights.csv", show_col_types = FALSE)%>%
+  select(Country, ID, w_demo, w_income, w_income_pop)
+
+data_6 <- data_2 %>%
+  left_join(weights_6, by = c("Country", "ID"))%>%
+  filter(!is.na(w_demo))%>%
+  # Unweighted on the same respondents, to separate sample from weighting effects
+  mutate(w_none = 1)
+
+# 6.1    Figure 1 Panel a (weighted) ####
+
+plot_support_weighted <- function(data, weight_var){
+  data_6.1.1 <- data %>%
+    filter(!is.na(Q46_1N))%>%
+    group_by(Q46_1N, Country)%>%
+    summarise(number = sum(.data[[weight_var]]))%>%
+    ungroup()%>%
+    group_by(Country)%>%
+    mutate(sum = sum(number))%>%
+    ungroup()%>%
+    mutate(share = number/sum)%>%
+    mutate(Country = factor(Country, levels = c("Spain", "France", "Germany", "Romania")))%>%
+    mutate(Q46_1N_label = case_when(Q46_1N == 1 ~ "Strongly\noppose",
+                                    Q46_1N == 2 ~ "Rather\noppose",
+                                    Q46_1N == 3 ~ "Neutral",
+                                    Q46_1N == 4 ~ "Rather\nsupport",
+                                    Q46_1N == 5 ~ "Strongly\nsupport"))%>%
+    mutate(Q46_1N_label = factor(Q46_1N_label, levels = c("Neutral", "Rather\noppose", "Strongly\noppose", "Rather\nsupport", "Strongly\nsupport")))%>%
+    mutate(share = ifelse(Q46_1N < 3, -share, share))%>%
+    mutate(share = ifelse(Q46_1N == 3, share/2, share))
+  
+  # Neutral is split in half on either side of zero
+  data_6.1.2 <- data_6.1.1 %>%
+    bind_rows(mutate(filter(data_6.1.1, Q46_1N == 3), share = -share))%>%
+    arrange(Country, Q46_1N)
+
+  ggplot(data_6.1.2, aes(x = share, y = fct_rev(Country), fill = fct_rev(Q46_1N_label)))+
+    geom_col(position = "stack", colour = "black", width = 0.65, linewidth = 0.2)+
+    geom_vline(aes(xintercept = 0), linewidth = 0.3)+
+    theme_bw()+
+    coord_cartesian(xlim = c(-0.76,0.76))+
+    scale_fill_manual(guide = guide_legend(title.position = "top", nrow = 1),
+                      values = c("#DC0000FF", "#E64B35FF", "#B09C85FF", "#91D1C2FF", "#00A087FF"),
+                      breaks = c("Strongly\noppose", "Rather\noppose", "Neutral", "Rather\nsupport", "Strongly\nsupport"))+
+    scale_x_continuous(labels = \(x) scales::percent(abs(x)),
+                       breaks = c(-0.75,-0.5,-0.25,0,0.25,0.5,0.75),
+                       position = "top")+
+    xlab(ifelse(weight_var == "w_none", "Share of respondents", "Share of respondents (weighted)"))+
+    ylab("Country")+
+    theme(panel.grid.minor  = element_blank(),
+          panel.grid.major.y = element_blank(),
+          panel.grid.major.x = element_line(linewidth = 0.2),
+          axis.ticks = element_line(linewidth = 0.2),
+          axis.text.x = element_text(size = 6),
+          axis.text.y = element_text(size = 6),
+          axis.title  = element_text(size = 7),
+          legend.position = "bottom",
+          legend.key.width = unit(0.28, "cm"),
+          legend.key.height = unit(0.5, "cm"),
+          legend.spacing.x = unit(0, "cm"),
+          legend.box.just = "left",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 5))
+}
+
+for(w in c("w_none", "w_demo", "w_income", "w_income_pop")){
+  pdf(sprintf("../6_EUETS2_Citizens_Survey/1_Figures/Figure_SI_1a_%s.pdf", w), width = 140/25.4, height = 90/25.4)
+  print(plot_support_weighted(data_6, w))
+  dev.off()
+}
